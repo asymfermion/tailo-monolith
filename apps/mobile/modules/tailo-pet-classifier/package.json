@@ -1,0 +1,10 @@
+{
+  "name": "tailo-pet-classifier",
+  "version": "0.0.1",
+  "description": "Tailo local Expo module for on-device dog/cat image classification.",
+  "author": "Tailo",
+  "homepage": "https://tailo.local",
+  "private": true,
+  "license": "UNLICENSED",
+  "main": "index.ts"
+}

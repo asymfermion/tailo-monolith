@@ -1,0 +1,8 @@
+{
+  "platforms": ["apple"],
+  "apple": {
+    "podspecPath": "ios/TailoPetClassifier.podspec",
+    "swiftModuleName": "TailoPetClassifier",
+    "modules": ["TailoPetClassifierModule"]
+  }
+}

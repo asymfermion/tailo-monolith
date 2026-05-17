@@ -1,0 +1,43 @@
+{
+  "name": "tailo-monolith",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Tailo — passive pet memory system (monorepo)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start --workspace=@tailo/mobile",
+    "mobile:ios": "npm run ios --workspace=@tailo/mobile",
+    "mobile:android": "npm run android --workspace=@tailo/mobile",
+    "lint": "npm run lint --workspace=@tailo/mobile",
+    "lint:fix": "npm run lint:fix --workspace=@tailo/mobile",
+    "mobile:lint": "npm run lint --workspace=@tailo/mobile",
+    "mobile:typecheck": "npm run typecheck --workspace=@tailo/mobile",
+    "test": "npm run test --workspace=@tailo/shared && npm run test --workspace=@tailo/mobile",
+    "test:shared": "npm run test --workspace=@tailo/shared",
+    "test:mobile": "npm run test --workspace=@tailo/mobile",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,js,json}\" \"packages/**/*.{ts,tsx,js,json}\" \"*.{json,md}\" \"docs/**/*.md\" \".prettierrc\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,json}\" \"packages/**/*.{ts,tsx,js,json}\" \"*.{json,md}\" \"docs/**/*.md\" \".prettierrc\"",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "prettier": "^3.6.2"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "overrides": {
+    "@expo/metro-config": {
+      "postcss": "8.5.14"
+    },
+    "@tootallnate/once": "^3.0.2",
+    "@xmldom/xmldom": "^0.8.10",
+    "jsdom": "^26.1.0",
+    "postcss": "8.5.14",
+    "semver": "^7.7.2",
+    "tar": "^7.5.11"
+  }
+}

@@ -1,0 +1,240 @@
+import type * as SQLite from 'expo-sqlite';
+
+import { MIN_PET_CONFIDENCE } from '@/modules/eventBuilder/petDetector/constants';
+import type { DetectionSource } from '@/modules/eventBuilder/petDetector/types';
+import type { DetectedPetType, NewLocalAsset } from '@/types';
+
+export type LocalAssetDetectionInput = {
+  localAssetId: string;
+  uri: string;
+  createdAt: string;
+  width: number;
+  height: number;
+};
+
+export type LocalAssetDetectionUpdate = {
+  localAssetId: string;
+  isPetCandidate: boolean;
+  petConfidence: number;
+  detectedPetType: DetectedPetType | null;
+  detectionSource: DetectionSource;
+  detectionDebugLabel: string | null;
+};
+
+export type LocalPetCandidateAsset = {
+  localAssetId: string;
+  createdAt: string;
+  width: number;
+  height: number;
+  petConfidence: number;
+  detectedPetType: DetectedPetType | null;
+};
+
+export type LocalAssetScoringInput = LocalPetCandidateAsset;
+
+const UPSERT_LOCAL_ASSET_SQL = `
+  INSERT INTO local_assets (
+    local_asset_id,
+    uri,
+    created_at,
+    width,
+    height,
+    media_type,
+    processing_status,
+    processed_at,
+    is_pet_candidate,
+    pet_confidence,
+    detected_pet_type
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(local_asset_id) DO UPDATE SET
+    uri = excluded.uri,
+    created_at = excluded.created_at,
+    width = excluded.width,
+    height = excluded.height,
+    media_type = excluded.media_type,
+    updated_at = CURRENT_TIMESTAMP
+`;
+
+const SELECT_UNPROCESSED_LOCAL_ASSETS_SQL = `
+  SELECT
+    local_asset_id AS localAssetId,
+    uri,
+    created_at AS createdAt,
+    width,
+    height
+  FROM local_assets
+  WHERE media_type = 'photo'
+    AND processing_status = 'pending'
+  ORDER BY created_at DESC
+  LIMIT ?
+`;
+
+const UPDATE_LOCAL_ASSET_DETECTION_SQL = `
+  UPDATE local_assets
+  SET
+    processing_status = 'processed',
+    processed_at = CURRENT_TIMESTAMP,
+    is_pet_candidate = ?,
+    pet_confidence = ?,
+    detected_pet_type = ?,
+    detection_source = ?,
+    detection_debug_label = ?,
+    updated_at = CURRENT_TIMESTAMP
+  WHERE local_asset_id = ?
+`;
+
+type PetCandidateCountRow = {
+  count: number;
+};
+
+const SELECT_LOCAL_PET_CANDIDATES_SQL = `
+  SELECT
+    local_asset_id AS localAssetId,
+    created_at AS createdAt,
+    width,
+    height,
+    pet_confidence AS petConfidence,
+    detected_pet_type AS detectedPetType
+  FROM local_assets
+  WHERE is_pet_candidate = 1
+    AND pet_confidence IS NOT NULL
+    AND pet_confidence >= ?
+  ORDER BY created_at DESC
+`;
+
+export async function upsertLocalAssets(
+  db: SQLite.SQLiteDatabase,
+  assets: NewLocalAsset[],
+): Promise<number> {
+  for (const asset of assets) {
+    await db.runAsync(UPSERT_LOCAL_ASSET_SQL, [
+      asset.localAssetId,
+      asset.uri,
+      asset.createdAt,
+      asset.width,
+      asset.height,
+      asset.mediaType,
+      asset.processingStatus ?? 'pending',
+      asset.processedAt ?? null,
+      asset.isPetCandidate ? 1 : 0,
+      asset.petConfidence ?? null,
+      asset.detectedPetType ?? null,
+    ]);
+  }
+
+  return assets.length;
+}
+
+export async function getPendingLocalAssetsForDetection(
+  db: SQLite.SQLiteDatabase,
+  limit: number,
+): Promise<LocalAssetDetectionInput[]> {
+  return db.getAllAsync<LocalAssetDetectionInput>(
+    SELECT_UNPROCESSED_LOCAL_ASSETS_SQL,
+    [limit],
+  );
+}
+
+export async function countPendingLocalAssetsForDetection(
+  db: SQLite.SQLiteDatabase,
+): Promise<number> {
+  const row = await db.getFirstAsync<PetCandidateCountRow>(`
+    SELECT COUNT(*) AS count
+    FROM local_assets
+    WHERE media_type = 'photo'
+      AND processing_status = 'pending'
+  `);
+
+  return row?.count ?? 0;
+}
+
+export async function updateLocalAssetDetectionResults(
+  db: SQLite.SQLiteDatabase,
+  updates: LocalAssetDetectionUpdate[],
+): Promise<number> {
+  for (const update of updates) {
+    await db.runAsync(UPDATE_LOCAL_ASSET_DETECTION_SQL, [
+      update.isPetCandidate ? 1 : 0,
+      update.petConfidence,
+      update.detectedPetType,
+      update.detectionSource,
+      update.detectionDebugLabel,
+      update.localAssetId,
+    ]);
+  }
+
+  return updates.length;
+}
+
+const RESET_LOCAL_ASSETS_FOR_REDETECTION_SQL = `
+  UPDATE local_assets
+  SET
+    processing_status = 'pending',
+    processed_at = NULL,
+    is_pet_candidate = 0,
+    pet_confidence = NULL,
+    detected_pet_type = NULL,
+    detection_source = NULL,
+    detection_debug_label = NULL,
+    updated_at = CURRENT_TIMESTAMP
+  WHERE media_type = 'photo'
+`;
+
+export async function resetLocalAssetsForRedetection(
+  db: SQLite.SQLiteDatabase,
+): Promise<number> {
+  const result = await db.runAsync(RESET_LOCAL_ASSETS_FOR_REDETECTION_SQL);
+  return result.changes;
+}
+
+export async function countLocalPetCandidates(
+  db: SQLite.SQLiteDatabase,
+): Promise<number> {
+  const row = await db.getFirstAsync<PetCandidateCountRow>(
+    `
+      SELECT COUNT(*) AS count
+      FROM local_assets
+      WHERE is_pet_candidate = 1
+        AND pet_confidence IS NOT NULL
+        AND pet_confidence >= ?
+    `,
+    [MIN_PET_CONFIDENCE],
+  );
+
+  return row?.count ?? 0;
+}
+
+export async function getLocalPetCandidateAssets(
+  db: SQLite.SQLiteDatabase,
+): Promise<LocalPetCandidateAsset[]> {
+  return db.getAllAsync<LocalPetCandidateAsset>(SELECT_LOCAL_PET_CANDIDATES_SQL, [
+    MIN_PET_CONFIDENCE,
+  ]);
+}
+
+export async function getLocalAssetsByIds(
+  db: SQLite.SQLiteDatabase,
+  localAssetIds: string[],
+): Promise<LocalAssetScoringInput[]> {
+  if (localAssetIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = localAssetIds.map(() => '?').join(', ');
+
+  return db.getAllAsync<LocalAssetScoringInput>(
+    `
+      SELECT
+        local_asset_id AS localAssetId,
+        created_at AS createdAt,
+        width,
+        height,
+        COALESCE(pet_confidence, 0) AS petConfidence,
+        detected_pet_type AS detectedPetType
+      FROM local_assets
+      WHERE local_asset_id IN (${placeholders})
+    `,
+    localAssetIds,
+  );
+}

@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+set -e
+
+sh scripts/pre-commit-lint.sh
+
+echo "pre-commit: test"
+npm test

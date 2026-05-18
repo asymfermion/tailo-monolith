@@ -1,13 +1,32 @@
 export type RootStackParamList = {
   Home: undefined;
+  EventDetail: {
+    localEventId: string;
+  };
+  Capture: undefined;
+  CapturePreview: {
+    tempUri: string;
+    width: number;
+    height: number;
+  };
 };
 
 export type RootRouteName = keyof RootStackParamList;
 
-export type RootRoute<RouteName extends RootRouteName = RootRouteName> = {
+type RouteBase = {
   key: string;
-  name: RouteName;
-  params: RootStackParamList[RouteName];
 };
+
+export type RootRoute =
+  | (RouteBase & { name: 'Home'; params: RootStackParamList['Home'] })
+  | (RouteBase & {
+      name: 'EventDetail';
+      params: RootStackParamList['EventDetail'];
+    })
+  | (RouteBase & { name: 'Capture'; params: RootStackParamList['Capture'] })
+  | (RouteBase & {
+      name: 'CapturePreview';
+      params: RootStackParamList['CapturePreview'];
+    });
 
 export const INITIAL_ROUTE_NAME = 'Home' satisfies RootRouteName;

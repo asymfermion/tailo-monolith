@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getOrCreateAnonymousUserId } from './identity';
+import { loadResolvedOnboardingState } from './resolveOnboardingAfterLoad';
 import {
   initialOnboardingState,
   loadOnboardingState,
@@ -39,22 +40,19 @@ export function useOnboardingSession(): OnboardingSessionState {
 
     async function loadSession() {
       try {
-        const [nextAnonymousUserId, storedOnboardingState] = await Promise.all([
-          getOrCreateAnonymousUserId(),
-          loadOnboardingState(),
-        ]);
-        const nextOnboardingState = mergeOnboardingState(
-          storedOnboardingState,
-          {
+        const nextAnonymousUserId = await getOrCreateAnonymousUserId();
+        const storedOnboardingState = await loadOnboardingState();
+        const resolvedOnboardingState = await loadResolvedOnboardingState(
+          mergeOnboardingState(storedOnboardingState, {
             completedFlags: { identityCreated: true },
-          },
+          }),
         );
-        await saveOnboardingState(nextOnboardingState);
+        await saveOnboardingState(resolvedOnboardingState);
 
         if (isMounted) {
           setAnonymousUserId(nextAnonymousUserId);
-          setOnboardingState(nextOnboardingState);
-          onboardingStateRef.current = nextOnboardingState;
+          setOnboardingState(resolvedOnboardingState);
+          onboardingStateRef.current = resolvedOnboardingState;
         }
       } catch (error) {
         if (isMounted) {

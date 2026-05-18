@@ -1,6 +1,7 @@
 import type { getDatabase } from '@/db';
 import { upsertLocalEventCandidates } from '@/db/localEventCandidates';
 import { getLocalPetCandidateAssets } from '@/db/localAssets';
+import { loadLocalPetProfile, type LocalPetType } from '@/modules/pets';
 
 import { buildEventCandidates } from './clustering';
 
@@ -12,14 +13,21 @@ export type EventClusteringProgress = {
 
 export type ClusterLocalPetEventsOptions = {
   database: Awaited<ReturnType<typeof getDatabase>>;
+  profilePetType?: LocalPetType | null;
   onProgress?: (progress: EventClusteringProgress) => void;
 };
 
 export async function clusterLocalPetEvents({
   database,
+  profilePetType: profilePetTypeOverride,
   onProgress,
 }: ClusterLocalPetEventsOptions): Promise<EventClusteringProgress> {
-  const petCandidateAssets = await getLocalPetCandidateAssets(database);
+  const profilePetType =
+    profilePetTypeOverride ?? (await loadLocalPetProfile())?.type ?? null;
+  const petCandidateAssets = await getLocalPetCandidateAssets(
+    database,
+    profilePetType,
+  );
   const eventCandidates = buildEventCandidates(petCandidateAssets);
   const persistedCount = await upsertLocalEventCandidates(
     database,

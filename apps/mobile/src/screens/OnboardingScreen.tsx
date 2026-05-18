@@ -11,9 +11,19 @@ import {
 import { Image } from 'expo-image';
 
 import { colors, spacing } from '@/constants/theme';
+import {
+  formatPetOptionPhotoCount,
+  getOnboardingPipelineTitle,
+  getPetTypeStepTitle,
+  t,
+} from '@/i18n';
 import { getDatabase } from '@/db';
 import {
-  getProfilePhotoSuggestion,
+  getDetectedPetOptions,
+  type DetectedPetOption,
+} from '@/db/detectedPetOptions';
+import {
+  getProfilePhotoSuggestions,
   type ProfilePhotoSuggestion,
 } from '@/db/profilePhotoSuggestion';
 import type {
@@ -21,14 +31,18 @@ import type {
   OnboardingState,
   OnboardingStep,
 } from '@/modules/auth';
-import { usePhotoAccess } from '@/modules/mediaScanner';
+import { canContinueOnboardingScan } from '@/modules/auth/canContinueOnboardingScan';
 import {
+  ScanProgressIndicator,
+  canScanPhotos,
+  usePhotoAccess,
+} from '@/modules/mediaScanner';
+import {
+  loadLocalPetProfile,
   saveLocalPetProfile,
-  type LocalPetGender,
+  saveSelectedPetType,
   type LocalPetType,
 } from '@/modules/pets';
-import { useTimelineEvents } from '@/modules/timeline';
-
 type OnboardingScreenProps = {
   anonymousUserId: string;
   onboardingState: OnboardingState;
@@ -45,51 +59,163 @@ export function OnboardingScreen({
   onComplete,
   onStepChange,
 }: OnboardingScreenProps) {
-  const photoAccess = usePhotoAccess();
-  const timeline = useTimelineEvents(
-    photoAccess.bestImageSelectionProgress.selectedAssetCount,
-  );
+  const photoAccess = usePhotoAccess({ autoResumeOnMount: false });
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState<LocalPetType | null>(null);
-  const [petGender, setPetGender] = useState<LocalPetGender | null>(null);
-  const [profilePhotoSuggestion, setProfilePhotoSuggestion] =
-    useState<ProfilePhotoSuggestion | null>(null);
+  const [profilePhotoSuggestions, setProfilePhotoSuggestions] = useState<
+    ProfilePhotoSuggestion[]
+  >([]);
+  const [selectedProfilePhotoId, setSelectedProfilePhotoId] = useState<
+    string | null
+  >(null);
+  const [isLoadingProfilePhotos, setIsLoadingProfilePhotos] = useState(false);
+  const [detectedPetOptions, setDetectedPetOptions] = useState<
+    DetectedPetOption[]
+  >([]);
+  const [isLoadingPetOptions, setIsLoadingPetOptions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const step = getEffectiveStep(onboardingState.step, petName, petType);
+  const step = getEffectiveStep(
+    onboardingState.step,
+    petName,
+    petType,
+    onboardingState.completedFlags.scanStarted,
+  );
+  const canContinueAfterScan = canContinueOnboardingScan(photoAccess);
   const isPipelineActive =
     photoAccess.isScanning ||
     photoAccess.isDetectingPets ||
     photoAccess.isClusteringEvents ||
     photoAccess.isSelectingImages;
-  const canContinueAfterScan =
-    !isPipelineActive &&
-    (photoAccess.bestImageSelectionProgress.selectedAssetCount > 0 ||
-      photoAccess.petDetectionProgress.processedCount > 0 ||
-      photoAccess.permissionStatus === 'denied');
-  const firstTimelineEvent = timeline.events[0];
+  useEffect(() => {
+    let isMounted = true;
+
+    async function hydratePetProfile() {
+      const profile = await loadLocalPetProfile();
+
+      if (!isMounted || !profile) {
+        return;
+      }
+
+      setPetName(profile.name);
+      setPetType(profile.type);
+    }
+
+    void hydratePetProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
-    if (step !== 'profile_photo') {
+    if (step !== 'pet_profile' || !petType) {
       return;
     }
 
     let isMounted = true;
 
-    async function loadSuggestion() {
-      const database = await getDatabase();
-      const suggestion = await getProfilePhotoSuggestion(database);
+    async function loadSuggestions() {
+      setIsLoadingProfilePhotos(true);
 
-      if (isMounted) {
-        setProfilePhotoSuggestion(suggestion);
+      try {
+        const database = await getDatabase();
+        const suggestions = await getProfilePhotoSuggestions(database, petType);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setProfilePhotoSuggestions(suggestions);
+        setSelectedProfilePhotoId((current) => {
+          if (
+            current &&
+            suggestions.some(
+              (suggestion) => suggestion.localAssetId === current,
+            )
+          ) {
+            return current;
+          }
+
+          return suggestions[0]?.localAssetId ?? null;
+        });
+      } finally {
+        if (isMounted) {
+          setIsLoadingProfilePhotos(false);
+        }
       }
     }
 
-    void loadSuggestion();
+    void loadSuggestions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    petType,
+    step,
+    photoAccess.bestImageSelectionProgress.selectedAssetCount,
+  ]);
+
+  useEffect(() => {
+    if (step !== 'pet_select') {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadPetOptions() {
+      setIsLoadingPetOptions(true);
+
+      try {
+        const database = await getDatabase();
+        const options = await getDetectedPetOptions(database);
+
+        if (isMounted) {
+          setDetectedPetOptions(options);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingPetOptions(false);
+        }
+      }
+    }
+
+    void loadPetOptions();
 
     return () => {
       isMounted = false;
     };
   }, [step, photoAccess.bestImageSelectionProgress.selectedAssetCount]);
+
+  useEffect(() => {
+    if (
+      step !== 'scan' ||
+      isPipelineActive ||
+      photoAccess.initialScanCompleted
+    ) {
+      return;
+    }
+
+    if (!canScanPhotos(photoAccess.permissionStatus)) {
+      return;
+    }
+
+    void photoAccess.startScan();
+  }, [
+    isPipelineActive,
+    photoAccess.initialScanCompleted,
+    photoAccess.permissionStatus,
+    photoAccess.startScan,
+    step,
+  ]);
+
+  const selectedProfilePhoto = useMemo(
+    () =>
+      profilePhotoSuggestions.find(
+        (suggestion) => suggestion.localAssetId === selectedProfilePhotoId,
+      ) ?? null,
+    [profilePhotoSuggestions, selectedProfilePhotoId],
+  );
 
   const completeProfile = useCallback(async () => {
     if (!petName.trim() || !petType) {
@@ -101,39 +227,45 @@ export function OnboardingScreen({
       await saveLocalPetProfile({
         name: petName,
         type: petType,
-        gender: petGender,
-        profilePhotoLocalAssetId: profilePhotoSuggestion?.localAssetId ?? null,
-        profilePhotoUri: profilePhotoSuggestion?.uri ?? null,
+        profilePhotoLocalAssetId: selectedProfilePhoto?.localAssetId ?? null,
+        profilePhotoUri: selectedProfilePhoto?.uri ?? null,
       });
       await onComplete();
     } finally {
       setIsSaving(false);
     }
-  }, [onComplete, petGender, petName, petType, profilePhotoSuggestion]);
+  }, [onComplete, petName, petType, selectedProfilePhoto]);
 
   const body = useMemo(() => {
     switch (step) {
+      case 'welcome':
       case 'photo_permission':
         return (
           <Panel
-            eyebrow="Photos"
-            title="Choose the photos Tailo can use"
-            text="Tailo starts by looking at recent photos on this device. You can pick all photos or only selected ones."
+            eyebrow={t('onboarding.welcomeEyebrow')}
+            title={t('onboarding.welcomeTitle')}
+            text={t('onboarding.welcomeText')}
           >
             <PrimaryButton
-              label="Choose Photos"
+              label={t('common.choosePhotos')}
               onPress={async () => {
                 await onStepChange('scan', {
                   photoPermissionHandled: true,
                   scanStarted: true,
                 });
+
+                if (canScanPhotos(photoAccess.permissionStatus)) {
+                  await photoAccess.startScan();
+                  return;
+                }
+
                 await photoAccess.requestAccess();
               }}
             />
             <QuietButton
-              label="Continue Without Photos"
+              label={t('onboarding.continueWithoutPhotos')}
               onPress={() =>
-                onStepChange('pet_name', {
+                onStepChange('pet_type', {
                   photoPermissionHandled: true,
                 })
               }
@@ -143,191 +275,199 @@ export function OnboardingScreen({
       case 'scan':
         return (
           <Panel
-            eyebrow="Finding moments"
-            title={getPipelineTitle(photoAccess)}
-            text="A few useful moments can appear before the full scan is done."
+            eyebrow={t('onboarding.findingMomentsEyebrow')}
+            title={getOnboardingPipelineTitle(photoAccess)}
+            text={
+              isPipelineActive
+                ? t('onboarding.scanActiveText')
+                : t('onboarding.scanIdleText')
+            }
           >
-            <ProgressSummary photoAccess={photoAccess} />
+            <ScanProgressIndicator photoAccess={photoAccess} />
+            {photoAccess.errorMessage ? (
+              <Text style={styles.mutedText}>{photoAccess.errorMessage}</Text>
+            ) : null}
             <PrimaryButton
               disabled={!canContinueAfterScan}
-              label="Continue"
-              onPress={() =>
-                onStepChange('timeline_preview', {
-                  timelinePreviewSeen: true,
-                })
-              }
+              label={t('common.continue')}
+              onPress={() => onStepChange('pet_select')}
             />
           </Panel>
         );
-      case 'timeline_preview':
+      case 'pet_select':
         return (
           <Panel
-            eyebrow="Timeline"
-            title="Your first moments are ready"
-            text="Tailo will keep this timeline local while setup finishes."
+            eyebrow={t('onboarding.yourPetEyebrow')}
+            title={t('onboarding.petSelectTitle')}
+            text={t('onboarding.petSelectText')}
           >
-            {firstTimelineEvent?.media[0] ? (
-              <Image
-                contentFit="cover"
-                source={{ uri: firstTimelineEvent.media[0].uri }}
-                style={styles.previewImage}
-              />
-            ) : (
+            {isLoadingPetOptions ? (
               <Text style={styles.mutedText}>
-                Your timeline will fill in as pet moments are found.
+                {t('onboarding.lookingForPetMoments')}
               </Text>
+            ) : detectedPetOptions.length > 0 ? (
+              <View style={styles.petOptionList}>
+                {detectedPetOptions.map((option) => (
+                  <PetOptionCard
+                    isSelected={petType === option.type}
+                    key={option.type}
+                    label={t(`petType.${option.type}`)}
+                    momentCount={option.momentCount}
+                    previewUri={option.previewUri}
+                    onPress={() => setPetType(option.type)}
+                  />
+                ))}
+              </View>
+            ) : (
+              <OptionRow>
+                <OptionButton
+                  isSelected={petType === 'dog'}
+                  label={t('petType.dog')}
+                  onPress={() => setPetType('dog')}
+                />
+                <OptionButton
+                  isSelected={petType === 'cat'}
+                  label={t('petType.cat')}
+                  onPress={() => setPetType('cat')}
+                />
+              </OptionRow>
             )}
             <PrimaryButton
-              label="Continue"
-              onPress={() => onStepChange('pet_name')}
-            />
-          </Panel>
-        );
-      case 'pet_name':
-        return (
-          <Panel
-            eyebrow="Pet"
-            title="What’s your pet’s name?"
-            text="This keeps the timeline feeling like theirs."
-          >
-            <TextInput
-              autoCapitalize="words"
-              onChangeText={setPetName}
-              placeholder="Name"
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-              value={petName}
-            />
-            <PrimaryButton
-              disabled={!petName.trim()}
-              label="Continue"
-              onPress={() =>
-                onStepChange('pet_type', {
-                  petNameSet: true,
-                })
-              }
+              disabled={!petType || isSaving}
+              label={t('common.continue')}
+              onPress={async () => {
+                if (!petType) {
+                  return;
+                }
+
+                setIsSaving(true);
+                try {
+                  await saveSelectedPetType(petType);
+                  await onStepChange('pet_profile', {
+                    petSelected: true,
+                    petTypeSet: true,
+                  });
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
             />
           </Panel>
         );
       case 'pet_type':
         return (
           <Panel
-            eyebrow="Pet"
-            title={`Is ${petName || 'your pet'} a dog or cat?`}
-            text="Tailo will use this later for better memories."
+            eyebrow={t('onboarding.petEyebrow')}
+            title={getPetTypeStepTitle(petName)}
+            text={t('onboarding.petTypeText')}
           >
             <OptionRow>
               <OptionButton
                 isSelected={petType === 'dog'}
-                label="Dog"
+                label={t('petType.dog')}
                 onPress={() => setPetType('dog')}
               />
               <OptionButton
                 isSelected={petType === 'cat'}
-                label="Cat"
+                label={t('petType.cat')}
                 onPress={() => setPetType('cat')}
               />
             </OptionRow>
             <PrimaryButton
-              disabled={!petType}
-              label="Continue"
-              onPress={() =>
-                onStepChange('pet_gender', {
-                  petTypeSet: true,
-                })
-              }
+              disabled={!petType || isSaving}
+              label={t('common.continue')}
+              onPress={async () => {
+                if (!petType) {
+                  return;
+                }
+
+                setIsSaving(true);
+                try {
+                  await saveSelectedPetType(petType);
+                  await onStepChange('pet_profile', {
+                    petTypeSet: true,
+                    petSelected: true,
+                  });
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
             />
           </Panel>
         );
-      case 'pet_gender':
-        return (
-          <Panel
-            eyebrow="Pet"
-            title="Add gender?"
-            text="This is optional and only used for local display."
-          >
-            <OptionRow>
-              <OptionButton
-                isSelected={petGender === 'female'}
-                label="Female"
-                onPress={() => setPetGender('female')}
-              />
-              <OptionButton
-                isSelected={petGender === 'male'}
-                label="Male"
-                onPress={() => setPetGender('male')}
-              />
-              <OptionButton
-                isSelected={petGender === 'unknown'}
-                label="Skip"
-                onPress={() => setPetGender('unknown')}
-              />
-            </OptionRow>
-            <PrimaryButton
-              label="Continue"
-              onPress={() =>
-                onStepChange('profile_photo', {
-                  petGenderSet: true,
-                })
-              }
-            />
-          </Panel>
-        );
+      case 'pet_profile':
+      case 'pet_name':
       case 'profile_photo':
         return (
           <Panel
-            eyebrow="Profile"
-            title="A first profile photo"
-            text="Tailo picked this from the strongest local pet moment."
+            eyebrow={t('onboarding.petEyebrow')}
+            title={t('onboarding.profileTitle')}
+            text={t('onboarding.profileText')}
           >
-            {profilePhotoSuggestion ? (
-              <Image
-                contentFit="cover"
-                source={{ uri: profilePhotoSuggestion.uri }}
-                style={styles.profileImage}
-              />
-            ) : (
-              <Text style={styles.mutedText}>
-                No profile photo suggestion yet. You can add one later.
-              </Text>
-            )}
+            <TextInput
+              autoCapitalize="words"
+              onChangeText={setPetName}
+              placeholder={t('onboarding.namePlaceholder')}
+              placeholderTextColor={colors.textMuted}
+              style={styles.input}
+              value={petName}
+            />
+            {petType ? (
+              <>
+                <Text style={styles.profilePhotoLabel}>
+                  {t('onboarding.profilePhotoLabel')}
+                </Text>
+                {isLoadingProfilePhotos ? (
+                  <Text style={styles.mutedText}>
+                    {t('onboarding.loadingPhotoOptions')}
+                  </Text>
+                ) : profilePhotoSuggestions.length > 0 ? (
+                  <View style={styles.profilePhotoRow}>
+                    {profilePhotoSuggestions.map((suggestion) => (
+                      <ProfilePhotoOption
+                        isSelected={
+                          selectedProfilePhotoId === suggestion.localAssetId
+                        }
+                        key={suggestion.localAssetId}
+                        suggestion={suggestion}
+                        onPress={() =>
+                          setSelectedProfilePhotoId(suggestion.localAssetId)
+                        }
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.mutedText}>
+                    {t('onboarding.profilePhotoLater')}
+                  </Text>
+                )}
+              </>
+            ) : null}
             <PrimaryButton
               disabled={isSaving || !petName.trim() || !petType}
-              label={profilePhotoSuggestion ? 'Use This Photo' : 'Finish'}
+              label={t('common.finish')}
               onPress={completeProfile}
             />
           </Panel>
         );
-      case 'welcome':
       default:
-        return (
-          <Panel
-            eyebrow="Welcome"
-            title="Let Tailo find the moments"
-            text="Start without an account. Tailo keeps the first timeline local and quiet."
-          >
-            <Text style={styles.identityText}>
-              Local setup {anonymousUserId.slice(-6)}
-            </Text>
-            <PrimaryButton
-              label="Get Started"
-              onPress={() => onStepChange('photo_permission')}
-            />
-          </Panel>
-        );
+        return null;
     }
   }, [
-    anonymousUserId,
     canContinueAfterScan,
     completeProfile,
-    firstTimelineEvent,
+    isPipelineActive,
+    detectedPetOptions,
+    isLoadingPetOptions,
     isSaving,
+    onboardingState.completedFlags.scanStarted,
     onStepChange,
-    petGender,
     petName,
     petType,
     photoAccess,
-    profilePhotoSuggestion,
+    isLoadingProfilePhotos,
+    profilePhotoSuggestions,
+    selectedProfilePhoto,
     step,
   ]);
 
@@ -336,7 +476,7 @@ export function OnboardingScreen({
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.logo}>Tailo</Text>
+      <Text style={styles.logo}>{t('common.appName')}</Text>
       {body}
     </ScrollView>
   );
@@ -360,21 +500,31 @@ function Panel({ children, eyebrow, title, text }: PanelProps) {
   );
 }
 
-function ProgressSummary({
-  photoAccess,
+function ProfilePhotoOption({
+  isSelected,
+  suggestion,
+  onPress,
 }: {
-  photoAccess: ReturnType<typeof usePhotoAccess>;
+  isSelected: boolean;
+  suggestion: ProfilePhotoSuggestion;
+  onPress: () => void;
 }) {
   return (
-    <View style={styles.progress}>
-      <Text style={styles.progressValue}>
-        {photoAccess.progress.scannedCount.toLocaleString()} photos checked
-      </Text>
-      <Text style={styles.progressHint}>
-        {photoAccess.bestImageSelectionProgress.selectedAssetCount.toLocaleString()}{' '}
-        photos selected for moments
-      </Text>
-    </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
+      onPress={onPress}
+      style={[
+        styles.profilePhotoOption,
+        isSelected ? styles.profilePhotoOptionSelected : null,
+      ]}
+    >
+      <Image
+        contentFit="cover"
+        source={{ uri: suggestion.uri }}
+        style={styles.profilePhotoOptionImage}
+      />
+    </Pressable>
   );
 }
 
@@ -442,49 +592,67 @@ function OptionButton({
   );
 }
 
-function getPipelineTitle(photoAccess: ReturnType<typeof usePhotoAccess>) {
-  if (photoAccess.isScanning) {
-    return 'Finding moments...';
-  }
-
-  if (photoAccess.isDetectingPets) {
-    return 'Looking for pet moments';
-  }
-
-  if (photoAccess.isClusteringEvents) {
-    return 'Building your timeline';
-  }
-
-  if (photoAccess.isSelectingImages) {
-    return 'Choosing the best photos';
-  }
-
-  if (photoAccess.petDetectionProgress.petCandidateCount === 0) {
-    return 'Ready when more moments appear';
-  }
-
-  return 'First moments are ready';
+function PetOptionCard({
+  isSelected,
+  label,
+  momentCount,
+  previewUri,
+  onPress,
+}: {
+  isSelected: boolean;
+  label: string;
+  momentCount: number;
+  previewUri: string | null;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[
+        styles.petOptionCard,
+        isSelected ? styles.selectedPetOption : null,
+      ]}
+      onPress={onPress}
+    >
+      {previewUri ? (
+        <Image
+          contentFit="cover"
+          source={{ uri: previewUri }}
+          style={styles.petOptionImage}
+        />
+      ) : (
+        <View style={styles.petOptionImagePlaceholder} />
+      )}
+      <View style={styles.petOptionMeta}>
+        <Text style={styles.petOptionLabel}>{label}</Text>
+        <Text style={styles.petOptionCount}>
+          {formatPetOptionPhotoCount(momentCount)}
+        </Text>
+      </View>
+    </Pressable>
+  );
 }
 
 function getEffectiveStep(
   storedStep: OnboardingStep,
-  petName: string,
+  _petName: string,
   petType: LocalPetType | null,
+  scanStarted: boolean,
 ): OnboardingStep {
-  const needsPetName =
-    storedStep === 'pet_type' ||
-    storedStep === 'pet_gender' ||
-    storedStep === 'profile_photo';
-
-  if (needsPetName && !petName.trim()) {
-    return 'pet_name';
+  if (storedStep === 'photo_permission') {
+    return 'welcome';
   }
 
   if (
-    (storedStep === 'pet_gender' || storedStep === 'profile_photo') &&
-    !petType
+    storedStep === 'timeline_preview' ||
+    storedStep === 'pet_gender' ||
+    storedStep === 'pet_name' ||
+    storedStep === 'profile_photo'
   ) {
-    return 'pet_type';
+    return 'pet_profile';
+  }
+
+  if (storedStep === 'pet_profile' && !petType) {
+    return scanStarted ? 'pet_select' : 'pet_type';
   }
 
   return storedStep;
@@ -529,11 +697,6 @@ const styles = StyleSheet.create({
   },
   panelBody: {
     marginTop: spacing.lg,
-  },
-  identityText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginBottom: spacing.md,
   },
   input: {
     borderBottomWidth: 1,
@@ -594,39 +757,75 @@ const styles = StyleSheet.create({
   selectedOptionText: {
     color: colors.surface,
   },
-  progress: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-  },
-  progressValue: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  progressHint: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginTop: spacing.xs,
-  },
   mutedText: {
     color: colors.textMuted,
     fontSize: 15,
     lineHeight: 22,
   },
-  previewImage: {
-    aspectRatio: 1.3,
-    backgroundColor: colors.border,
-    borderRadius: 14,
-    overflow: 'hidden',
-    width: '100%',
+  profilePhotoLabel: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: spacing.lg,
+    textTransform: 'uppercase',
   },
-  profileImage: {
-    alignSelf: 'center',
+  profilePhotoRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  profilePhotoOption: {
     aspectRatio: 1,
     backgroundColor: colors.border,
-    borderRadius: 80,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 2,
+    flex: 1,
     overflow: 'hidden',
-    width: 160,
+  },
+  profilePhotoOptionSelected: {
+    borderColor: colors.accent,
+  },
+  profilePhotoOptionImage: {
+    height: '100%',
+    width: '100%',
+  },
+  petOptionList: {
+    gap: spacing.md,
+  },
+  petOptionCard: {
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  selectedPetOption: {
+    borderColor: colors.accent,
+    borderWidth: 2,
+  },
+  petOptionImage: {
+    height: 88,
+    width: 88,
+  },
+  petOptionImagePlaceholder: {
+    backgroundColor: colors.border,
+    height: 88,
+    width: 88,
+  },
+  petOptionMeta: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  petOptionLabel: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  petOptionCount: {
+    color: colors.textMuted,
+    fontSize: 14,
+    marginTop: spacing.xs,
   },
 });

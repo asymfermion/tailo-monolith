@@ -1,4 +1,3 @@
-import { useMemo, useReducer } from 'react';
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -10,20 +9,27 @@ import { StatusBar } from 'expo-status-bar';
 
 import { colors, spacing } from '@/constants/theme';
 import { useOnboardingSession } from '@/modules/auth';
+import { CapturePreviewScreen } from '@/screens/CapturePreviewScreen';
+import { CaptureScreen } from '@/screens/CaptureScreen';
+import { EventDetailScreen } from '@/screens/EventDetailScreen';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 
-import { INITIAL_ROUTE_NAME } from './routes';
-import { createInitialStack, navigationReducer } from './stack';
+import { NavigationProvider, useNavigation } from './NavigationContext';
+import type { RootRoute } from './routes';
 
 export function AppShell() {
-  const onboardingSession = useOnboardingSession();
-  const initialStack = useMemo(
-    () => createInitialStack(INITIAL_ROUTE_NAME),
-    [],
+  return (
+    <NavigationProvider>
+      <AppShellContent />
+    </NavigationProvider>
   );
-  const [stack] = useReducer(navigationReducer, initialStack);
-  const activeRoute = stack.at(-1);
+}
+
+function AppShellContent() {
+  const onboardingSession = useOnboardingSession();
+  const navigation = useNavigation();
+  const activeRoute = navigation.stack.at(-1);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -42,17 +48,39 @@ export function AppShell() {
             onStepChange={onboardingSession.setOnboardingStep}
           />
         ) : (
-          renderRoute(activeRoute?.name)
+          renderRoute(activeRoute)
         )}
       </View>
     </SafeAreaView>
   );
 }
 
-function renderRoute(routeName: typeof INITIAL_ROUTE_NAME | undefined) {
-  switch (routeName) {
+function renderRoute(route: RootRoute | undefined) {
+  if (!route) {
+    return <HomeScreen />;
+  }
+
+  switch (route.name) {
+    case 'EventDetail': {
+      const localEventId = route.params.localEventId;
+
+      if (!localEventId) {
+        return <HomeScreen />;
+      }
+
+      return <EventDetailScreen localEventId={localEventId} />;
+    }
+    case 'Capture':
+      return <CaptureScreen />;
+    case 'CapturePreview':
+      return (
+        <CapturePreviewScreen
+          height={route.params.height}
+          tempUri={route.params.tempUri}
+          width={route.params.width}
+        />
+      );
     case 'Home':
-    default:
       return <HomeScreen />;
   }
 }

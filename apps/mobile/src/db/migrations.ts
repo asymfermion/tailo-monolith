@@ -1,6 +1,8 @@
 import type * as SQLite from 'expo-sqlite';
 
-export const CURRENT_SCHEMA_VERSION = 3;
+import { logDbInfo, logSqlFailure } from './dbLogger';
+
+export const CURRENT_SCHEMA_VERSION = 5;
 
 type Migration = {
   version: number;
@@ -100,12 +102,134 @@ const migrations: Migration[] = [
       await db.execAsync(`
         ALTER TABLE local_assets
           ADD COLUMN detection_source TEXT;
+      `);
+      await db.execAsync(`
         ALTER TABLE local_assets
           ADD COLUMN detection_debug_label TEXT;
       `);
     },
   },
+  {
+    version: 4,
+    name: 'add local events and candidate processing state',
+    up: async (db) => {
+      await db.execAsync(`
+        ALTER TABLE local_event_candidates
+          ADD COLUMN processing_state TEXT NOT NULL DEFAULT 'pending'
+            CHECK (processing_state IN ('pending', 'processing', 'processed', 'failed'));
+
+        CREATE TABLE IF NOT EXISTS local_events (
+          local_event_id TEXT PRIMARY KEY NOT NULL,
+          pet_id TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          source TEXT NOT NULL CHECK (source IN ('camera_roll', 'in_app', 'manual')),
+          event_type TEXT NOT NULL DEFAULT 'unknown'
+            CHECK (event_type IN ('walk', 'play', 'rest', 'eating', 'unknown')),
+          caption TEXT,
+          caption_language TEXT,
+          confidence REAL,
+          is_favorite INTEGER NOT NULL DEFAULT 0 CHECK (is_favorite IN (0, 1)),
+          processing_state TEXT NOT NULL DEFAULT 'ready'
+            CHECK (processing_state IN ('pending', 'processing', 'processed', 'failed')),
+          selected_asset_ids TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS local_events_timestamp_idx
+          ON local_events (timestamp DESC);
+
+        CREATE INDEX IF NOT EXISTS local_events_pet_timestamp_idx
+          ON local_events (pet_id, timestamp DESC);
+
+        CREATE INDEX IF NOT EXISTS local_events_processing_state_idx
+          ON local_events (processing_state);
+
+        UPDATE local_event_candidates
+        SET processing_state = 'processed'
+        WHERE candidate_status IN ('scored', 'ready');
+
+        UPDATE local_event_candidates
+        SET processing_state = 'failed'
+        WHERE candidate_status = 'rejected';
+      `);
+
+      await backfillLocalEventsFromCandidates(db);
+    },
+  },
+  {
+    version: 5,
+    name: 'add upload queue and sync state tables',
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS upload_queue (
+          id TEXT PRIMARY KEY NOT NULL,
+          local_event_id TEXT NOT NULL,
+          local_asset_id TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending', 'uploading', 'done', 'failed')),
+          retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
+          last_error TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (local_event_id, local_asset_id),
+          FOREIGN KEY (local_event_id) REFERENCES local_events (local_event_id) ON DELETE CASCADE,
+          FOREIGN KEY (local_asset_id) REFERENCES local_assets (local_asset_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS upload_queue_status_created_idx
+          ON upload_queue (status, created_at);
+
+        CREATE TABLE IF NOT EXISTS sync_state (
+          state_key TEXT PRIMARY KEY NOT NULL,
+          state_value TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        INSERT OR IGNORE INTO sync_state (state_key, state_value)
+        VALUES ('pipeline.phase', 'idle');
+      `);
+    },
+  },
 ];
+
+async function backfillLocalEventsFromCandidates(
+  db: SQLite.SQLiteDatabase,
+): Promise<void> {
+  const rows = await db.getAllAsync<{
+    localEventId: string;
+    timestamp: string;
+    source: string;
+    selectedAssetIds: string;
+  }>(`
+    SELECT
+      local_event_id AS localEventId,
+      timestamp,
+      source,
+      selected_asset_ids AS selectedAssetIds
+    FROM local_event_candidates
+    WHERE candidate_status IN ('scored', 'ready')
+  `);
+
+  for (const row of rows) {
+    await db.runAsync(
+      `
+        INSERT INTO local_events (
+          local_event_id,
+          pet_id,
+          timestamp,
+          source,
+          event_type,
+          processing_state,
+          selected_asset_ids
+        )
+        VALUES (?, 'local_pet_default', ?, ?, 'unknown', 'processed', ?)
+        ON CONFLICT(local_event_id) DO NOTHING
+      `,
+      [row.localEventId, row.timestamp, row.source, row.selectedAssetIds],
+    );
+  }
+}
 
 export async function migrateDatabase(
   db: SQLite.SQLiteDatabase,
@@ -118,13 +242,27 @@ export async function migrateDatabase(
   );
 
   for (const migration of pendingMigrations) {
-    await db.execAsync('BEGIN;');
+    logDbInfo('Applying migration', {
+      version: migration.version,
+      name: migration.name,
+    });
+
     try {
-      await migration.up(db);
-      await db.execAsync(`PRAGMA user_version = ${migration.version};`);
-      await db.execAsync('COMMIT;');
+      await db.withTransactionAsync(async () => {
+        await migration.up(db);
+        await db.execAsync(`PRAGMA user_version = ${migration.version};`);
+      });
+      logDbInfo('Migration applied', {
+        version: migration.version,
+        name: migration.name,
+      });
     } catch (error) {
-      await db.execAsync('ROLLBACK;');
+      logSqlFailure(
+        `migration v${migration.version}`,
+        migration.name,
+        [],
+        error,
+      );
       throw new Error(
         `Failed to apply database migration ${migration.version} (${migration.name})`,
         { cause: error },
@@ -136,6 +274,6 @@ export async function migrateDatabase(
 }
 
 async function getUserVersion(db: SQLite.SQLiteDatabase): Promise<number> {
-  const row = await db.getFirstAsync<UserVersionRow>('PRAGMA user_version;');
+  const row = await db.getFirstAsync<UserVersionRow>('PRAGMA user_version');
   return row?.user_version ?? 0;
 }

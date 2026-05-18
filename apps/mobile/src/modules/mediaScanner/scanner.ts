@@ -8,6 +8,7 @@ import {
   normalizePhotoPermission,
   type PhotoPermissionResult,
 } from './permissions';
+import { setLastScanTimestamp } from './scanState';
 
 const CAMERA_ROLL_PAGE_SIZE = 50;
 const INITIAL_SCAN_WINDOW_DAYS = 28;
@@ -18,13 +19,15 @@ export type ScanProgress = {
   scannedCount: number;
   persistedCount: number;
   hasNextPage: boolean;
+  endCursor?: string;
 };
 
 export type ScanRecentPhotosOptions = {
   database: Awaited<ReturnType<typeof getDatabase>>;
-  onProgress?: (progress: ScanProgress) => void;
+  onProgress?: (progress: ScanProgress) => void | Promise<void>;
   pageSize?: number;
   windowDays?: number;
+  startAfter?: string;
 };
 
 export type ScanOlderPhotosOptions = ScanRecentPhotosOptions & {
@@ -54,9 +57,10 @@ export async function scanRecentPhotos({
   onProgress,
   pageSize = CAMERA_ROLL_PAGE_SIZE,
   windowDays = INITIAL_SCAN_WINDOW_DAYS,
+  startAfter,
 }: ScanRecentPhotosOptions): Promise<ScanProgress> {
   const createdAfter = Date.now() - windowDays * 24 * 60 * 60 * 1000;
-  let after: string | undefined;
+  let after: string | undefined = startAfter;
   let batchCount = 0;
   let scannedCount = 0;
   let persistedCount = 0;
@@ -80,11 +84,12 @@ export async function scanRecentPhotos({
     hasNextPage = page.hasNextPage;
     after = page.endCursor;
 
-    onProgress?.({
+    await onProgress?.({
       batchCount,
       scannedCount,
       persistedCount,
       hasNextPage,
+      endCursor: page.endCursor,
     });
 
     if (!page.endCursor || page.assets.length === 0) {
@@ -92,11 +97,16 @@ export async function scanRecentPhotos({
     }
   }
 
+  if (scannedCount > 0) {
+    await setLastScanTimestamp(new Date().toISOString());
+  }
+
   return {
     batchCount,
     scannedCount,
     persistedCount,
     hasNextPage,
+    endCursor: after,
   };
 }
 
@@ -132,11 +142,12 @@ export async function scanOlderPhotos({
     hasNextPage = page.hasNextPage;
     after = page.endCursor;
 
-    onProgress?.({
+    await onProgress?.({
       batchCount,
       scannedCount,
       persistedCount,
       hasNextPage,
+      endCursor: page.endCursor,
     });
 
     if (!page.endCursor || page.assets.length === 0) {
@@ -144,10 +155,15 @@ export async function scanOlderPhotos({
     }
   }
 
+  if (scannedCount > 0) {
+    await setLastScanTimestamp(new Date().toISOString());
+  }
+
   return {
     batchCount,
     scannedCount,
     persistedCount,
     hasNextPage,
+    endCursor: after,
   };
 }

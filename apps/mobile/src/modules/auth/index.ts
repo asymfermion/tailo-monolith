@@ -17,6 +17,16 @@ export {
 } from './onboardingState';
 export { secureStorage, type SecureStorage } from './secureStorage';
 export {
+  INSTALL_ID_KEY,
+  reconcileInstallIdentity,
+  type InstallReconcileResult,
+} from './installIdentity';
+export {
   useOnboardingSession,
   type OnboardingSessionState,
 } from './useOnboardingSession';
+export { canContinueOnboardingScan } from './canContinueOnboardingScan';
+export {
+  loadResolvedOnboardingState,
+  resolveOnboardingAfterLoad,
+} from './resolveOnboardingAfterLoad';

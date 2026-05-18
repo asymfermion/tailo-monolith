@@ -16,13 +16,15 @@ const UPSERT_LOCAL_EVENT_CANDIDATE_SQL = `
     timestamp,
     source,
     candidate_status,
+    processing_state,
     selected_asset_ids
   )
-  VALUES (?, ?, ?, ?, ?)
+  VALUES (?, ?, ?, ?, ?, ?)
   ON CONFLICT(local_event_id) DO UPDATE SET
     timestamp = excluded.timestamp,
     source = excluded.source,
     candidate_status = excluded.candidate_status,
+    processing_state = excluded.processing_state,
     selected_asset_ids = excluded.selected_asset_ids,
     updated_at = CURRENT_TIMESTAMP
 `;
@@ -32,8 +34,77 @@ export async function clearLocalEventPipeline(
 ): Promise<void> {
   await db.execAsync(`
     DELETE FROM local_media_scores;
+    DELETE FROM local_events;
     DELETE FROM local_event_candidates;
   `);
+}
+
+export async function markEventCandidatesProcessing(
+  db: SQLite.SQLiteDatabase,
+  localEventIds: string[],
+): Promise<void> {
+  if (localEventIds.length === 0) {
+    return;
+  }
+
+  const placeholders = localEventIds.map(() => '?').join(', ');
+
+  await db.runAsync(
+    `
+      UPDATE local_event_candidates
+      SET
+        processing_state = 'processing',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE local_event_id IN (${placeholders})
+    `,
+    localEventIds,
+  );
+}
+
+export async function markEventCandidatesProcessed(
+  db: SQLite.SQLiteDatabase,
+  localEventIds: string[],
+): Promise<void> {
+  if (localEventIds.length === 0) {
+    return;
+  }
+
+  const placeholders = localEventIds.map(() => '?').join(', ');
+
+  await db.runAsync(
+    `
+      UPDATE local_event_candidates
+      SET
+        processing_state = 'processed',
+        candidate_status = 'ready',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE local_event_id IN (${placeholders})
+    `,
+    localEventIds,
+  );
+}
+
+export async function markEventCandidatesFailed(
+  db: SQLite.SQLiteDatabase,
+  localEventIds: string[],
+): Promise<void> {
+  if (localEventIds.length === 0) {
+    return;
+  }
+
+  const placeholders = localEventIds.map(() => '?').join(', ');
+
+  await db.runAsync(
+    `
+      UPDATE local_event_candidates
+      SET
+        processing_state = 'failed',
+        candidate_status = 'rejected',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE local_event_id IN (${placeholders})
+    `,
+    localEventIds,
+  );
 }
 
 export async function upsertLocalEventCandidates(
@@ -46,6 +117,7 @@ export async function upsertLocalEventCandidates(
       candidate.timestamp,
       candidate.source,
       candidate.candidateStatus ?? 'pending',
+      candidate.processingState ?? 'pending',
       JSON.stringify(candidate.selectedAssetIds ?? []),
     ]);
   }

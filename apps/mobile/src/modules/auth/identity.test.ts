@@ -15,6 +15,9 @@ function createStorage(initialValue: string | null = null): SecureStorage & {
     setItemAsync: jest.fn(async (_key: string, nextValue: string) => {
       value = nextValue;
     }),
+    deleteItemAsync: jest.fn(async () => {
+      value = null;
+    }),
   };
 }
 

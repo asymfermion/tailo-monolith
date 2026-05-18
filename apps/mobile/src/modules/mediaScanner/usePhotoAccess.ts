@@ -1,15 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { getDatabase } from '@/db';
-import {
-  redetectLocalPetPipeline,
-  selectBestEventImages,
-  type BestImageSelectionProgress,
-  clusterLocalPetEvents,
-  type EventClusteringProgress,
-  processPendingPetCandidates,
-  type PetDetectionProgress,
-} from '@/modules/eventBuilder';
+import { t } from '@/i18n';
+import { formatDbError, logDbInfo } from '@/db/dbLogger';
+import { redetectLocalPetPipeline } from '@/modules/eventBuilder/redetectPipeline';
+import type { BestImageSelectionProgress } from '@/modules/eventBuilder/bestImageSelection';
+import type { EventClusteringProgress } from '@/modules/eventBuilder/eventClustering';
+import type { PetDetectionProgress } from '@/modules/eventBuilder/petDetection';
 
 import {
   canScanPhotos,
@@ -17,10 +14,14 @@ import {
   type PhotoPermissionStatus,
 } from './permissions';
 import {
+  getPipelineResumePlan,
+  hasIncompletePipelineWork,
+  shouldStartInitialScan,
+} from './pipelineResume';
+import { resumeLocalPipeline, runLocalPipeline } from './runLocalPipeline';
+import {
   checkPhotoLibraryPermission,
   requestPhotoLibraryPermission,
-  scanOlderPhotos,
-  scanRecentPhotos,
   type ScanProgress,
 } from './scanner';
 
@@ -31,6 +32,8 @@ export type PhotoAccessState = {
   isDetectingPets: boolean;
   isClusteringEvents: boolean;
   isSelectingImages: boolean;
+  /** True after the first scan + processing pass finishes (success or failure). */
+  initialScanCompleted: boolean;
   progress: ScanProgress;
   petDetectionProgress: PetDetectionProgress;
   eventClusteringProgress: EventClusteringProgress;
@@ -65,11 +68,19 @@ const initialBestImageSelectionProgress: BestImageSelectionProgress = {
   selectedAssetCount: 0,
 };
 
-export function usePhotoAccess(): PhotoAccessState & {
+export type UsePhotoAccessOptions = {
+  /** When false, only checks permission on mount — no background scan until startScan/resume. */
+  autoResumeOnMount?: boolean;
+};
+
+export function usePhotoAccess(
+  options: UsePhotoAccessOptions = {},
+): PhotoAccessState & {
   requestAccess: () => Promise<void>;
   startScan: () => Promise<void>;
   redetectPets: () => Promise<void>;
 } {
+  const { autoResumeOnMount = true } = options;
   const [state, setState] = useState<PhotoAccessState>({
     permissionStatus: 'checking',
     canAskAgain: true,
@@ -77,6 +88,7 @@ export function usePhotoAccess(): PhotoAccessState & {
     isDetectingPets: false,
     isClusteringEvents: false,
     isSelectingImages: false,
+    initialScanCompleted: false,
     progress: initialProgress,
     petDetectionProgress: initialPetDetectionProgress,
     eventClusteringProgress: initialEventClusteringProgress,
@@ -93,162 +105,165 @@ export function usePhotoAccess(): PhotoAccessState & {
     }));
   }, []);
 
-  const startScan = useCallback(async () => {
+  const finishPipelineRun = useCallback(() => {
     setState((current) => ({
       ...current,
-      isScanning: true,
+      isScanning: false,
       isDetectingPets: false,
       isClusteringEvents: false,
       isSelectingImages: false,
-      errorMessage: null,
+      initialScanCompleted: true,
+    }));
+  }, []);
+
+  const resetPipelineProgress = useCallback(() => {
+    setState((current) => ({
+      ...current,
+      isScanning: false,
+      isDetectingPets: false,
+      isClusteringEvents: false,
+      isSelectingImages: false,
+      initialScanCompleted: false,
       progress: initialProgress,
       petDetectionProgress: initialPetDetectionProgress,
       eventClusteringProgress: initialEventClusteringProgress,
       bestImageSelectionProgress: initialBestImageSelectionProgress,
+      errorMessage: null,
     }));
-
-    try {
-      const database = await getDatabase();
-      await scanRecentPhotos({
-        database,
-        onProgress: (progress) => {
-          setState((current) => ({
-            ...current,
-            progress,
-          }));
-        },
-      });
-      setState((current) => ({
-        ...current,
-        isScanning: false,
-        isDetectingPets: true,
-      }));
-      await processPendingPetCandidates({
-        database,
-        onProgress: (petDetectionProgress) => {
-          setState((current) => ({
-            ...current,
-            petDetectionProgress,
-          }));
-        },
-      });
-      setState((current) => ({
-        ...current,
-        isDetectingPets: false,
-        isClusteringEvents: true,
-      }));
-      await clusterLocalPetEvents({
-        database,
-        onProgress: (eventClusteringProgress) => {
-          setState((current) => ({
-            ...current,
-            eventClusteringProgress,
-          }));
-        },
-      });
-      setState((current) => ({
-        ...current,
-        isClusteringEvents: false,
-        isSelectingImages: true,
-      }));
-      await selectBestEventImages({
-        database,
-        onProgress: (bestImageSelectionProgress) => {
-          setState((current) => ({
-            ...current,
-            bestImageSelectionProgress,
-          }));
-        },
-      });
-      setState((current) => ({
-        ...current,
-        isSelectingImages: false,
-      }));
-      void continueOlderPhotoPipeline(database).catch(() => undefined);
-    } catch (error) {
-      setState((current) => ({
-        ...current,
-        isScanning: false,
-        isDetectingPets: false,
-        isClusteringEvents: false,
-        isSelectingImages: false,
-        errorMessage:
-          error instanceof Error
-            ? error.message
-            : 'Could not look through your pet moments yet.',
-      }));
-    }
   }, []);
+
+  const pipelineProgress = useMemo(
+    () => ({
+      onScanProgress: (progress: ScanProgress) => {
+        setState((current) => ({
+          ...current,
+          isScanning: true,
+          isDetectingPets: false,
+          isClusteringEvents: false,
+          isSelectingImages: false,
+          progress,
+        }));
+      },
+      onDetectingProgress: (petDetectionProgress: PetDetectionProgress) => {
+        setState((current) => ({
+          ...current,
+          isScanning: false,
+          isDetectingPets: true,
+          isClusteringEvents: false,
+          isSelectingImages: false,
+          petDetectionProgress,
+        }));
+      },
+      onClusteringProgress: (
+        eventClusteringProgress: EventClusteringProgress,
+      ) => {
+        setState((current) => ({
+          ...current,
+          isScanning: false,
+          isDetectingPets: false,
+          isClusteringEvents: true,
+          isSelectingImages: false,
+          eventClusteringProgress,
+        }));
+      },
+      onSelectingProgress: (
+        bestImageSelectionProgress: BestImageSelectionProgress,
+      ) => {
+        setState((current) => ({
+          ...current,
+          isScanning: false,
+          isDetectingPets: false,
+          isClusteringEvents: false,
+          isSelectingImages: true,
+          bestImageSelectionProgress,
+        }));
+      },
+    }),
+    [],
+  );
+
+  const runPipeline = useCallback(
+    async (
+      runner: (
+        database: Awaited<ReturnType<typeof getDatabase>>,
+      ) => Promise<void>,
+    ) => {
+      setState((current) => ({
+        ...current,
+        errorMessage: null,
+        initialScanCompleted: false,
+      }));
+
+      try {
+        const database = await getDatabase();
+        await runner(database);
+        finishPipelineRun();
+      } catch (error) {
+        logDbInfo('Pipeline failed', { error: formatDbError(error) });
+        setState((current) => ({
+          ...current,
+          isScanning: false,
+          isDetectingPets: false,
+          isClusteringEvents: false,
+          isSelectingImages: false,
+          initialScanCompleted: true,
+          errorMessage:
+            error instanceof Error
+              ? error.message
+              : t('errors.couldNotScanMoments'),
+        }));
+      }
+    },
+    [finishPipelineRun],
+  );
+
+  const startScan = useCallback(async () => {
+    await runPipeline(async (database) => {
+      await runLocalPipeline({
+        database,
+        includeRecentScan: true,
+        includeOlderScan: true,
+        progress: pipelineProgress,
+      });
+    });
+  }, [pipelineProgress, runPipeline]);
+
+  const resumeIfNeeded = useCallback(async () => {
+    await runPipeline(async (database) => {
+      const plan = await getPipelineResumePlan(database);
+
+      if (hasIncompletePipelineWork(plan)) {
+        await resumeLocalPipeline({
+          database,
+          plan,
+          progress: pipelineProgress,
+        });
+        return;
+      }
+
+      if (shouldStartInitialScan(plan)) {
+        await runLocalPipeline({
+          database,
+          includeRecentScan: true,
+          includeOlderScan: true,
+          progress: pipelineProgress,
+        });
+      }
+    });
+  }, [pipelineProgress, runPipeline]);
 
   const redetectPets = useCallback(async () => {
-    setState((current) => ({
-      ...current,
-      isScanning: false,
-      isDetectingPets: true,
-      isClusteringEvents: false,
-      isSelectingImages: false,
-      errorMessage: null,
-      petDetectionProgress: initialPetDetectionProgress,
-      eventClusteringProgress: initialEventClusteringProgress,
-      bestImageSelectionProgress: initialBestImageSelectionProgress,
-    }));
-
-    try {
-      const database = await getDatabase();
+    await runPipeline(async (database) => {
       await redetectLocalPetPipeline({
         database,
-        onDetectingProgress: (petDetectionProgress) => {
-          setState((current) => ({
-            ...current,
-            petDetectionProgress,
-          }));
-        },
+        onDetectingProgress: pipelineProgress.onDetectingProgress,
       });
-      setState((current) => ({
-        ...current,
-        isDetectingPets: false,
-        isClusteringEvents: true,
-      }));
-      await clusterLocalPetEvents({
+      await runLocalPipeline({
         database,
-        onProgress: (eventClusteringProgress) => {
-          setState((current) => ({
-            ...current,
-            eventClusteringProgress,
-          }));
-        },
+        progress: pipelineProgress,
       });
-      setState((current) => ({
-        ...current,
-        isClusteringEvents: false,
-        isSelectingImages: true,
-      }));
-      await selectBestEventImages({
-        database,
-        onProgress: (bestImageSelectionProgress) => {
-          setState((current) => ({
-            ...current,
-            bestImageSelectionProgress,
-          }));
-        },
-      });
-      setState((current) => ({
-        ...current,
-        isSelectingImages: false,
-      }));
-    } catch (error) {
-      setState((current) => ({
-        ...current,
-        isDetectingPets: false,
-        isClusteringEvents: false,
-        isSelectingImages: false,
-        errorMessage:
-          error instanceof Error
-            ? error.message
-            : 'Could not redetect pet moments yet.',
-      }));
-    }
-  }, []);
+    });
+  }, [pipelineProgress, runPipeline]);
 
   const requestAccess = useCallback(async () => {
     const permission = await requestPhotoLibraryPermission();
@@ -272,8 +287,8 @@ export function usePhotoAccess(): PhotoAccessState & {
 
         applyPermission(permission);
 
-        if (canScanPhotos(permission.status)) {
-          await startScan();
+        if (autoResumeOnMount && canScanPhotos(permission.status)) {
+          await resumeIfNeeded();
         }
       } catch (error) {
         if (isMounted) {
@@ -283,7 +298,7 @@ export function usePhotoAccess(): PhotoAccessState & {
             errorMessage:
               error instanceof Error
                 ? error.message
-                : 'Could not check photo access.',
+                : t('errors.couldNotCheckPhotoAccess'),
           }));
         }
       }
@@ -294,7 +309,7 @@ export function usePhotoAccess(): PhotoAccessState & {
     return () => {
       isMounted = false;
     };
-  }, [applyPermission, startScan]);
+  }, [applyPermission, autoResumeOnMount, resumeIfNeeded]);
 
   return {
     ...state,
@@ -302,13 +317,4 @@ export function usePhotoAccess(): PhotoAccessState & {
     startScan,
     redetectPets,
   };
-}
-
-async function continueOlderPhotoPipeline(
-  database: Awaited<ReturnType<typeof getDatabase>>,
-): Promise<void> {
-  await scanOlderPhotos({ database });
-  await processPendingPetCandidates({ database });
-  await clusterLocalPetEvents({ database });
-  await selectBestEventImages({ database });
 }

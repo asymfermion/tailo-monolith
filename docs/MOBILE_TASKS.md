@@ -6,17 +6,19 @@ Task plan for the mobile app. Work top-to-bottom within each phase; later phases
 
 **How to use:** Check off tasks as completed (`[x]`). Add notes or PR links inline when useful. Pick the next unchecked task in the current phase.
 
+**GitHub tracking:** Each task has a matching issue in [asymfermion/tailo-monolith](https://github.com/asymfermion/tailo-monolith/issues?q=label%3Amobile-tasks), organized on the [Tailo mobile project board](https://github.com/users/asymfermion/projects/2). Filter issues by phase label (`setup`, `phase-0`, `phase-1`, `phase-2`, `phase-3`, `cross-cutting`). Closed issues = completed tasks; use the board for status and prioritization.
+
 ---
 
 ## Status snapshot
 
-| Phase   | Focus                                       | Status              |
-| ------- | ------------------------------------------- | ------------------- |
-| Setup   | Dev environment, monorepo, modules scaffold | Done                |
-| Phase 0 | Local technical spike (no backend)          | In progress         |
-| Phase 1 | Local MVP foundation                        | Not started         |
-| Phase 2 | Mobile ↔ backend integration                | Blocked on Supabase |
-| Phase 3 | Polish & first-session UX                   | Not started         |
+| Phase   | Focus                                       | Status      |
+| ------- | ------------------------------------------- | ----------- |
+| Setup   | Dev environment, monorepo, modules scaffold | Done        |
+| Phase 0 | Local technical spike (no backend)          | In progress |
+| Phase 1 | Local MVP foundation                        | Not started |
+| Phase 2 | Mobile + backend integration                | Not started |
+| Phase 3 | Polish & first-session UX                   | Not started |
 
 ---
 
@@ -67,7 +69,7 @@ Task plan for the mobile app. Work top-to-bottom within each phase; later phases
 - [x] **0.3a.3** Scaffold iOS local Expo module for Vision/Core ML image classification
 - [x] **0.3a.4** Wire detection pipeline to prefer native detector when available
 - [x] **0.3a.5** Add on-device Vision dog/cat classifier path (uses bundled `TailoPetClassifier.mlmodel` when present, otherwise Apple Vision built-in classification) and document dev-client requirement
-- [ ] **0.3a.6** Validate dog/cat/other accuracy on real iPhone photo libraries
+- [x] **0.3a.6** Validate dog/cat/other accuracy on real iPhone photo libraries
 
 ### 0.4 Event clustering (`eventBuilder`)
 
@@ -102,7 +104,8 @@ Task plan for the mobile app. Work top-to-bottom within each phase; later phases
 
 <!-- Add dated notes, PR links, and spike findings here -->
 
-- 2026-05-17: Pet detection uses a `PetDetector` abstraction. The iOS local Expo module (`TailoPetClassifier`) uses a bundled Core ML model when present, otherwise Apple Vision built-in on-device classification, with deterministic dog/cat-aware heuristic fallback when native is unavailable. `detected_pet_type` is persisted for `dog | cat | null`; real-device accuracy validation remains.
+- 2026-05-17: Pet detection uses a `PetDetector` abstraction. The iOS local Expo module (`TailoPetClassifier`) uses a bundled Core ML model when present, otherwise Apple Vision on-device animal detection, with heuristic fallback when native is unavailable. `detected_pet_type` is persisted for `dog | cat | null`.
+- 2026-05-18: **0.3a.6** — dog/cat detection validated on a real iPhone photo library with an Expo dev client build (native path + confidence threshold; timeline reflects pet photos only).
 - 2026-05-17: Event clustering groups same-day pet candidates within a 20-minute window, dedupes near-identical time/dimension matches, persists stable local candidate IDs, and starts a bounded older-photo scan after the first local pipeline pass.
 - 2026-05-17: Best-image selection scores event media with deterministic local heuristics for sharpness/brightness/subject visibility/uniqueness, caps selected media at 5, and writes primary-image flags to `local_media_scores`.
 - 2026-05-17: Timeline UI now loads scored local candidates newest-first and renders event rows with a primary image, secondary image strip, placeholder caption, timestamp, event type, and calm loading/empty states.
@@ -123,68 +126,74 @@ Task plan for the mobile app. Work top-to-bottom within each phase; later phases
 
 ### 1.2 Event model & processing state
 
-- [ ] **1.2.1** Promote `local_event_candidate` → local `Event` with stable IDs
-- [ ] **1.2.2** Track `processing_state` per asset/candidate (pending, processed, failed)
-- [ ] **1.2.3** Map local events to shared `@tailo/shared` types where appropriate
-- [ ] **1.2.4** Store `last_scan_timestamp` for incremental rescans
+- [x] **1.2.1** Promote `local_event_candidate` → local `Event` with stable IDs
+- [x] **1.2.2** Track `processing_state` per asset/candidate (pending, processed, failed)
+- [x] **1.2.3** Map local events to shared `@tailo/shared` types where appropriate
+- [x] **1.2.4** Store `last_scan_timestamp` for incremental rescans
 
 ### 1.3 Timeline & event detail
 
-- [ ] **1.3.1** Event detail screen: larger gallery, timestamp, type, placeholder caption
-- [ ] **1.3.2** Basic event editing: caption, event type, favorite toggle (local only)
-- [ ] **1.3.3** Favorite filter or visual indicator on timeline
-- [ ] **1.3.4** Top area: pet profile summary + “Ask Tailo” entry (UI shell only — no AI yet)
+- [x] **1.3.1** Event detail screen: larger gallery, timestamp, type, placeholder caption
+- [x] **1.3.2** Basic event editing: caption, event type, favorite toggle (local only)
+- [x] **1.3.3** Favorite filter or visual indicator on timeline
+- [x] **1.3.4** Top area: pet profile summary + “Ask Tailo” entry (UI shell only — no AI yet)
 
 ### 1.4 Active capture (`capture`)
 
-- [ ] **1.4.1** In-app camera screen using `expo-camera`
-- [ ] **1.4.2** Save capture to local storage + create manual event (`source: in_app`)
-- [ ] **1.4.3** Preview / confirm before adding to timeline
-- [ ] **1.4.4** Works when photo library permission is denied
+- [x] **1.4.1** In-app camera screen using `expo-camera`
+- [x] **1.4.2** Save capture to local storage + create manual event (`source: in_app`)
+- [x] **1.4.3** Preview / confirm before adding to timeline
+- [x] **1.4.4** Works when photo library permission is denied
 
 ### 1.5 Local data hardening
 
-- [ ] **1.5.1** Add `upload_queue` + `sync_state` tables (schema only; no network yet)
-- [ ] **1.5.2** Offline: full local scan + timeline + manual capture queue
-- [ ] **1.5.3** App restart: resume incomplete scan/processing from DB state
+- [x] **1.5.1** Add `upload_queue` + `sync_state` tables (schema only; no network yet)
+- [x] **1.5.2** Offline: full local scan + timeline + manual capture queue
+- [x] **1.5.3** App restart: resume incomplete scan/processing from DB state
 
 ### 1.6 Phase 1 wrap-up
 
-- [ ] **1.6.1** Test: first launch without account through onboarding to timeline
-- [ ] **1.6.2** Test: edit persistence across app restarts
-- [ ] **1.6.3** Externalize UI strings (prep for i18n)
+- [x] **1.6.1** Test: first launch without account through onboarding to timeline
+- [x] **1.6.2** Test: edit persistence across app restarts
+- [x] **1.6.3** Externalize UI strings (prep for i18n)
 
 ### Phase 1 — notes & decisions
 
-<!-- Add dated notes here -->
-
 - 2026-05-17: First-session identity, onboarding progress, and the one-pet local profile are stored with Expo SecureStore. Onboarding now gates the app before the timeline and suggests a profile photo from the highest-scoring local media row.
+- 2026-05-18: **1.2** — SQLite v4 adds `local_events` (promoted timeline rows with `pet_id`, `processing_state`, caption/type/favorite fields). Scored `local_event_candidates` promote via `promoteScoredCandidatesToLocalEvents` after image selection; timeline reads `local_events` (not candidates). `mapLocalEventToSharedEvent` maps to `@tailo/shared` `Event`. `last_scan_timestamp` stored in SecureStore after each successful scan batch.
+- 2026-05-18: **1.3** — `EventDetail` route with gallery + local edits (caption, type, favorite). Timeline favorites filter + star indicator. Pet profile header and Ask Tailo shell on Home.
+- 2026-05-18: **1.4** — In-app camera (`Capture` / `CapturePreview`), persist to app documents, `createInAppCaptureEvent` writes `local_assets` + `local_events` with `source: in_app`. Floating + on Home works without photo library permission.
+- 2026-05-18: **1.5** — SQLite v5 adds `upload_queue` + `sync_state`. Promoted/captured events enqueue pending uploads (no network worker yet). Pipeline scan cursor + phase persisted; app restart resumes incomplete scan/processing instead of always re-scanning.
+- 2026-05-18: **1.6.1–1.6.2** — Manual QA: welcome → scan → pet select → profile → timeline without account; event detail edits (caption, type, favorite) persist after force-quit and relaunch.
+- 2026-05-18: **1.6.3** — User-facing copy moved to `apps/mobile/src/i18n/` (`locales/en.ts`, `t()`, dynamic helpers under `i18n/messages/`). Screens and timeline modules consume `t()` instead of inline strings.
 
 ---
 
-## Phase 2 — Mobile backend integration
+## Phase 2 — Mobile + backend integration
 
-**Blocked until** Supabase project, migrations, and Edge Functions exist. Mobile tasks only — backend tracked separately.
+This phase now tracks both the mobile client work and the backend work needed to ship sync, uploads, and AI enrichment. Specs: [phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md).
 
-### 2.1 Configuration & auth bridge
+### 2.1 Configuration & auth (anonymous-first)
 
-- [ ] **2.1.1** Env config: `EXPO_PUBLIC_SUPABASE_URL`, anon key
-- [ ] **2.1.2** Link local `anonymous_user_id` to Supabase user record
-- [ ] **2.1.3** Create/link pet record on server after local pet profile exists
+- [ ] **2.1.1** Env config: `EXPO_PUBLIC_SUPABASE_URL`, anon key; Supabase client + session in SecureStore
+- [ ] **2.1.2** On launch: `signInAnonymously()` if no session (no login UI)
+- [ ] **2.1.3** One-time legacy bridge: Phase 1 `anonymous_user_id` → `link-anonymous-user` after first session (upgrades only)
+- [ ] **2.1.4** Create/link pet record on server after local pet profile exists (`upsert-pet`)
+- [ ] **2.1.5** _(Deferred)_ Optional account upgrade UI: Apple / Google / email via `linkIdentity` / `updateUser` (settings, not onboarding)
 
 ### 2.2 Upload pipeline (`storage`, `sync`)
 
-- [ ] **2.2.1** Compress images (~1280px max width) + generate thumbnail before upload
+- [ ] **2.2.1** Compress per [upload spec](./architecture/phase-2-backend-mvp.md#compression--files-mvp-defaults): original 1280px JPEG, thumb 400px; HEIC→JPEG; strip GPS EXIF
 - [ ] **2.2.2** Upload **selected event media only** — never full camera roll
 - [ ] **2.2.3** Implement `upload_queue` worker: pending → uploading → done / failed
 - [ ] **2.2.4** Retry with backoff; persist `last_error`
 - [ ] **2.2.5** Deduplicate uploads by local asset / event id
-- [ ] **2.2.6** Signed URL or token flow for R2 (via Edge Function)
+- [ ] **2.2.6** Signed URL or token flow for uploads (Supabase Storage via Edge Function; R2 optional later)
 
 ### 2.3 Sync & timeline merge
 
-- [ ] **2.3.1** `create-event` idempotent sync from local event
-- [ ] **2.3.2** Merge remote captions/types into local timeline when AI job completes
+- [ ] **2.3.1** `sync-event` payload: local ids, media paths, `user_edited` flags, `client_sync_version` (see [sync spec](./architecture/phase-2-backend-mvp.md#sync-specification))
+- [ ] **2.3.2** Poll `get-event-updates` (~30s when pending AI); merge per [field matrix](./architecture/phase-2-backend-mvp.md#field-merge-matrix) — do not overwrite user-edited caption/type
 - [ ] **2.3.3** Background sync when network returns
 - [ ] **2.3.4** UI: subtle sync status (no “Uploading assets…” technical copy)
 
@@ -195,15 +204,94 @@ Task plan for the mobile app. Work top-to-bottom within each phase; later phases
 - [ ] **2.4.3** Low-confidence fallback captions (safe, non-invented)
 - [ ] **2.4.4** Never surface “AI” in user-facing copy
 
+### 2.5 Backend setup (`supabase`, `packages/backend-core`)
+
+- [ ] **B0.1** Create Supabase **dev** project; record project ref + region in Setup notes (not secret)
+- [ ] **B0.2** Enable **Anonymous** sign-ins
+- [ ] **B0.3** Enable **Manual linking** (for future Apple/Google/email; no UI yet)
+- [ ] **B0.4** Add `supabase/config.toml`, `migrations/`, `functions/`
+- [ ] **B0.5** `apps/mobile/.env.example`: `EXPO_PUBLIC_SUPABASE_URL`, anon key
+- [ ] **B0.6** Document local workflow in [DEVELOPER.md](./DEVELOPER.md) (`supabase start`, `db push`, `functions serve`)
+- [ ] **B0.7** Scaffold `packages/backend-core/` (`contracts/`, `usecases/`, `repositories/`)
+- [ ] **B0.8** `packages/shared`: zod schemas for `sync-event`, `create-upload-urls`, `get-event-updates`, AI result (match specs)
+- [ ] **B0.9** GitHub issues / labels for `backend-tasks` (optional; mirror mobile board)
+
+### 2.6 Backend schema & RLS (`supabase/migrations`)
+
+- [ ] **B2.1.1** `profiles` — `user_id` PK, `created_at`
+- [ ] **B2.1.2** `anonymous_id_links` — unique `anonymous_user_id`, FK `user_id`; reject insert if legacy id maps to different user
+- [ ] **B2.1.3** `pets` — include `source_local_pet_id` unique per `user_id`
+- [ ] **B2.1.4** `events` — unique `(user_id, source_local_event_id)`; `user_edited_caption`, `user_edited_event_type`, `sync_version`, `updated_at`, `caption_source`
+- [ ] **B2.1.5** `event_media` — unique `(event_id, source_local_asset_id)`; storage paths
+- [ ] **B2.1.6** `ai_jobs` — `next_attempt_at`, `leased_until`, `input_snapshot`, status enum per spec
+- [ ] **B2.1.7** RLS: `auth.uid() = user_id` on all user-owned tables
+- [ ] **B2.1.8** RLS: `event_media` via join to `events` ownership
+- [ ] **B2.1.9** Indexes: `events(user_id, updated_at)`, unique `(user_id, source_local_event_id)`, `ai_jobs(status, next_attempt_at)`, `event_media(event_id)`
+- [ ] **B2.1.10** SQL smoke: user A cannot read/write user B rows
+
+### 2.7 Backend auth & upload APIs (`functions`, `backend-core`)
+
+- [ ] **B2.2.1** Private bucket `event-media`
+- [ ] **B2.2.2** Path layout per [upload spec](./architecture/phase-2-backend-mvp.md#upload-specification)
+- [ ] **B2.2.3** Storage policies: read/write only under `auth.uid()` prefix
+- [ ] **B2.2.4** Enforce JPEG only, 15 min signed URL TTL, 1–5 assets per request
+- [ ] **B2.2.5** Document max sizes: original <=3 MB post-compress, thumb <200 KB target
+- [ ] **B2.4.0** Implement auth edge-case policy in `backend-core` + tests
+- [ ] **B2.4.1** Edge Function `link-anonymous-user` + unit tests
+- [ ] **B2.4.2** Edge Function `upsert-pet` + unit tests (idempotent `source_local_pet_id`)
+- [ ] **B2.3.4** `validateUploadRequest()` — pet ownership, 1–5 assets, duplicate asset ids rejected
+- [ ] **B2.3.4a** Unit tests: over limit, wrong pet, expired retry
+- [ ] **B2.4.3** `create-upload-urls` — returns paired URLs + paths + `expires_at`
+- [ ] **B2.4.3a** Integration test: signed PUT with wrong `Content-Type` fails (if enforceable)
+
+### 2.8 Backend sync & AI (`functions`, `packages/ai`)
+
+- [ ] **B2.3.5** `syncEvent()` — idempotent upsert; full media replace; increment `sync_version`
+- [ ] **B2.3.6** Merge matrix per [sync spec](./architecture/phase-2-backend-mvp.md#sync-specification) + unit tests
+- [ ] **B2.3.7** `createAiJob()` — rules from the AI spec
+- [ ] **B2.3.8** `applyAiResultToEvent()` — confidence threshold 0.5; respect `user_edited_*` flags
+- [ ] **B2.3.9** `getEventUpdates()` — cursor pagination, max 50
+- [ ] **B2.4.4** `sync-event` — enqueue AI; return `event_id`, `server_sync_version`, `ai_job`
+- [ ] **B2.4.5** `get-event-updates` — cursor in/out; include AI status
+- [ ] **B2.4.6** Shared handler: CORS, error codes (`401`, `409`, `422`), no tokens in logs
+- [ ] **B2.5.1** `process-ai-job` — lease + `pending` → `processing` → `done`/`failed`
+- [ ] **B2.5.2** OpenAI secret in Supabase; prompt in `packages/ai`
+- [ ] **B2.5.3** Retry/backoff: 1m / 5m / 15m; max 3 attempts
+- [ ] **B2.5.4** Post-parse: caption max 280 chars; safety filter (no medical / “AI” phrasing)
+- [ ] **B2.5.5** Trigger: invoke from `sync-event` + scheduled sweep every 2 min for stuck `pending`
+- [ ] **B2.5.6** Unit tests: low confidence → placeholder; user_edited → no overwrite
+- [ ] **B2.4.7** Deploy all functions to dev; document base URLs for mobile
+
+### 2.9 Backend hardening & QA
+
+- [ ] **B2.6.1** All functions reject missing/invalid JWT
+- [ ] **B2.6.2** Upload URLs scoped to event paths; expired URL returns 403
+- [ ] **B2.6.3** `npm audit` on function bundles
+- [ ] **B2.6.4** Auth: fresh anonymous user; legacy link; duplicate legacy link → 409
+- [ ] **B2.6.5** Upload: 1 asset; 5 assets; 6 assets → 422
+- [ ] **B2.6.6** Sync: double `sync-event` idempotent; user caption survives AI job
+- [ ] **B2.6.7** Sync: user_edited blocks AI overwrite on poll merge
+- [ ] **B2.6.8** AI: failed job after 3 attempts; pending retry respects `next_attempt_at`
+- [ ] **B2.6.9** Document session loss → new anonymous user as known limitation
+- [ ] **B2.6.10** Staging project checklist (when ready); prod secrets separate
+
 ### Phase 2 — notes & decisions
 
-<!-- Add dated notes here -->
+- 2026-05-18: Auth model — **Supabase `signInAnonymously()`** is canonical; Phase 1 SecureStore `anon_*` is legacy-only via `anonymous_id_links`. Permanent providers (Apple/Google/email) via identity linking later; same `user.id`. See [architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md#1-identity--auth).
+- 2026-05-18: Upload/sync/AI numbers and merge rules live in phase-2 spec; backend tasks are tracked inline in this Phase 2 section with `B...` task IDs preserved.
 
 ---
 
 ## Phase 3 — Polish
 
 **Goal:** First session feels simple, calm, and useful.
+
+### 3.0 Navigation & app structure
+
+- [ ] **3.0.1** Define main app pages: `Timeline`, `Pet profile`, `Settings`
+- [ ] **3.0.2** Settings IA: user account settings, localisation, and app preferences
+- [ ] **3.0.3** Replace the lightweight temporary stack with the long-term app navigation shell
+- [ ] **3.0.4** Keep capture, capture preview, event detail, and future edit/share flows as secondary routes or modals under the main pages
 
 ### 3.1 Onboarding & permissions
 
@@ -253,6 +341,6 @@ Task plan for the mobile app. Work top-to-bottom within each phase; later phases
 
 ## Suggested next task
 
-**Start Phase 0 → task 0.1.2** (SQLite schema + migrations).
+**Phase 0 → task 0.7.1** — manual test matrix (full / limited / denied photo access; many vs few pet photos; duplicates).
 
-When picking up work, say: _“Continue from docs/MOBILE_TASKS.md — task 0.x.x”_ so work stays aligned with this plan.
+When picking up work, reference the GitHub issue (e.g. _“Continue #25”_) or task ID in `docs/MOBILE_TASKS.md`.

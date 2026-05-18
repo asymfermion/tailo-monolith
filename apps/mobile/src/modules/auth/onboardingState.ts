@@ -4,11 +4,13 @@ export type OnboardingStep =
   | 'welcome'
   | 'photo_permission'
   | 'scan'
+  | 'pet_select'
   | 'timeline_preview'
   | 'pet_name'
   | 'pet_type'
   | 'pet_gender'
   | 'profile_photo'
+  | 'pet_profile'
   | 'complete';
 
 export type OnboardingCompletedFlags = {
@@ -17,6 +19,7 @@ export type OnboardingCompletedFlags = {
   scanStarted: boolean;
   timelinePreviewSeen: boolean;
   petNameSet: boolean;
+  petSelected: boolean;
   petTypeSet: boolean;
   petGenderSet: boolean;
   profilePhotoSuggested: boolean;
@@ -46,6 +49,7 @@ export const initialOnboardingState: OnboardingState = {
     scanStarted: false,
     timelinePreviewSeen: false,
     petNameSet: false,
+    petSelected: false,
     petTypeSet: false,
     petGenderSet: false,
     profilePhotoSuggested: false,
@@ -114,11 +118,13 @@ function isOnboardingStep(value: unknown): value is OnboardingStep {
     value === 'welcome' ||
     value === 'photo_permission' ||
     value === 'scan' ||
+    value === 'pet_select' ||
     value === 'timeline_preview' ||
     value === 'pet_name' ||
     value === 'pet_type' ||
     value === 'pet_gender' ||
     value === 'profile_photo' ||
+    value === 'pet_profile' ||
     value === 'complete'
   );
 }

@@ -234,10 +234,13 @@ iOS Simulator can add sample photos via **Photos** or drag images into the simul
 
 ## Backend (Phase 2)
 
-Not set up yet. When added:
+Not set up yet. Task plan: **[BACKEND_TASKS.md](./BACKEND_TASKS.md)**. Architecture: **[architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md)**.
+
+When added:
 
 - Migrations → `supabase/migrations`
 - Edge Functions → `supabase/functions`
+- Portable logic → `packages/backend-core`
 - Shared API contracts → `packages/shared`
 
 Do not duplicate types across mobile and backend — use `@tailo/shared`.

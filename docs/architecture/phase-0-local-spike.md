@@ -1,6 +1,6 @@
 # Phase 0 — Local Technical Spike
 
-**Status:** In progress (wrap-up: device QA, performance)  
+**Status:** Complete (spike); superseded for timeline reads by [phase-1-local-mvp.md](./phase-1-local-mvp.md)  
 **Goal:** Believable local pet timeline from real photos — **no network, no account**  
 **Success:** Photo access granted → grouped moments on timeline within ~60s of partial results
 
@@ -29,11 +29,13 @@ App launch
   → detect pet candidates + dog/cat type (batched detector)
   → cluster into event candidates
   → score + select 2–5 images per event
-  → timeline reads ready/scored events
+  → timeline reads scored event candidates
   → [background] scan older pages + re-run pipeline
 ```
 
 All processing is **on-device**. Nothing leaves the phone in Phase 0.
+
+> **Phase 1+:** After selection, candidates are promoted to `local_events`; see [phase-1-local-mvp.md](./phase-1-local-mvp.md).
 
 ---
 
@@ -53,7 +55,7 @@ On permission grant (or “Look again”), runs sequentially:
 
 UI progress flags: `isScanning`, `isDetectingPets`, `isClusteringEvents`, `isSelectingImages`.
 
-**Timeline:** `useTimelineEvents` → `getTimelineEvents` — refreshes when pipeline completes (via parent refresh key / re-mount patterns on `HomeScreen`).
+**Timeline (Phase 0):** `useTimelineEvents` → `getTimelineEvents` — queried `local_event_candidates` with `candidate_status IN ('scored', 'ready')`. **Current app:** reads promoted `local_events` (Phase 1.2).
 
 ---
 
@@ -72,7 +74,7 @@ UI progress flags: `isScanning`, `isDetectingPets`, `isClusteringEvents`, `isSel
 
 ## Local data model
 
-SQLite database: `tailo.db` (schema version **2**).
+SQLite database: `tailo.db` (Phase 0 ended at schema version **2**; later migrations in Phase 1).
 
 ### `local_assets`
 
@@ -87,7 +89,7 @@ Scanned camera-roll items.
 
 ### `local_event_candidates`
 
-Grouped moments before any cloud sync.
+Grouped moments before promotion (Phase 1.2).
 
 | Column               | Notes                                |
 | -------------------- | ------------------------------------ |
@@ -123,16 +125,16 @@ Per-asset scores within an event.
 
 **Current implementation:** native-preferred dog/cat detection behind the `PetDetector` contract (`eventBuilder/petDetector/`).
 
-- iOS native module: `TailoPetClassifier` local Expo module
+- iOS native module: `TailoPetClassifier` local Expo module (requires Expo **dev client**, not Expo Go)
 - Native path loads bundled `TailoPetClassifier.mlmodelc` when present
-- If no bundled model is present, native path uses Apple Vision's built-in `VNClassifyImageRequest`
-- JS fallback path uses hash + aspect-ratio score → `pet_confidence`
-- JS fallback threshold: **0.68** → `is_pet_candidate`
+- Otherwise uses Apple Vision **`VNRecognizeAnimalsRequest`** (dog/cat only)
+- Minimum confidence **0.35** on native results (JS + Swift); low-confidence labels are not pet candidates
+- Heuristic fallback does **not** mark pets (`is_pet_candidate = 0`) — avoids fake timelines when native is unavailable
 - Candidate assets receive `detected_pet_type: 'dog' | 'cat'`; non-candidates remain `NULL`
-- Batched via `processPendingPetCandidates` (non-blocking UI between batches)
-- If the native module or model is unavailable, `createFallbackPetDetector` falls back to the heuristic detector
+- Batched via `processPendingPetCandidates` (one photo at a time, 12s timeout per photo)
+- **Redetect pets** on Home resets processed assets and re-runs detection
 
-**Follow-up:** Rebuild an Expo dev client and validate `dog | cat | other` classification on real iPhone photo libraries. A custom trained `TailoPetClassifier.mlmodel` can be added later without changing the JS pipeline or SQLite shape.
+**Device validation (0.3a.6):** Validated on a real iPhone photo library with a dev client build. Optional follow-up: custom `TailoPetClassifier.mlmodel` for higher accuracy without changing the SQLite shape.
 
 ### 3. Clustering (`eventBuilder/clustering.ts`)
 
@@ -148,7 +150,7 @@ Per-asset scores within an event.
 - Mark **one** `is_primary` for timeline thumbnail
 - Set `candidate_status` to `scored` / `ready` for timeline query
 
-### 5. Timeline presentation
+### 5. Timeline presentation (Phase 0)
 
 - Query: `candidate_status IN ('scored', 'ready')`, `ORDER BY timestamp DESC`
 - **Placeholder:** `eventType: 'unknown'`, `caption: null` (Phase 2 AI)
@@ -180,7 +182,8 @@ No real photo library in CI.
 
 ## Known limitations (Phase 0)
 
-- Pet detection has an iOS native classifier path, but real-device accuracy has not been validated in this environment; Expo Go still falls back to the JS heuristic because local native modules require a dev client
+- Pet detection requires an Expo **dev client**; Expo Go does not load `TailoPetClassifier` (heuristic fallback does not create pet candidates)
+- Initial scan window is **28 days** (+ limited older pages); very old pet photos may be missing until background scan completes
 - No incremental timeline refresh subscription — refresh tied to scan lifecycle on Home
 - No `upload_queue` / `sync_state` tables yet (Phase 1.5.1)
 - Event types and captions are placeholders until backend AI (Phase 2)
@@ -190,20 +193,23 @@ No real photo library in CI.
 
 ## Phase 0 → Phase 1 handoff
 
-Phase 1 will add without breaking Phase 0 tables:
+Continued in **[phase-1-local-mvp.md](./phase-1-local-mvp.md)**:
 
-- `anonymous_user_id` (SecureStore)
-- Pet profile + onboarding screens
-- `upload_queue` / `sync_state` schema (local only until Phase 2)
-- In-app capture (`source: in_app`)
-- Event detail + edit (caption, type, favorite)
+- `anonymous_user_id` (SecureStore) — done (1.1)
+- Pet profile + onboarding screens — done (1.1)
+- Promoted `local_events` + processing state — done (1.2)
+- `upload_queue` / `sync_state` schema (local only until Phase 2) — planned (1.5)
+- In-app capture (`source: in_app`) — planned (1.4)
+- Event detail + edit (caption, type, favorite) — planned (1.3)
 
 ---
 
 ## Change log
 
-| Date       | Change                                                                                                           |
-| ---------- | ---------------------------------------------------------------------------------------------------------------- |
-| 2026-05-17 | Initial Phase 0 architecture doc (reflects implemented pipeline 0.1–0.6)                                         |
-| 2026-05-17 | Added dog/cat detection contract, `detected_pet_type` schema v2, and native detector fallback note               |
-| 2026-05-17 | Added `TailoPetClassifier` local Expo module for iOS Vision/Core ML classification with built-in Vision fallback |
+| Date       | Change                                                                                                                        |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-17 | Initial Phase 0 architecture doc (reflects implemented pipeline 0.1–0.6)                                                      |
+| 2026-05-17 | Added dog/cat detection contract, `detected_pet_type` schema v2, and native detector fallback note                            |
+| 2026-05-17 | Added `TailoPetClassifier` local Expo module for iOS Vision/Core ML classification with built-in Vision fallback              |
+| 2026-05-18 | Pet detection: `VNRecognizeAnimalsRequest`, confidence floor 0.35, non-pet heuristic fallback; 0.3a.6 device validation noted |
+| 2026-05-18 | Moved Phase 1.1+ content to [phase-1-local-mvp.md](./phase-1-local-mvp.md); restored Phase 0 scope in this doc                |

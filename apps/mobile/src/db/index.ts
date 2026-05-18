@@ -1,6 +1,10 @@
 import * as SQLite from 'expo-sqlite';
 
-import { migrateDatabase } from './migrations';
+import { reconcileInstallIdentity } from '@/modules/auth/installIdentity';
+
+import { logDbInfo } from './dbLogger';
+import { CURRENT_SCHEMA_VERSION, migrateDatabase } from './migrations';
+import { createSerializedDatabase } from './serializeDatabase';
 
 export const DATABASE_NAME = 'tailo.db';
 
@@ -23,8 +27,18 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 
 async function openAndMigrateDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!database) {
-    database = await SQLite.openDatabaseAsync(DATABASE_NAME);
-    await migrateDatabase(database);
+    logDbInfo('Opening database', { name: DATABASE_NAME });
+    const rawDatabase = await SQLite.openDatabaseAsync(DATABASE_NAME);
+    const schemaVersion = await migrateDatabase(rawDatabase);
+    const install = await reconcileInstallIdentity(rawDatabase);
+    database = createSerializedDatabase(rawDatabase);
+    logDbInfo('Database ready', {
+      name: DATABASE_NAME,
+      schemaVersion,
+      expectedSchemaVersion: CURRENT_SCHEMA_VERSION,
+      installId: install.installId,
+      clearedStaleSecureStore: install.clearedStaleSecureStore,
+    });
   }
   return database;
 }

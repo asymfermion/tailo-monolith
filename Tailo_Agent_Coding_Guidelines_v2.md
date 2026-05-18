@@ -409,6 +409,29 @@ AI should quietly improve structure and recall.
 
 ---
 
+### 5.6 GitHub issue & project workflow
+
+Track work in GitHub Issues (and the repo [project board](https://github.com/users/asymfermion/projects/2)), not only in markdown checkboxes.
+
+**Issues** = one task, PR links, open/closed. **Project** = planning view (status, priority, what’s next). Do not create duplicate work items on the project—add or use existing issues, then manage them on the board.
+
+**Plan** — Before starting non-trivial work, ensure there is an issue on the [Tailo mobile project](https://github.com/users/asymfermion/projects/2):
+
+- Pick an existing open issue from [docs/MOBILE_TASKS.md](./docs/MOBILE_TASKS.md) (each task maps to an issue in `asymfermion/tailo-monolith`, label `mobile-tasks`).
+- If the task is new or missing, **create a GitHub issue first**: title `task-id: short description`, body with phase/section, labels (`mobile-tasks` + phase label), link to `MOBILE_TASKS.md`. Add it to project **#2** and add a matching row to `MOBILE_TASKS.md` if it is a new planned task.
+
+**Start** — Do not begin implementation without an issue number. Move the issue to **In progress** (or equivalent) on the project board. Say which issue you are working on (e.g. “Working on #25 / task 0.3a.6”). Branch names and PR titles should reference the issue when possible.
+
+**Finish** — When the task is done and verified (tests, docs per Definition of Done):
+
+1. Close the GitHub issue (`state: closed`, `state_reason: completed`) and move it to **Done** on the project board.
+2. Check off the task in `docs/MOBILE_TASKS.md` (`[x]`).
+3. Note the issue or PR in the phase “notes & decisions” section when useful.
+
+Do not leave issues open for merged or abandoned work. If scope is dropped, close with `state_reason: not_planned`, update the project board, and note why.
+
+---
+
 ## 6. Database Schema Guidelines
 
 Use Supabase Postgres.
@@ -1539,6 +1562,8 @@ When implementing Tailo, optimize for this order:
 5. Cost control
 6. Future flexibility
 ```
+
+For every task: **plan with a GitHub issue (on the project board) → implement against that issue → close the issue when done** (see §5.6).
 
 Do not add features that make users work harder.
 

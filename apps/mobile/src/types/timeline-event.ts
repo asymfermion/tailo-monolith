@@ -1,5 +1,7 @@
 import type { EventSource, EventType } from '@tailo/shared';
 
+import type { DetectedPetType } from './local-asset';
+
 /** Resolved media item shown in the timeline UI. */
 export interface TimelineEventMedia {
   localAssetId: string;
@@ -7,6 +9,11 @@ export interface TimelineEventMedia {
   width: number;
   height: number;
   isPrimary: boolean;
+  detectedPetType: DetectedPetType | null;
+  petConfidence: number | null;
+  overallScore: number;
+  isPetCandidate: boolean;
+  detectionDebugLabel: string | null;
 }
 
 /**

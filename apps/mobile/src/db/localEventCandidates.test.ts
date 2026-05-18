@@ -18,6 +18,9 @@ describe('clearLocalEventPipeline', () => {
       expect.stringContaining('DELETE FROM local_media_scores'),
     );
     expect(execAsync).toHaveBeenCalledWith(
+      expect.stringContaining('DELETE FROM local_events'),
+    );
+    expect(execAsync).toHaveBeenCalledWith(
       expect.stringContaining('DELETE FROM local_event_candidates'),
     );
   });
@@ -42,6 +45,7 @@ describe('upsertLocalEventCandidates', () => {
       'local-event-1',
       '2026-05-17T03:30:00.000Z',
       'camera_roll',
+      'pending',
       'pending',
       JSON.stringify(['asset-1', 'asset-2']),
     ]);

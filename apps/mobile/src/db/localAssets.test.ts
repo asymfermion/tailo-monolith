@@ -166,4 +166,14 @@ describe('getLocalPetCandidateAssets', () => {
       'ORDER BY created_at DESC',
     );
   });
+
+  it('filters candidates to the profile pet type when provided', async () => {
+    const getAllAsync = jest.fn().mockResolvedValue([]);
+    const db = { getAllAsync } as unknown as SQLite.SQLiteDatabase;
+
+    await getLocalPetCandidateAssets(db, 'cat');
+
+    expect(getAllAsync.mock.calls[0]?.[0]).toContain('detected_pet_type = ?');
+    expect(getAllAsync.mock.calls[0]?.[1]).toEqual([0.35, 'cat']);
+  });
 });

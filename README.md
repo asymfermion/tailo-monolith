@@ -18,6 +18,7 @@ This repository is a **monorepo** for the mobile app, shared types, and (later) 
 - **[Architecture](docs/ARCHITECTURE.md)** — phase design docs (update when implementing new work)
 - **[Mobile tasks](docs/MOBILE_TASKS.md)** — phased development checklist (start here for implementation)
 - **[Developer guide](docs/DEVELOPER.md)** — setup, run commands, repo layout
+- **[Future features](docs/FUTURE_FEATURES.md)** — post-MVP product ideas
 - **[Agent coding guidelines](Tailo_Agent_Coding_Guidelines_v2.md)** — architecture, product rules, MVP phases
 
 ## Status

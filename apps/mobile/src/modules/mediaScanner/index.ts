@@ -12,4 +12,15 @@ export {
   scanRecentPhotos,
   type ScanProgress,
 } from './scanner';
+export {
+  getLastScanTimestamp,
+  setLastScanTimestamp,
+  LAST_SCAN_TIMESTAMP_KEY,
+} from './scanState';
+export { ScanProgressIndicator } from './components/ScanProgressIndicator';
+export {
+  computeOnboardingScanProgress,
+  getScanProgressDetail,
+  getScanProgressHeadline,
+} from './scanProgress';
 export { usePhotoAccess, type PhotoAccessState } from './usePhotoAccess';

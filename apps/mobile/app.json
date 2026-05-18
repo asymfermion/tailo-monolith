@@ -61,7 +61,8 @@
       "expo-sqlite"
     ],
     "experiments": {
-      "tsconfigPaths": true
+      "tsconfigPaths": true,
+      "autolinkingModuleResolution": true
     }
   }
 }

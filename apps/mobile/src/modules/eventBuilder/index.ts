@@ -17,9 +17,17 @@ export {
   type PetDetectionProgress,
 } from './petDetection';
 export {
+  promoteScoredCandidatesToLocalEvents,
+  type PromoteLocalEventsProgress,
+} from './eventPromotion';
+export {
   redetectLocalPetPipeline,
   type RedetectLocalPetPipelineResult,
 } from './redetectPipeline';
+export {
+  rebuildPipelineForProfilePetType,
+  type RebuildPipelineForProfilePetTypeResult,
+} from './rebuildPipelineForProfilePetType';
 export {
   createFallbackPetDetector,
   createPetDetector,

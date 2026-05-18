@@ -6,6 +6,8 @@ import {
   updateLocalAssetDetectionResults,
 } from '@/db/localAssets';
 
+import { isPetCandidateForProfile, loadLocalPetProfile } from '@/modules/pets';
+
 import {
   createPetDetector,
   heuristicPetDetector,
@@ -43,6 +45,8 @@ export async function processPendingPetCandidates({
   detector = createPetDetector(),
   onProgress,
 }: ProcessPendingPetCandidatesOptions): Promise<PetDetectionProgress> {
+  const profile = await loadLocalPetProfile();
+  const profilePetType = profile?.type ?? null;
   let batchCount = 0;
   let processedCount = 0;
   const totalCount = await countPendingLocalAssetsForDetection(database);
@@ -68,7 +72,11 @@ export async function processPendingPetCandidates({
       await updateLocalAssetDetectionResults(database, [
         {
           localAssetId: asset.localAssetId,
-          isPetCandidate: result.isPetCandidate,
+          isPetCandidate: isPetCandidateForProfile(
+            result.isPetCandidate,
+            result.detectedPetType,
+            profilePetType,
+          ),
           petConfidence: result.confidence,
           detectedPetType: result.detectedPetType,
           detectionSource: result.detectionSource,
@@ -77,7 +85,10 @@ export async function processPendingPetCandidates({
       ]);
 
       processedCount += 1;
-      const petCandidateCount = await countLocalPetCandidates(database);
+      const petCandidateCount = await countLocalPetCandidates(
+        database,
+        profilePetType,
+      );
       hasMore = processedCount < totalCount;
 
       onProgress?.({
@@ -92,7 +103,10 @@ export async function processPendingPetCandidates({
     }
   }
 
-  const petCandidateCount = await countLocalPetCandidates(database);
+  const petCandidateCount = await countLocalPetCandidates(
+    database,
+    profilePetType,
+  );
 
   return {
     batchCount,

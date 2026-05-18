@@ -18,7 +18,8 @@ export type NavigationAction =
       routeName: RootRouteName;
       params?: RootStackParamList[RootRouteName];
     }
-  | { type: 'pop' };
+  | { type: 'pop' }
+  | { type: 'popToRoot' };
 
 export function createInitialStack(
   routeName: typeof INITIAL_ROUTE_NAME,
@@ -43,16 +44,18 @@ export function navigationReducer(
       ] as NavigationStack;
     case 'pop':
       return stack.length > 1 ? stack.slice(0, -1) : stack;
+    case 'popToRoot':
+      return stack.length > 0 ? [stack[0]!] : stack;
   }
 }
 
 function createRoute<RouteName extends RootRouteName>(
   name: RouteName,
   params?: RootStackParamList[RouteName],
-): RootRoute<RouteName> {
+): RootRoute {
   return {
     key: `${name}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     name,
-    params: params as RootStackParamList[RouteName],
-  };
+    params,
+  } as RootRoute;
 }

@@ -50,12 +50,13 @@ Expo SDK 54 docs: https://docs.expo.dev/versions/v54.0.0/
 
 ## How to work
 
-1. **Follow the task plan** — next open item in `docs/MOBILE_TASKS.md` unless the user specifies otherwise.
-2. **Update architecture docs** — when implementing something new, update the relevant doc under `docs/architecture/` (see below).
-3. **Reuse before rewrite** — search the repo first; extract shared logic instead of copying (see below).
-4. **Respect boundaries** — mobile in `apps/mobile`; contracts in `packages/shared` / `packages/ai`.
-5. **Stay focused** — no drive-by refactors or scope creep (architecture doc updates are required, not optional scope).
-6. **Match existing style** — calm UI copy (moments/memories, not “AI assistant”).
+1. **Follow the task plan** — next open item in `docs/MOBILE_TASKS.md` unless the user specifies otherwise. Tasks are tracked as [GitHub issues](https://github.com/asymfermion/tailo-monolith/issues?q=label%3Amobile-tasks+is%3Aopen) on the [mobile project board](https://github.com/users/asymfermion/projects/2); see [guidelines §5.6](./Tailo_Agent_Coding_Guidelines_v2.md#56-github-issue--project-workflow).
+2. **Plan with an issue, code with an issue, close when done** — create or pick an issue (on the project board) before coding; move status on the board while working; close the issue and check off `MOBILE_TASKS.md` when complete.
+3. **Update architecture docs** — when implementing something new, update the relevant doc under `docs/architecture/` (see below).
+4. **Reuse before rewrite** — search the repo first; extract shared logic instead of copying (see below).
+5. **Respect boundaries** — mobile in `apps/mobile`; contracts in `packages/shared` / `packages/ai`.
+6. **Stay focused** — no drive-by refactors or scope creep (architecture doc updates are required, not optional scope).
+7. **Match existing style** — calm UI copy (moments/memories, not “AI assistant”).
 
 ---
 
@@ -64,7 +65,7 @@ Expo SDK 54 docs: https://docs.expo.dev/versions/v54.0.0/
 When you implement something **new** (module, pipeline stage, table, API boundary, or major behavior change):
 
 1. Update **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** if phase scope or monorepo boundaries change.
-2. Update the matching **phase doc** in `docs/architecture/` (e.g. [phase-0-local-spike.md](./docs/architecture/phase-0-local-spike.md)).
+2. Update the matching **phase doc** in `docs/architecture/` (e.g. [phase-0-local-spike.md](./docs/architecture/phase-0-local-spike.md), [phase-1-local-mvp.md](./docs/architecture/phase-1-local-mvp.md)).
 3. Add a short row to that doc’s **Change log** (date + what changed).
 
 Keep updates concise: flow, modules, data model, thresholds — not a duplicate of every PR.
@@ -198,6 +199,52 @@ apps/mobile/src/
 - **Events over files** — timeline is event-centric, not a photo grid.
 - **No registration required** for core MVP value.
 - **One pet in UI**; include `pet_id` in data models for later multi-pet.
+
+---
+
+## Styling (mobile)
+
+The Expo app uses **React Native `StyleSheet`**, not CSS files. Do not add `.css` files or web-only styling libraries (e.g. CSS Modules, Tailwind/NativeWind) unless the user explicitly requests them.
+
+### Tokens (required)
+
+- Put shared visual constants in **[`apps/mobile/src/constants/theme.ts`](./apps/mobile/src/constants/theme.ts)** — `colors`, `spacing`, and typography when added.
+- Reference `colors.*` and `spacing.*` in styles; do not hardcode hex values or spacing literals in screens unless there is a one-off exception.
+
+### Where styles live
+
+| Scope              | Location                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| Design tokens      | `src/constants/theme.ts`                                                                                |
+| Screen/feature UI  | `StyleSheet.create(...)` at the **bottom** of the same `.tsx` file                                      |
+| Large style blocks | Extract to `ScreenName.styles.ts` next to the screen (only when the block is hard to scan, ~150+ lines) |
+| Reused UI          | `src/components/` — extract before copying the same style object twice                                  |
+
+### Rules
+
+1. **Co-locate by default** — keep `StyleSheet.create` in the component file that uses it; name the export `styles`.
+2. **No inline style objects in JSX** for static layout — use `styles.foo`. Inline is OK only for truly dynamic values (e.g. `{ width: progress }`).
+3. **Reuse components** — prefer shared buttons, rows, and bands in `src/components/` over duplicating style definitions across screens.
+4. **Calm UI** — off-white backgrounds, muted text, one accent; generous spacing from `theme.ts`. Match existing screens (`HomeScreen`, `OnboardingScreen`).
+5. **Do not** introduce global style frameworks or theme providers without an explicit task — the project standard is `theme.ts` + `StyleSheet`.
+
+### Example
+
+```tsx
+import { colors, spacing } from '@/constants/theme';
+
+export function Example() {
+  return <View style={styles.container} />;
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.lg,
+  },
+});
+```
 
 ---
 

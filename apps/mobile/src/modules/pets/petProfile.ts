@@ -1,4 +1,6 @@
 import { secureStorage, type SecureStorage } from '@/modules/auth';
+import { getDatabase } from '@/db';
+import { rebuildPipelineForProfilePetType } from '@/modules/eventBuilder/rebuildPipelineForProfilePetType';
 
 export type LocalPetType = 'dog' | 'cat';
 export type LocalPetGender = 'female' | 'male' | 'unknown';
@@ -40,6 +42,33 @@ export async function loadLocalPetProfile(
   }
 }
 
+/** After scan: user picks dog or cat; rebuilds timeline for that type only. */
+export async function saveSelectedPetType(
+  type: LocalPetType,
+  storage: SecureStorage = secureStorage,
+): Promise<LocalPetProfile> {
+  const existingProfile = await loadLocalPetProfile(storage);
+  const now = new Date().toISOString();
+
+  const profile: LocalPetProfile = {
+    petId: existingProfile?.petId ?? generateLocalPetId(),
+    name: existingProfile?.name ?? '',
+    type,
+    gender: existingProfile?.gender ?? null,
+    profilePhotoLocalAssetId: existingProfile?.profilePhotoLocalAssetId ?? null,
+    profilePhotoUri: existingProfile?.profilePhotoUri ?? null,
+    createdAt: existingProfile?.createdAt ?? now,
+    updatedAt: now,
+  };
+
+  await storage.setItemAsync(LOCAL_PET_PROFILE_KEY, JSON.stringify(profile));
+
+  const database = await getDatabase();
+  await rebuildPipelineForProfilePetType(database, type);
+
+  return profile;
+}
+
 export async function saveLocalPetProfile(
   input: SaveLocalPetProfileInput,
   storage: SecureStorage = secureStorage,
@@ -58,6 +87,15 @@ export async function saveLocalPetProfile(
   };
 
   await storage.setItemAsync(LOCAL_PET_PROFILE_KEY, JSON.stringify(profile));
+
+  const shouldRebuildPipeline =
+    input.type !== existingProfile?.type ||
+    (!existingProfile?.type && input.type);
+
+  if (shouldRebuildPipeline) {
+    const database = await getDatabase();
+    await rebuildPipelineForProfilePetType(database, input.type);
+  }
 
   return profile;
 }

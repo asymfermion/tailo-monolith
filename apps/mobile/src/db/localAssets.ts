@@ -2,6 +2,7 @@ import type * as SQLite from 'expo-sqlite';
 
 import { MIN_PET_CONFIDENCE } from '@/modules/eventBuilder/petDetector/constants';
 import type { DetectionSource } from '@/modules/eventBuilder/petDetector/types';
+import type { LocalPetType } from '@/modules/pets';
 import type { DetectedPetType, NewLocalAsset } from '@/types';
 
 export type LocalAssetDetectionInput = {
@@ -88,7 +89,7 @@ type PetCandidateCountRow = {
   count: number;
 };
 
-const SELECT_LOCAL_PET_CANDIDATES_SQL = `
+const SELECT_LOCAL_PET_CANDIDATES_BASE_SQL = `
   SELECT
     local_asset_id AS localAssetId,
     created_at AS createdAt,
@@ -100,7 +101,6 @@ const SELECT_LOCAL_PET_CANDIDATES_SQL = `
   WHERE is_pet_candidate = 1
     AND pet_confidence IS NOT NULL
     AND pet_confidence >= ?
-  ORDER BY created_at DESC
 `;
 
 export async function upsertLocalAssets(
@@ -188,9 +188,37 @@ export async function resetLocalAssetsForRedetection(
   return result.changes;
 }
 
+/** Re-apply is_pet_candidate after the user picks dog or cat (scan may have run earlier). */
+export async function reapplyPetCandidateFlagsForProfile(
+  db: SQLite.SQLiteDatabase,
+  profilePetType: LocalPetType,
+): Promise<number> {
+  const result = await db.runAsync(
+    `
+      UPDATE local_assets
+      SET
+        is_pet_candidate = CASE
+          WHEN detected_pet_type = ?
+            AND pet_confidence IS NOT NULL
+            AND pet_confidence >= ?
+          THEN 1
+          ELSE 0
+        END,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE media_type = 'photo'
+        AND processing_status = 'processed'
+    `,
+    [profilePetType, MIN_PET_CONFIDENCE],
+  );
+
+  return result.changes;
+}
+
 export async function countLocalPetCandidates(
   db: SQLite.SQLiteDatabase,
+  profilePetType?: LocalPetType | null,
 ): Promise<number> {
+  const petTypeFilter = buildPetTypeFilter(profilePetType);
   const row = await db.getFirstAsync<PetCandidateCountRow>(
     `
       SELECT COUNT(*) AS count
@@ -198,8 +226,9 @@ export async function countLocalPetCandidates(
       WHERE is_pet_candidate = 1
         AND pet_confidence IS NOT NULL
         AND pet_confidence >= ?
+        ${petTypeFilter.clause}
     `,
-    [MIN_PET_CONFIDENCE],
+    [MIN_PET_CONFIDENCE, ...petTypeFilter.params],
   );
 
   return row?.count ?? 0;
@@ -207,10 +236,49 @@ export async function countLocalPetCandidates(
 
 export async function getLocalPetCandidateAssets(
   db: SQLite.SQLiteDatabase,
+  profilePetType?: LocalPetType | null,
 ): Promise<LocalPetCandidateAsset[]> {
-  return db.getAllAsync<LocalPetCandidateAsset>(SELECT_LOCAL_PET_CANDIDATES_SQL, [
-    MIN_PET_CONFIDENCE,
-  ]);
+  const query = buildLocalPetCandidatesQuery(profilePetType);
+  return db.getAllAsync<LocalPetCandidateAsset>(query.sql, query.params);
+}
+
+function buildLocalPetCandidatesQuery(profilePetType?: LocalPetType | null): {
+  sql: string;
+  params: (string | number)[];
+} {
+  const petTypeFilter = buildPetTypeFilter(profilePetType);
+
+  return {
+    sql: `${SELECT_LOCAL_PET_CANDIDATES_BASE_SQL}${petTypeFilter.clause}
+  ORDER BY created_at DESC`,
+    params: [MIN_PET_CONFIDENCE, ...petTypeFilter.params],
+  };
+}
+
+function buildPetTypeFilter(profilePetType?: LocalPetType | null): {
+  clause: string;
+  params: string[];
+} {
+  if (!profilePetType) {
+    return { clause: '', params: [] };
+  }
+
+  return {
+    clause: '    AND detected_pet_type = ?',
+    params: [profilePetType],
+  };
+}
+
+export async function countLocalAssets(
+  db: SQLite.SQLiteDatabase,
+): Promise<number> {
+  const row = await db.getFirstAsync<PetCandidateCountRow>(`
+    SELECT COUNT(*) AS count
+    FROM local_assets
+    WHERE media_type = 'photo'
+  `);
+
+  return row?.count ?? 0;
 }
 
 export async function getLocalAssetsByIds(

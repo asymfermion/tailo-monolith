@@ -98,6 +98,7 @@ function mapClusterToEventCandidate(
     timestamp,
     source: 'camera_roll',
     candidateStatus: 'pending',
+    processingState: 'pending',
     selectedAssetIds,
   };
 }

@@ -1,3 +1,14 @@
+import {
+  getAuthAccessToken,
+  getAuthSession,
+  isRemoteAuthConfigured,
+} from '@/modules/auth/authService';
+import {
+  loadLocalPetProfile,
+  saveLocalPetProfileWithRemoteId,
+} from './petProfile';
+import { syncRemotePetProfileIfNeeded } from './remotePetSync';
+
 jest.mock('@/lib/env', () => ({
   appEnv: {
     supabaseUrl: 'https://example.supabase.co',
@@ -15,17 +26,6 @@ jest.mock('./petProfile', () => ({
   loadLocalPetProfile: jest.fn(),
   saveLocalPetProfileWithRemoteId: jest.fn(),
 }));
-
-import {
-  getAuthAccessToken,
-  getAuthSession,
-  isRemoteAuthConfigured,
-} from '@/modules/auth/authService';
-import {
-  loadLocalPetProfile,
-  saveLocalPetProfileWithRemoteId,
-} from './petProfile';
-import { syncRemotePetProfileIfNeeded } from './remotePetSync';
 
 describe('syncRemotePetProfileIfNeeded', () => {
   beforeEach(() => {

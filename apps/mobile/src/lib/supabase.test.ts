@@ -1,7 +1,14 @@
-const mockCreateClient = jest.fn();
+import { createClient } from '@supabase/supabase-js';
+
+import { appEnv } from '@/lib/env';
+import {
+  getSupabaseClient,
+  isSupabaseConfigured,
+  resetSupabaseClientForTests,
+} from '@/lib/supabase';
 
 jest.mock('@supabase/supabase-js', () => ({
-  createClient: (...args: unknown[]) => mockCreateClient(...args),
+  createClient: jest.fn(),
 }));
 
 jest.mock('@/lib/env', () => ({
@@ -20,12 +27,7 @@ jest.mock('@/modules/auth/secureStorage', () => ({
   },
 }));
 
-import { appEnv } from '@/lib/env';
-import {
-  getSupabaseClient,
-  isSupabaseConfigured,
-  resetSupabaseClientForTests,
-} from '@/lib/supabase';
+const mockCreateClient = jest.mocked(createClient);
 
 describe('getSupabaseClient', () => {
   afterEach(() => {
@@ -44,7 +46,7 @@ describe('getSupabaseClient', () => {
   it('returns a singleton client when env vars are set', () => {
     const fakeClient = { auth: {} };
 
-    mockCreateClient.mockReturnValue(fakeClient);
+    mockCreateClient.mockReturnValue(fakeClient as never);
 
     Object.assign(appEnv, {
       hasSupabaseConfig: true,

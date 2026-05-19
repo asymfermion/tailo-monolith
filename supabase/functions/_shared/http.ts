@@ -1,4 +1,4 @@
-import { createClient, type User } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { createClient, type User } from '@supabase/supabase-js';
 import { corsHeaders } from './cors.ts';
 
 export function handleOptions(request: Request): Response | null {

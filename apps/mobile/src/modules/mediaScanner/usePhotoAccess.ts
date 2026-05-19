@@ -116,22 +116,6 @@ export function usePhotoAccess(
     }));
   }, []);
 
-  const resetPipelineProgress = useCallback(() => {
-    setState((current) => ({
-      ...current,
-      isScanning: false,
-      isDetectingPets: false,
-      isClusteringEvents: false,
-      isSelectingImages: false,
-      initialScanCompleted: false,
-      progress: initialProgress,
-      petDetectionProgress: initialPetDetectionProgress,
-      eventClusteringProgress: initialEventClusteringProgress,
-      bestImageSelectionProgress: initialBestImageSelectionProgress,
-      errorMessage: null,
-    }));
-  }, []);
-
   const pipelineProgress = useMemo(
     () => ({
       onScanProgress: (progress: ScanProgress) => {

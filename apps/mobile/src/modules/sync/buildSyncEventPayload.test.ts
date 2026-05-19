@@ -5,6 +5,9 @@ import type { UploadQueueRow } from '@/db/uploadQueue';
 
 import { buildSyncEventPayload } from './buildSyncEventPayload';
 
+import { getLocalAssetUploadSourcesByIds } from '@/db/localAssets';
+import { getLocalMediaScoresForEvent } from '@/db/localMediaScores';
+
 jest.mock('@/db/localAssets', () => ({
   getLocalAssetUploadSourcesByIds: jest.fn(),
 }));
@@ -12,9 +15,6 @@ jest.mock('@/db/localAssets', () => ({
 jest.mock('@/db/localMediaScores', () => ({
   getLocalMediaScoresForEvent: jest.fn(),
 }));
-
-import { getLocalAssetUploadSourcesByIds } from '@/db/localAssets';
-import { getLocalMediaScoresForEvent } from '@/db/localMediaScores';
 
 describe('buildSyncEventPayload', () => {
   const database = {} as SQLite.SQLiteDatabase;

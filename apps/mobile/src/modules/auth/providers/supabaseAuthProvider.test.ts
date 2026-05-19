@@ -1,10 +1,10 @@
+import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
+import { createSupabaseAuthProvider } from './supabaseAuthProvider';
+
 jest.mock('@/lib/supabase', () => ({
   isSupabaseConfigured: jest.fn(),
   getSupabaseClient: jest.fn(),
 }));
-
-import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
-import { createSupabaseAuthProvider } from './supabaseAuthProvider';
 
 describe('createSupabaseAuthProvider', () => {
   beforeEach(() => {

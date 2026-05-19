@@ -1,3 +1,22 @@
+import {
+  getPendingUploadQueueItems,
+  markUploadQueueItemDone,
+  markUploadQueueItemsUploading,
+  resetStuckUploadingQueueItems,
+} from '@/db/uploadQueue';
+import { getLocalAssetUploadSourcesByIds } from '@/db/localAssets';
+import { getLocalEventById } from '@/db/localEvents';
+import {
+  getAuthSession,
+  isRemoteAuthConfigured,
+} from '@/modules/auth/authService';
+import { loadLocalPetProfile } from '@/modules/pets/petProfile';
+import { createUploadUrls } from './createUploadUrls';
+import { prepareEventMediaUpload } from './prepareEventMediaUpload';
+import { runUploadQueueWorker } from './uploadQueueWorker';
+import { runEventSyncForLocalEvent } from './runEventSync';
+import { uploadToSignedUrl } from './uploadToSignedUrl';
+
 jest.mock('@/modules/auth/authService', () => ({
   isRemoteAuthConfigured: jest.fn(),
   getAuthSession: jest.fn(),
@@ -22,25 +41,6 @@ jest.mock('./uploadToSignedUrl', () => ({
 jest.mock('./runEventSync', () => ({
   runEventSyncForLocalEvent: jest.fn().mockResolvedValue({ status: 'synced' }),
 }));
-
-import {
-  getPendingUploadQueueItems,
-  markUploadQueueItemDone,
-  markUploadQueueItemsUploading,
-  resetStuckUploadingQueueItems,
-} from '@/db/uploadQueue';
-import { getLocalAssetUploadSourcesByIds } from '@/db/localAssets';
-import { getLocalEventById } from '@/db/localEvents';
-import {
-  getAuthSession,
-  isRemoteAuthConfigured,
-} from '@/modules/auth/authService';
-import { loadLocalPetProfile } from '@/modules/pets/petProfile';
-import { createUploadUrls } from './createUploadUrls';
-import { prepareEventMediaUpload } from './prepareEventMediaUpload';
-import { runUploadQueueWorker } from './uploadQueueWorker';
-import { runEventSyncForLocalEvent } from './runEventSync';
-import { uploadToSignedUrl } from './uploadToSignedUrl';
 
 jest.mock('@/db/uploadQueue', () => ({
   getPendingUploadQueueItems: jest.fn(),

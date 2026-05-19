@@ -55,7 +55,7 @@ npm run deploy:supabase
 
 This runs `supabase db push` and deploys every function under `supabase/functions/` (skips `_shared`).
 
-**Monorepo note:** Edge Functions import `packages/shared` and `packages/backend-core` via relative paths. Deno resolves workspace imports through `supabase/functions/import_map.json` (maps `@tailo/shared` → `packages/shared`). If deploy fails with “Relative import path @tailo/shared not prefixed”, ensure that file exists and shared sources use `.ts` extensions on relative imports.
+**Monorepo note:** Each function has its own `deno.json` (maps `@tailo/shared` → `packages/shared`, `@supabase/supabase-js` → `npm:@supabase/supabase-js@2.105.4`). Do not use `esm.sh` for Supabase client — it fails intermittently in CI (522). Shared sources under `packages/shared` use `.ts` extensions on relative imports for Deno.
 
 Functions deployed:
 
@@ -85,7 +85,9 @@ Default AI is **stub** (no GCP). For real Gemini captions on uploaded moments, s
 
 ## CI/CD (GitHub Actions)
 
-Pushes to **`main`** that touch `supabase/`, shared packages, or the deploy script run [`.github/workflows/deploy-supabase.yml`](../.github/workflows/deploy-supabase.yml):
+Pushes to **`main`** that touch `supabase/`, shared packages, `apps/mobile/`, root `package*.json`, or the deploy script run [`.github/workflows/deploy-supabase.yml`](../.github/workflows/deploy-supabase.yml):
+
+> **Note:** Mobile-only commits did not trigger this workflow before `apps/mobile/**` was added to the path filter. Use **Actions → Deploy Supabase → Run workflow** to run manually any time.
 
 1. Unit tests (`npm test`)
 2. `supabase db push` + deploy all Edge Functions

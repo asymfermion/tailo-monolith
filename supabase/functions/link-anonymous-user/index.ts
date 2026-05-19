@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { createClient } from '@supabase/supabase-js';
 import { resolveLinkAnonymousUser } from '../../../packages/backend-core/src/usecases/linkAnonymousUser.ts';
 import { parseLinkAnonymousUserRequest } from '../../../packages/shared/src/contracts/link-anonymous-user.ts';
 import { corsHeaders } from '../_shared/cors.ts';

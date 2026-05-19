@@ -40,7 +40,7 @@ export function useEventUpdatesPoll(options: {
     } finally {
       setIsPolling(false);
     }
-  }, [enabled, onApplied, refreshKey]);
+  }, [enabled, onApplied]);
 
   useEffect(() => {
     void pollOnce();

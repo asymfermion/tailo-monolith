@@ -1,8 +1,4 @@
-import {
-  getScanPipelineStepLabel,
-  getScanProgressDetail,
-  getScanProgressHeadline,
-} from '@/i18n';
+import { getScanPipelineStepLabel } from '@/i18n';
 
 import type { PhotoAccessState } from './usePhotoAccess';
 

@@ -201,13 +201,7 @@ export function OnboardingScreen({
     }
 
     void photoAccess.startScan();
-  }, [
-    isPipelineActive,
-    photoAccess.initialScanCompleted,
-    photoAccess.permissionStatus,
-    photoAccess.startScan,
-    step,
-  ]);
+  }, [isPipelineActive, photoAccess, step]);
 
   const selectedProfilePhoto = useMemo(
     () =>
@@ -460,14 +454,13 @@ export function OnboardingScreen({
     detectedPetOptions,
     isLoadingPetOptions,
     isSaving,
-    onboardingState.completedFlags.scanStarted,
     onStepChange,
     petName,
     petType,
     photoAccess,
     isLoadingProfilePhotos,
     profilePhotoSuggestions,
-    selectedProfilePhoto,
+    selectedProfilePhotoId,
     step,
   ]);
 

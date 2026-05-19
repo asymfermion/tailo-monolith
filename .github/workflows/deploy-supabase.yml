@@ -16,8 +16,12 @@ on:
       - 'packages/shared/**'
       - 'packages/backend-core/**'
       - 'packages/ai/**'
+      - 'apps/mobile/**'
+      - 'package.json'
+      - 'package-lock.json'
       - 'scripts/deploy-supabase.sh'
       - '.github/workflows/deploy-supabase.yml'
+      - '.nvmrc'
   workflow_dispatch:
 
 concurrency:
@@ -39,7 +43,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: npm
 
       - name: Install dependencies

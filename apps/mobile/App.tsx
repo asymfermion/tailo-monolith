@@ -11,6 +11,12 @@ import { StatusBar } from 'expo-status-bar';
 
 import { colors, spacing } from '@/constants/theme';
 import { getDatabase } from '@/db';
+import {
+  bootstrapAuthSession,
+  linkLegacyAnonymousUserIfNeeded,
+} from '@/modules/auth';
+import { syncRemotePetProfileIfNeeded } from '@/modules/pets';
+import { runUploadQueueWorker } from '@/modules/sync';
 import { AppShell } from '@/navigation/AppShell';
 
 type StartupState =
@@ -26,9 +32,19 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    async function prepareDatabase() {
+    async function prepareApp() {
       try {
-        await getDatabase();
+        const [database, authResult] = await Promise.all([
+          getDatabase(),
+          bootstrapAuthSession(),
+        ]);
+
+        if (authResult.status === 'ready') {
+          await linkLegacyAnonymousUserIfNeeded();
+          await syncRemotePetProfileIfNeeded();
+          void runUploadQueueWorker(database);
+        }
+
         if (isMounted) {
           setStartupState({ status: 'ready' });
         }
@@ -45,7 +61,7 @@ export default function App() {
       }
     }
 
-    prepareDatabase();
+    prepareApp();
 
     return () => {
       isMounted = false;
@@ -62,8 +78,13 @@ export default function App() {
         errorMessage={startupState.message}
         onRetry={() => {
           setStartupState({ status: 'loading' });
-          void getDatabase()
-            .then(() => {
+          void Promise.all([getDatabase(), bootstrapAuthSession()])
+            .then(async ([, authResult]) => {
+              if (authResult.status === 'ready') {
+                await linkLegacyAnonymousUserIfNeeded();
+                await syncRemotePetProfileIfNeeded();
+              }
+
               setStartupState({ status: 'ready' });
             })
             .catch((error: unknown) => {

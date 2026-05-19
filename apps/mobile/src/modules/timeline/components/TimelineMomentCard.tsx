@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MediaDetectionDebugBadge } from '@/components/MediaDetectionDebugBadge';
 import { colors, spacing } from '@/constants/theme';
-import { t } from '@/i18n';
 import { formatEventType, formatTimestamp } from '@/lib/formatMoment';
+import { t } from '@/i18n';
 import type { TimelineEvent, TimelineEventMedia } from '@/types';
 
 type TimelineMomentCardProps = {
@@ -39,9 +39,7 @@ export function TimelineMomentCard({
           {formatTimestamp(event.timestamp)}
         </Text>
       </View>
-      <Text style={styles.caption}>
-        {event.caption ?? t('timeline.defaultCaption')}
-      </Text>
+      <Text style={styles.caption}>{event.caption}</Text>
 
       {primaryMedia ? (
         <View style={styles.mediaGrid}>

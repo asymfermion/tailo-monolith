@@ -1,2 +1,2 @@
-/** App settings and privacy copy (Phase 3). */
+/** App settings — account upgrade lives in `modules/auth` for Phase 2.1.5. */
 export {};

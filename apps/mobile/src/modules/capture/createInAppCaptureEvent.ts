@@ -9,7 +9,7 @@ import {
 import { upsertLocalMediaScores } from '@/db/localMediaScores';
 import { loadLocalPetProfile } from '@/modules/pets/petProfile';
 import { resolveLocalPetId } from '@/modules/pets/resolveLocalPetId';
-import { enqueueEventMediaUploads } from '@/modules/sync';
+import { enqueueEventMediaUploads, runUploadQueueWorker } from '@/modules/sync';
 
 import { buildInAppCaptureRecords } from './buildInAppCaptureRecords';
 import type { PersistedCaptureImage } from './persistCaptureImage';
@@ -71,6 +71,7 @@ export async function createInAppCaptureEvent(
     records.event.localEventId,
     records.event.selectedAssetIds,
   );
+  void runUploadQueueWorker(database);
 
   return {
     localEventId: records.event.localEventId,

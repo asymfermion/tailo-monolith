@@ -59,7 +59,13 @@ export function useEventDetail(localEventId: string): EventDetailState {
 
       try {
         const database = await getDatabase();
-        const saved = await updateLocalEvent(database, localEventId, update);
+        const saved = await updateLocalEvent(database, localEventId, {
+          ...update,
+          userEditedCaption: update.caption !== undefined ? true : undefined,
+          userEditedEventType:
+            update.eventType !== undefined ? true : undefined,
+          captionSource: update.caption !== undefined ? 'user' : undefined,
+        });
 
         if (!saved) {
           setErrorMessage(t('errors.couldNotSaveChanges'));

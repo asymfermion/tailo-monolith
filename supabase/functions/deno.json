@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "@tailo/shared": "../../packages/shared/src/index.ts"
+  }
+}

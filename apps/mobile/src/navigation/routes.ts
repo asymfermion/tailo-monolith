@@ -1,5 +1,6 @@
 export type RootStackParamList = {
   Home: undefined;
+  AccountSettings: undefined;
   EventDetail: {
     localEventId: string;
   };
@@ -19,6 +20,10 @@ type RouteBase = {
 
 export type RootRoute =
   | (RouteBase & { name: 'Home'; params: RootStackParamList['Home'] })
+  | (RouteBase & {
+      name: 'AccountSettings';
+      params: RootStackParamList['AccountSettings'];
+    })
   | (RouteBase & {
       name: 'EventDetail';
       params: RootStackParamList['EventDetail'];

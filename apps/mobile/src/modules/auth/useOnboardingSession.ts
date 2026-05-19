@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getOrCreateAnonymousUserId } from './identity';
+import { getAuthSession, isRemoteAuthConfigured } from './authService';
 import { loadResolvedOnboardingState } from './resolveOnboardingAfterLoad';
 import {
   initialOnboardingState,
@@ -40,7 +41,9 @@ export function useOnboardingSession(): OnboardingSessionState {
 
     async function loadSession() {
       try {
-        const nextAnonymousUserId = await getOrCreateAnonymousUserId();
+        const nextAnonymousUserId = isRemoteAuthConfigured()
+          ? ((await getAuthSession())?.userId ?? null)
+          : await getOrCreateAnonymousUserId();
         const storedOnboardingState = await loadOnboardingState();
         const resolvedOnboardingState = await loadResolvedOnboardingState(
           mergeOnboardingState(storedOnboardingState, {

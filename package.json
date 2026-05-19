@@ -15,11 +15,14 @@
     "lint:fix": "npm run lint:fix --workspace=@tailo/mobile",
     "mobile:lint": "npm run lint --workspace=@tailo/mobile",
     "mobile:typecheck": "npm run typecheck --workspace=@tailo/mobile",
-    "test": "npm run test --workspace=@tailo/shared && npm run test --workspace=@tailo/mobile",
+    "test": "npm run test --workspace=@tailo/shared && npm run test --workspace=@tailo/backend-core && npm run test --workspace=@tailo/ai && npm run test --workspace=@tailo/mobile",
     "test:shared": "npm run test --workspace=@tailo/shared",
     "test:mobile": "npm run test --workspace=@tailo/mobile",
     "format": "prettier --write \"apps/**/*.{ts,tsx,js,json}\" \"packages/**/*.{ts,tsx,js,json}\" \"*.{json,md}\" \"docs/**/*.md\" \".prettierrc\"",
     "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,json}\" \"packages/**/*.{ts,tsx,js,json}\" \"*.{json,md}\" \"docs/**/*.md\" \".prettierrc\"",
+    "supabase": "npx supabase",
+    "deploy:supabase": "bash scripts/deploy-supabase.sh",
+    "verify:supabase": "node scripts/verify-supabase-setup.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

@@ -24,6 +24,31 @@ const UPSERT_LOCAL_MEDIA_SCORE_SQL = `
     scored_at = CURRENT_TIMESTAMP
 `;
 
+export type LocalMediaScoreForEvent = {
+  localAssetId: string;
+  isPrimary: number;
+  detectedPetType: 'dog' | 'cat' | null;
+};
+
+export async function getLocalMediaScoresForEvent(
+  db: SQLite.SQLiteDatabase,
+  localEventId: string,
+): Promise<LocalMediaScoreForEvent[]> {
+  return db.getAllAsync<LocalMediaScoreForEvent>(
+    `
+      SELECT
+        scores.local_asset_id AS localAssetId,
+        scores.is_primary AS isPrimary,
+        assets.detected_pet_type AS detectedPetType
+      FROM local_media_scores AS scores
+      INNER JOIN local_assets AS assets
+        ON assets.local_asset_id = scores.local_asset_id
+      WHERE scores.local_event_id = ?
+    `,
+    [localEventId],
+  );
+}
+
 export async function upsertLocalMediaScores(
   db: SQLite.SQLiteDatabase,
   scores: NewLocalMediaScore[],

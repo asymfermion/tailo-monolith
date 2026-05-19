@@ -17,13 +17,16 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.105.4",
     "@tailo/shared": "*",
+    "@tailo/ai": "*",
     "expo": "~54.0.33",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.21",
     "expo-file-system": "~19.0.22",
     "expo-image": "~3.0.11",
+    "expo-image-manipulator": "~14.0.8",
     "expo-media-library": "~18.2.1",
     "expo-secure-store": "~15.0.8",
     "expo-sqlite": "~16.0.10",

@@ -1,6 +1,14 @@
 import { secureStorage, type SecureStorage } from './secureStorage';
 
 export const ANONYMOUS_USER_ID_KEY = 'tailo.anonymous_user_id';
+export const LEGACY_ANON_LINKED_KEY = 'tailo.legacy_anon_linked';
+
+/** Phase 1 legacy id if present — does not create a new id. */
+export async function getLegacyAnonymousUserId(
+  storage: SecureStorage = secureStorage,
+): Promise<string | null> {
+  return storage.getItemAsync(ANONYMOUS_USER_ID_KEY);
+}
 
 export async function getOrCreateAnonymousUserId(
   storage: SecureStorage = secureStorage,

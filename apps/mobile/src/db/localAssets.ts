@@ -281,6 +281,37 @@ export async function countLocalAssets(
   return row?.count ?? 0;
 }
 
+export type LocalAssetUploadSource = {
+  localAssetId: string;
+  uri: string;
+  width: number;
+  height: number;
+};
+
+export async function getLocalAssetUploadSourcesByIds(
+  db: SQLite.SQLiteDatabase,
+  localAssetIds: string[],
+): Promise<LocalAssetUploadSource[]> {
+  if (localAssetIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = localAssetIds.map(() => '?').join(', ');
+
+  return db.getAllAsync<LocalAssetUploadSource>(
+    `
+      SELECT
+        local_asset_id AS localAssetId,
+        uri,
+        width,
+        height
+      FROM local_assets
+      WHERE local_asset_id IN (${placeholders})
+    `,
+    localAssetIds,
+  );
+}
+
 export async function getLocalAssetsByIds(
   db: SQLite.SQLiteDatabase,
   localAssetIds: string[],

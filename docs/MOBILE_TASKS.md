@@ -175,92 +175,92 @@ This phase now tracks both the mobile client work and the backend work needed to
 
 ### 2.1 Configuration & auth (anonymous-first)
 
-- [ ] **2.1.1** Env config: `EXPO_PUBLIC_SUPABASE_URL`, anon key; Supabase client + session in SecureStore
-- [ ] **2.1.2** On launch: `signInAnonymously()` if no session (no login UI)
-- [ ] **2.1.3** One-time legacy bridge: Phase 1 `anonymous_user_id` → `link-anonymous-user` after first session (upgrades only)
-- [ ] **2.1.4** Create/link pet record on server after local pet profile exists (`upsert-pet`)
-- [ ] **2.1.5** _(Deferred)_ Optional account upgrade UI: Apple / Google / email via `linkIdentity` / `updateUser` (settings, not onboarding)
+- [x] **2.1.1** Env config: `EXPO_PUBLIC_SUPABASE_URL`, anon key; Supabase client + session in SecureStore
+- [x] **2.1.2** On launch: `signInAnonymously()` if no session (no login UI)
+- [x] **2.1.3** One-time legacy bridge: Phase 1 `anonymous_user_id` → `link-anonymous-user` after first session (upgrades only)
+- [x] **2.1.4** Create/link pet record on server after local pet profile exists (`upsert-pet`)
+- [x] **2.1.5** Account upgrade UI (settings): **email** via `updateUser` + OTP (`verifyOtp`); Apple / Google deferred
 
 ### 2.2 Upload pipeline (`storage`, `sync`)
 
-- [ ] **2.2.1** Compress per [upload spec](./architecture/phase-2-backend-mvp.md#compression--files-mvp-defaults): original 1280px JPEG, thumb 400px; HEIC→JPEG; strip GPS EXIF
-- [ ] **2.2.2** Upload **selected event media only** — never full camera roll
-- [ ] **2.2.3** Implement `upload_queue` worker: pending → uploading → done / failed
-- [ ] **2.2.4** Retry with backoff; persist `last_error`
-- [ ] **2.2.5** Deduplicate uploads by local asset / event id
-- [ ] **2.2.6** Signed URL or token flow for uploads (Supabase Storage via Edge Function; R2 optional later)
+- [x] **2.2.1** Compress per [upload spec](./architecture/phase-2-backend-mvp.md#compression--files-mvp-defaults): original 1280px JPEG, thumb 400px; HEIC→JPEG; strip GPS EXIF
+- [x] **2.2.2** Upload **selected event media only** — never full camera roll
+- [x] **2.2.3** Implement `upload_queue` worker: pending → uploading → done / failed
+- [x] **2.2.4** Retry with backoff; persist `last_error`
+- [x] **2.2.5** Deduplicate uploads by local asset / event id
+- [x] **2.2.6** Signed URL or token flow for uploads (Supabase Storage via Edge Function; R2 optional later)
 
 ### 2.3 Sync & timeline merge
 
-- [ ] **2.3.1** `sync-event` payload: local ids, media paths, `user_edited` flags, `client_sync_version` (see [sync spec](./architecture/phase-2-backend-mvp.md#sync-specification))
-- [ ] **2.3.2** Poll `get-event-updates` (~30s when pending AI); merge per [field matrix](./architecture/phase-2-backend-mvp.md#field-merge-matrix) — do not overwrite user-edited caption/type
-- [ ] **2.3.3** Background sync when network returns
-- [ ] **2.3.4** UI: subtle sync status (no “Uploading assets…” technical copy)
+- [x] **2.3.1** `sync-event` payload: local ids, media paths, `user_edited` flags, `client_sync_version` (see [sync spec](./architecture/phase-2-backend-mvp.md#sync-specification))
+- [x] **2.3.2** Poll `get-event-updates` (~30s when pending AI); merge per [field matrix](./architecture/phase-2-backend-mvp.md#field-merge-matrix) — do not overwrite user-edited caption/type
+- [x] **2.3.3** Background sync when network returns
+- [x] **2.3.4** UI: subtle sync status (no “Uploading assets…” technical copy)
 
 ### 2.4 AI presentation (`ai`)
 
-- [ ] **2.4.1** Poll or subscribe for `ai_jobs` completion per event
-- [ ] **2.4.2** Parse caption JSON contract; validate against shared schema
-- [ ] **2.4.3** Low-confidence fallback captions (safe, non-invented)
-- [ ] **2.4.4** Never surface “AI” in user-facing copy
+- [x] **2.4.1** Poll or subscribe for `ai_jobs` completion per event
+- [x] **2.4.2** Parse caption JSON contract; validate against shared schema
+- [x] **2.4.3** Low-confidence fallback captions (safe, non-invented)
+- [x] **2.4.4** Never surface “AI” in user-facing copy
 
 ### 2.5 Backend setup (`supabase`, `packages/backend-core`)
 
-- [ ] **B0.1** Create Supabase **dev** project; record project ref + region in Setup notes (not secret)
-- [ ] **B0.2** Enable **Anonymous** sign-ins
-- [ ] **B0.3** Enable **Manual linking** (for future Apple/Google/email; no UI yet)
-- [ ] **B0.4** Add `supabase/config.toml`, `migrations/`, `functions/`
-- [ ] **B0.5** `apps/mobile/.env.example`: `EXPO_PUBLIC_SUPABASE_URL`, anon key
-- [ ] **B0.6** Document local workflow in [DEVELOPER.md](./DEVELOPER.md) (`supabase start`, `db push`, `functions serve`)
-- [ ] **B0.7** Scaffold `packages/backend-core/` (`contracts/`, `usecases/`, `repositories/`)
-- [ ] **B0.8** `packages/shared`: zod schemas for `sync-event`, `create-upload-urls`, `get-event-updates`, AI result (match specs)
+- [x] **B0.1** Create Supabase **dev** project; record project ref + region in Setup notes (not secret)
+- [x] **B0.2** Enable **Anonymous** sign-ins
+- [x] **B0.3** Enable **Manual linking** (for future Apple/Google/email; no UI yet)
+- [x] **B0.4** Add `supabase/config.toml`, `migrations/`, `functions/`
+- [x] **B0.5** `apps/mobile/.env.example`: `EXPO_PUBLIC_SUPABASE_URL`, anon key
+- [x] **B0.6** Document local workflow in [DEVELOPER.md](./DEVELOPER.md) (`supabase start`, `db push`, `functions serve`)
+- [x] **B0.7** Scaffold `packages/backend-core/` (`contracts/`, `usecases/`, `repositories/`) — initial `linkAnonymousUser` use case
+- [x] **B0.8** `packages/shared`: zod schemas for `sync-event`, `get-event-updates`, AI result (match specs); `create-upload-urls` contract added
 - [ ] **B0.9** GitHub issues / labels for `backend-tasks` (optional; mirror mobile board)
 
 ### 2.6 Backend schema & RLS (`supabase/migrations`)
 
-- [ ] **B2.1.1** `profiles` — `user_id` PK, `created_at`
-- [ ] **B2.1.2** `anonymous_id_links` — unique `anonymous_user_id`, FK `user_id`; reject insert if legacy id maps to different user
-- [ ] **B2.1.3** `pets` — include `source_local_pet_id` unique per `user_id`
-- [ ] **B2.1.4** `events` — unique `(user_id, source_local_event_id)`; `user_edited_caption`, `user_edited_event_type`, `sync_version`, `updated_at`, `caption_source`
-- [ ] **B2.1.5** `event_media` — unique `(event_id, source_local_asset_id)`; storage paths
-- [ ] **B2.1.6** `ai_jobs` — `next_attempt_at`, `leased_until`, `input_snapshot`, status enum per spec
-- [ ] **B2.1.7** RLS: `auth.uid() = user_id` on all user-owned tables
-- [ ] **B2.1.8** RLS: `event_media` via join to `events` ownership
-- [ ] **B2.1.9** Indexes: `events(user_id, updated_at)`, unique `(user_id, source_local_event_id)`, `ai_jobs(status, next_attempt_at)`, `event_media(event_id)`
+- [x] **B2.1.1** `profiles` — `user_id` PK, `created_at`
+- [x] **B2.1.2** `anonymous_id_links` — unique `anonymous_user_id`, FK `user_id`; reject insert if legacy id maps to different user
+- [x] **B2.1.3** `pets` — include `source_local_pet_id` unique per `user_id`
+- [x] **B2.1.4** `events` — unique `(user_id, source_local_event_id)`; `user_edited_caption`, `user_edited_event_type`, `sync_version`, `updated_at`, `caption_source` (minimal migration for uploads)
+- [x] **B2.1.5** `event_media` — unique `(event_id, source_local_asset_id)`; storage paths
+- [x] **B2.1.6** `ai_jobs` — `next_attempt_at`, `leased_until`, `input_snapshot`, status enum per spec
+- [x] **B2.1.7** RLS: `auth.uid() = user_id` on all user-owned tables
+- [x] **B2.1.8** RLS: `event_media` via join to `events` ownership
+- [x] **B2.1.9** Indexes: `events(user_id, updated_at)`, unique `(user_id, source_local_event_id)`, `ai_jobs(status, next_attempt_at)`, `event_media(event_id)`
 - [ ] **B2.1.10** SQL smoke: user A cannot read/write user B rows
 
 ### 2.7 Backend auth & upload APIs (`functions`, `backend-core`)
 
-- [ ] **B2.2.1** Private bucket `event-media`
-- [ ] **B2.2.2** Path layout per [upload spec](./architecture/phase-2-backend-mvp.md#upload-specification)
-- [ ] **B2.2.3** Storage policies: read/write only under `auth.uid()` prefix
-- [ ] **B2.2.4** Enforce JPEG only, 15 min signed URL TTL, 1–5 assets per request
-- [ ] **B2.2.5** Document max sizes: original <=3 MB post-compress, thumb <200 KB target
+- [x] **B2.2.1** Private bucket `event-media`
+- [x] **B2.2.2** Path layout per [upload spec](./architecture/phase-2-backend-mvp.md#upload-specification)
+- [x] **B2.2.3** Storage policies: read/write only under `auth.uid()` prefix
+- [x] **B2.2.4** Enforce JPEG only, 15 min signed URL TTL, 1–5 assets per request
+- [x] **B2.2.5** Document max sizes: original <=3 MB post-compress, thumb <200 KB target
 - [ ] **B2.4.0** Implement auth edge-case policy in `backend-core` + tests
-- [ ] **B2.4.1** Edge Function `link-anonymous-user` + unit tests
-- [ ] **B2.4.2** Edge Function `upsert-pet` + unit tests (idempotent `source_local_pet_id`)
-- [ ] **B2.3.4** `validateUploadRequest()` — pet ownership, 1–5 assets, duplicate asset ids rejected
-- [ ] **B2.3.4a** Unit tests: over limit, wrong pet, expired retry
-- [ ] **B2.4.3** `create-upload-urls` — returns paired URLs + paths + `expires_at`
+- [x] **B2.4.1** Edge Function `link-anonymous-user` + unit tests
+- [x] **B2.4.2** Edge Function `upsert-pet` + unit tests (idempotent `source_local_pet_id`)
+- [x] **B2.3.4** `validateUploadRequest()` — pet ownership, 1–5 assets, duplicate asset ids rejected
+- [x] **B2.3.4a** Unit tests: over limit, wrong pet, expired retry
+- [x] **B2.4.3** `create-upload-urls` — returns paired URLs + paths + `expires_at`
 - [ ] **B2.4.3a** Integration test: signed PUT with wrong `Content-Type` fails (if enforceable)
 
 ### 2.8 Backend sync & AI (`functions`, `packages/ai`)
 
-- [ ] **B2.3.5** `syncEvent()` — idempotent upsert; full media replace; increment `sync_version`
-- [ ] **B2.3.6** Merge matrix per [sync spec](./architecture/phase-2-backend-mvp.md#sync-specification) + unit tests
-- [ ] **B2.3.7** `createAiJob()` — rules from the AI spec
-- [ ] **B2.3.8** `applyAiResultToEvent()` — confidence threshold 0.5; respect `user_edited_*` flags
-- [ ] **B2.3.9** `getEventUpdates()` — cursor pagination, max 50
-- [ ] **B2.4.4** `sync-event` — enqueue AI; return `event_id`, `server_sync_version`, `ai_job`
-- [ ] **B2.4.5** `get-event-updates` — cursor in/out; include AI status
-- [ ] **B2.4.6** Shared handler: CORS, error codes (`401`, `409`, `422`), no tokens in logs
-- [ ] **B2.5.1** `process-ai-job` — lease + `pending` → `processing` → `done`/`failed`
-- [ ] **B2.5.2** OpenAI secret in Supabase; prompt in `packages/ai`
-- [ ] **B2.5.3** Retry/backoff: 1m / 5m / 15m; max 3 attempts
-- [ ] **B2.5.4** Post-parse: caption max 280 chars; safety filter (no medical / “AI” phrasing)
-- [ ] **B2.5.5** Trigger: invoke from `sync-event` + scheduled sweep every 2 min for stuck `pending`
-- [ ] **B2.5.6** Unit tests: low confidence → placeholder; user_edited → no overwrite
-- [ ] **B2.4.7** Deploy all functions to dev; document base URLs for mobile
+- [x] **B2.3.5** `syncEvent()` — idempotent upsert; full media replace; increment `sync_version`
+- [x] **B2.3.6** Merge matrix per [sync spec](./architecture/phase-2-backend-mvp.md#sync-specification) + unit tests
+- [x] **B2.3.7** `createAiJob()` — rules from the AI spec
+- [x] **B2.3.8** `applyAiResultToEvent()` — confidence threshold 0.5; respect `user_edited_*` flags
+- [x] **B2.3.9** `getEventUpdates()` — cursor pagination, max 50
+- [x] **B2.4.4** `sync-event` — enqueue AI; return `event_id`, `server_sync_version`, `ai_job`
+- [x] **B2.4.5** `get-event-updates` — cursor in/out; include AI status
+- [x] **B2.4.6** Shared handler: CORS, error codes (`401`, `409`, `422`), no tokens in logs
+- [x] **B2.5.1** `process-ai-job` — lease + `pending` → `processing` → `done`/`failed`
+- [ ] **B2.5.2** Vertex/GCP secrets in Supabase; prompt in `packages/ai` — see [supabase/GCP_VERTEX_SETUP.md](../supabase/GCP_VERTEX_SETUP.md) + `./scripts/set-gcp-vertex-secrets.sh`
+- [x] **B2.5.3** Retry/backoff: 1m / 5m / 15m; max 3 attempts
+- [x] **B2.5.4** Post-parse: caption max 280 chars; safety filter (no medical / “AI” phrasing)
+- [x] **B2.5.5** Trigger: invoke from `sync-event` (scheduled sweep deferred)
+- [x] **B2.5.6** Unit tests: low confidence → placeholder; user_edited → no overwrite
+- [x] **B2.4.7** Deploy all functions to dev; document base URLs for mobile
 
 ### 2.9 Backend hardening & QA
 
@@ -277,6 +277,11 @@ This phase now tracks both the mobile client work and the backend work needed to
 
 ### Phase 2 — notes & decisions
 
+- 2026-05-18: **2.3 / 2.4** — After upload batch completes, `runEventSyncForLocalEvent` posts `sync-event`; `useEventUpdatesPoll` + `useBackgroundSync` poll `get-event-updates` and merge without overwriting user-edited fields. Timeline captions use `resolveDisplayCaption` from `@tailo/ai`. Edge AI defaults to `AI_PROVIDER=stub` until GCP Vertex secrets are set.
+- 2026-05-18: **2.1.3** — `linkLegacyAnonymousUserIfNeeded()` after auth bootstrap; Edge Function `link-anonymous-user`; migration `profiles` + `anonymous_id_links`; `resolveLinkAnonymousUser` in `@tailo/backend-core`. Deploy: `npx supabase db push` + `npx supabase functions deploy link-anonymous-user`.
+- 2026-05-18: **Auth decouple** — `AuthProvider` + `authService` (`modules/auth/`); Supabase isolated in `providers/supabaseAuthProvider.ts`. Portability rules in [AGENTS.md](../AGENTS.md#backend-portability-phase-2).
+- 2026-05-18: **2.1.2** — `bootstrapAuthSession()` on app launch (reuse persisted session or `signInAnonymously()`); skips when env unset; does not block local SQLite if auth fails.
+- 2026-05-18: **B0 / 2.1.1** — Dev project `sgxtyxvithlmuuofkzlk`; `supabase/` scaffold + [SETUP.md](../supabase/SETUP.md); mobile `getSupabaseClient()` with SecureStore session (`apps/mobile/src/lib/supabase.ts`). Postgres URI is CLI-only; mobile uses API URL + anon key.
 - 2026-05-18: Auth model — **Supabase `signInAnonymously()`** is canonical; Phase 1 SecureStore `anon_*` is legacy-only via `anonymous_id_links`. Permanent providers (Apple/Google/email) via identity linking later; same `user.id`. See [architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md#1-identity--auth).
 - 2026-05-18: Upload/sync/AI numbers and merge rules live in phase-2 spec; backend tasks are tracked inline in this Phase 2 section with `B...` task IDs preserved.
 

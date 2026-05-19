@@ -1,5 +1,6 @@
 import type * as SQLite from 'expo-sqlite';
-
+import { resolveDisplayCaption } from '@tailo/ai';
+import type { CaptionSource } from '@/db/localEvents';
 import type { LocalPetType } from '@/modules/pets';
 import type { TimelineEvent, TimelineEventMedia } from '@/types';
 
@@ -9,6 +10,7 @@ type TimelineEventRow = {
   source: TimelineEvent['source'];
   eventType: TimelineEvent['eventType'];
   caption: string | null;
+  captionSource: CaptionSource | null;
   isFavorite: number;
   selectedAssetIds: string;
 };
@@ -45,6 +47,7 @@ export async function getTimelineEvents(
       source,
       event_type AS eventType,
       caption,
+      caption_source AS captionSource,
       is_favorite AS isFavorite,
       selected_asset_ids AS selectedAssetIds
     FROM local_events
@@ -95,6 +98,7 @@ export async function getTimelineEventById(
       source,
       event_type AS eventType,
       caption,
+      caption_source AS captionSource,
       is_favorite AS isFavorite,
       selected_asset_ids AS selectedAssetIds
     FROM local_events
@@ -129,12 +133,19 @@ async function buildTimelineEvent(
     return null;
   }
 
+  const displayCaption = resolveDisplayCaption(
+    row.caption,
+    row.captionSource,
+    row.localEventId,
+  );
+
   return {
     localEventId: row.localEventId,
     timestamp: row.timestamp,
     eventType: row.eventType,
     source: row.source,
-    caption: row.caption,
+    caption: displayCaption,
+    captionSource: row.captionSource,
     isFavorite: Boolean(row.isFavorite),
     media,
   };

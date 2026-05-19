@@ -1,5 +1,6 @@
 import type { EventSource, EventType } from '@tailo/shared';
 
+import type { CaptionSource } from '@/db/localEvents';
 import type { DetectedPetType } from './local-asset';
 
 /** Resolved media item shown in the timeline UI. */
@@ -26,6 +27,7 @@ export interface TimelineEvent {
   eventType: EventType;
   source: EventSource;
   caption: string | null;
+  captionSource: CaptionSource | null;
   isFavorite: boolean;
   media: TimelineEventMedia[];
 }

@@ -2,7 +2,7 @@ import type * as SQLite from 'expo-sqlite';
 
 import { logDbInfo, logSqlFailure } from './dbLogger';
 
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 7;
 
 type Migration = {
   version: number;
@@ -188,6 +188,58 @@ const migrations: Migration[] = [
 
         INSERT OR IGNORE INTO sync_state (state_key, state_value)
         VALUES ('pipeline.phase', 'idle');
+      `);
+    },
+  },
+  {
+    version: 6,
+    name: 'extend upload queue for remote paths and retry scheduling',
+    up: async (db) => {
+      await db.execAsync(`
+        ALTER TABLE upload_queue
+          ADD COLUMN storage_path TEXT;
+      `);
+      await db.execAsync(`
+        ALTER TABLE upload_queue
+          ADD COLUMN thumbnail_path TEXT;
+      `);
+      await db.execAsync(`
+        ALTER TABLE upload_queue
+          ADD COLUMN next_attempt_at TEXT;
+      `);
+    },
+  },
+  {
+    version: 7,
+    name: 'add remote sync metadata to local events',
+    up: async (db) => {
+      await db.execAsync(`
+        ALTER TABLE local_events
+          ADD COLUMN remote_event_id TEXT;
+      `);
+      await db.execAsync(`
+        ALTER TABLE local_events
+          ADD COLUMN server_sync_version INTEGER NOT NULL DEFAULT 0;
+      `);
+      await db.execAsync(`
+        ALTER TABLE local_events
+          ADD COLUMN caption_source TEXT
+            CHECK (caption_source IN ('user', 'ai', 'placeholder') OR caption_source IS NULL);
+      `);
+      await db.execAsync(`
+        ALTER TABLE local_events
+          ADD COLUMN user_edited_caption INTEGER NOT NULL DEFAULT 0
+            CHECK (user_edited_caption IN (0, 1));
+      `);
+      await db.execAsync(`
+        ALTER TABLE local_events
+          ADD COLUMN user_edited_event_type INTEGER NOT NULL DEFAULT 0
+            CHECK (user_edited_event_type IN (0, 1));
+      `);
+      await db.execAsync(`
+        ALTER TABLE local_events
+          ADD COLUMN pending_ai INTEGER NOT NULL DEFAULT 0
+            CHECK (pending_ai IN (0, 1));
       `);
     },
   },

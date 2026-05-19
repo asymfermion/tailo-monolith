@@ -1,9 +1,40 @@
 /** Anonymous user identity and future sign-in linking (Phase 1). */
+export type {
+  AuthSession,
+  BootstrapAuthResult,
+  RequestEmailLinkResult,
+  VerifyEmailLinkResult,
+} from './authTypes';
+export {
+  classifyEmailLinkError,
+  isValidAccountEmail,
+  normalizeAccountEmail,
+  type EmailLinkErrorCode,
+} from './accountEmailLink';
+export type { AuthProvider } from './authProvider';
+export {
+  bootstrapAuthSession,
+  getAuthAccessToken,
+  getAuthSession,
+  getAuthProvider,
+  isRemoteAuthConfigured,
+  requestEmailLink,
+  verifyEmailLink,
+  resetAuthProvider,
+  setAuthProvider,
+} from './authService';
+export { createSupabaseAuthProvider } from './providers/supabaseAuthProvider';
 export {
   ANONYMOUS_USER_ID_KEY,
+  LEGACY_ANON_LINKED_KEY,
   generateAnonymousUserId,
+  getLegacyAnonymousUserId,
   getOrCreateAnonymousUserId,
 } from './identity';
+export {
+  linkLegacyAnonymousUserIfNeeded,
+  type LinkLegacyAnonymousUserResult,
+} from './legacyAnonymousLink';
 export {
   initialOnboardingState,
   loadOnboardingState,
@@ -25,6 +56,11 @@ export {
   useOnboardingSession,
   type OnboardingSessionState,
 } from './useOnboardingSession';
+export {
+  useAuthAccountStatus,
+  type AuthAccountStatusState,
+} from './useAuthAccountStatus';
+export { SaveMemoriesLink } from './SaveMemoriesLink';
 export { canContinueOnboardingScan } from './canContinueOnboardingScan';
 export {
   loadResolvedOnboardingState,

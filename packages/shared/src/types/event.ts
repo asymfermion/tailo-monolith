@@ -1,4 +1,4 @@
-import type { EventType } from '../constants/event-types';
+import type { EventType } from '../constants/event-types.ts';
 
 export type EventSource = 'camera_roll' | 'in_app' | 'manual';
 

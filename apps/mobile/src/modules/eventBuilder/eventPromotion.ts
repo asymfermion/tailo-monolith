@@ -8,7 +8,7 @@ import {
   markEventCandidatesProcessing,
 } from '@/db/localEventCandidates';
 import { resolveLocalPetId } from '@/modules/pets/resolveLocalPetId';
-import { enqueueEventMediaUploads } from '@/modules/sync';
+import { enqueueEventMediaUploads, runUploadQueueWorker } from '@/modules/sync';
 import type { NewLocalEvent } from '@/types';
 
 export type PromoteLocalEventsProgress = {
@@ -62,6 +62,8 @@ export async function promoteScoredCandidatesToLocalEvents({
       event.selectedAssetIds,
     );
   }
+
+  void runUploadQueueWorker(database);
 
   onProgress?.({
     candidateCount: candidates.length,

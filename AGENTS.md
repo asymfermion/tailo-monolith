@@ -10,13 +10,13 @@ For full product and architecture detail, see **[Tailo_Agent_Coding_Guidelines_v
 
 **Tailo** is a passive pet memory app: scan recent photos → detect pet moments → group into events → show a calm timeline. AI captions stay invisible; the product should feel like it remembers automatically.
 
-| Path               | Purpose                                  |
-| ------------------ | ---------------------------------------- |
-| `apps/mobile/`     | React Native + Expo (primary client)     |
-| `packages/shared/` | Shared TypeScript types and constants    |
-| `packages/ai/`     | AI prompts and response schemas (later)  |
-| `supabase/`        | Backend (Phase 2 — not started)          |
-| `docs/`            | Developer guide, tasks, **architecture** |
+| Path               | Purpose                                   |
+| ------------------ | ----------------------------------------- |
+| `apps/mobile/`     | React Native + Expo (primary client)      |
+| `packages/shared/` | Shared TypeScript types and constants     |
+| `packages/ai/`     | AI prompts and response schemas (later)   |
+| `supabase/`        | Backend (Phase 2 — scaffold + migrations) |
+| `docs/`            | Developer guide, tasks, **architecture**  |
 
 ---
 
@@ -33,7 +33,7 @@ Default work should focus on:
 - Timeline UI
 - Local unit tests
 
-Do **not** start Supabase, R2, Edge Functions, or OpenAI integration unless explicitly requested.
+Phase 2 backend work (Supabase, sync, uploads, Edge Functions) is in scope when the user requests it. Do not add OpenAI or cloud AI until sync/upload foundations exist unless explicitly requested.
 
 ---
 
@@ -106,6 +106,25 @@ When unsure, implement the **smallest version** that supports the current task.
 Before writing new code: search `packages/shared`, `src/lib/`, and relevant `src/modules/*`. If you would copy more than a few lines, extract and test once.
 
 Do not duplicate: types in `@tailo/shared`, DB mappers, clustering/scoring, caption parsing, permission/retry patterns.
+
+---
+
+## Backend portability (Phase 2+)
+
+Supabase is the **current** adapter, not a permanent platform choice. Design so we can move auth, storage, or hosting later without rewriting the mobile app or domain rules.
+
+### Rules
+
+1. **Local-first** — SQLite and the on-device pipeline remain the source of truth; cloud is sync/enrichment only.
+2. **Business logic stays portable** — sync merge, idempotency, AI job rules, and validation live in `packages/backend-core` and `packages/shared`, not in Edge Function bodies or screens.
+3. **Thin adapters** — `supabase/functions/*` only parse HTTP, read auth context, call use cases, and talk to Postgres/Storage.
+4. **HTTP contracts over SDK sprawl** — mobile sync/upload should call Tailo APIs (`fetch` + shared Zod schemas), not `supabase.from(...)` across feature code.
+5. **Single SDK choke points** — Supabase client usage belongs in adapter modules (`modules/auth/providers/`, future `modules/sync/`), never in screens or timeline UI.
+6. **Provider interfaces on mobile** — use `AuthProvider` / `authService` for sessions and tokens; do not import `@/lib/supabase` outside `modules/auth/providers/` and future sync adapters.
+7. **Postgres schema is SQL** — migrations in `supabase/migrations/` can move to another host; replace `auth.uid()` RLS when auth platform changes.
+8. **No secrets in the app** — anon/publishable key only; service role and DB password stay server/CLI-side.
+
+See [docs/architecture/phase-2-backend-mvp.md](./docs/architecture/phase-2-backend-mvp.md) for the full split (`backend-core` vs `supabase/functions`).
 
 ---
 

@@ -1,4 +1,5 @@
 import type * as SQLite from 'expo-sqlite';
+import { pickPlaceholderCaption } from '@tailo/ai';
 
 import { getTimelineEventById, getTimelineEvents } from './timelineEvents';
 
@@ -13,6 +14,7 @@ describe('getTimelineEvents', () => {
           source: 'camera_roll',
           eventType: 'unknown',
           caption: null,
+          captionSource: null,
           isFavorite: 0,
           selectedAssetIds: JSON.stringify(['asset-1', 'asset-2']),
         },
@@ -53,7 +55,8 @@ describe('getTimelineEvents', () => {
         timestamp: '2026-05-17T03:30:00.000Z',
         eventType: 'unknown',
         source: 'camera_roll',
-        caption: null,
+        caption: pickPlaceholderCaption('event-1'),
+        captionSource: null,
         isFavorite: false,
         media: [
           {
@@ -115,6 +118,7 @@ describe('getTimelineEvents', () => {
           source: 'camera_roll',
           eventType: 'unknown',
           caption: null,
+          captionSource: null,
           isFavorite: 0,
           selectedAssetIds: JSON.stringify(['asset-dog', 'asset-cat']),
         },
@@ -155,6 +159,7 @@ describe('getTimelineEvents', () => {
           source: 'camera_roll',
           eventType: 'unknown',
           caption: null,
+          captionSource: null,
           isFavorite: 0,
           selectedAssetIds: JSON.stringify(['asset-1']),
         },
@@ -174,6 +179,7 @@ describe('getTimelineEventById', () => {
       source: 'camera_roll',
       eventType: 'walk',
       caption: 'Park visit',
+      captionSource: 'user',
       isFavorite: 1,
       selectedAssetIds: JSON.stringify(['asset-1']),
     });
@@ -202,6 +208,7 @@ describe('getTimelineEventById', () => {
       eventType: 'walk',
       source: 'camera_roll',
       caption: 'Park visit',
+      captionSource: 'user',
       isFavorite: true,
       media: [
         {

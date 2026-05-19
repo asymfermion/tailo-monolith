@@ -9,9 +9,11 @@ import { StatusBar } from 'expo-status-bar';
 
 import { colors, spacing } from '@/constants/theme';
 import { useOnboardingSession } from '@/modules/auth';
+import { useBackgroundSync } from '@/modules/sync';
 import { CapturePreviewScreen } from '@/screens/CapturePreviewScreen';
 import { CaptureScreen } from '@/screens/CaptureScreen';
 import { EventDetailScreen } from '@/screens/EventDetailScreen';
+import { AccountSettingsScreen } from '@/screens/AccountSettingsScreen';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 
@@ -27,6 +29,7 @@ export function AppShell() {
 }
 
 function AppShellContent() {
+  useBackgroundSync();
   const onboardingSession = useOnboardingSession();
   const navigation = useNavigation();
   const activeRoute = navigation.stack.at(-1);
@@ -61,6 +64,8 @@ function renderRoute(route: RootRoute | undefined) {
   }
 
   switch (route.name) {
+    case 'AccountSettings':
+      return <AccountSettingsScreen />;
     case 'EventDetail': {
       const localEventId = route.params.localEventId;
 

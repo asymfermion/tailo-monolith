@@ -7,6 +7,7 @@ export const SYNC_STATE_KEYS = {
   SCAN_HAS_NEXT: 'scan.has_next',
   APP_INSTALL_ID: 'app.install_id',
   PROFILE_PET_FILTER_APPLIED: 'pipeline.profile_pet_filter_applied',
+  EVENTS_CURSOR: 'sync.events_cursor',
 } as const;
 
 export type SyncStateKey =

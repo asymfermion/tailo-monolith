@@ -2,6 +2,8 @@ import { secureStorage, type SecureStorage } from '@/modules/auth';
 import { getDatabase } from '@/db';
 import { rebuildPipelineForProfilePetType } from '@/modules/eventBuilder/rebuildPipelineForProfilePetType';
 
+import { syncRemotePetProfileIfNeeded } from './remotePetSync';
+
 export type LocalPetType = 'dog' | 'cat';
 export type LocalPetGender = 'female' | 'male' | 'unknown';
 
@@ -12,6 +14,8 @@ export type LocalPetProfile = {
   gender: LocalPetGender | null;
   profilePhotoLocalAssetId: string | null;
   profilePhotoUri: string | null;
+  /** Canonical server pet id after upsert-pet succeeds. */
+  remotePetId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -57,6 +61,7 @@ export async function saveSelectedPetType(
     gender: existingProfile?.gender ?? null,
     profilePhotoLocalAssetId: existingProfile?.profilePhotoLocalAssetId ?? null,
     profilePhotoUri: existingProfile?.profilePhotoUri ?? null,
+    remotePetId: existingProfile?.remotePetId ?? null,
     createdAt: existingProfile?.createdAt ?? now,
     updatedAt: now,
   };
@@ -82,6 +87,7 @@ export async function saveLocalPetProfile(
     gender: input.gender ?? null,
     profilePhotoLocalAssetId: input.profilePhotoLocalAssetId ?? null,
     profilePhotoUri: input.profilePhotoUri ?? null,
+    remotePetId: existingProfile?.remotePetId ?? null,
     createdAt: existingProfile?.createdAt ?? now,
     updatedAt: now,
   };
@@ -97,7 +103,29 @@ export async function saveLocalPetProfile(
     await rebuildPipelineForProfilePetType(database, input.type);
   }
 
+  if (profile.name.trim()) {
+    void syncRemotePetProfileIfNeeded();
+  }
+
   return profile;
+}
+
+export async function saveLocalPetProfileWithRemoteId(
+  profile: LocalPetProfile,
+  remotePetId: string,
+  storage: SecureStorage = secureStorage,
+): Promise<LocalPetProfile> {
+  const nextProfile: LocalPetProfile = {
+    ...profile,
+    remotePetId,
+  };
+
+  await storage.setItemAsync(
+    LOCAL_PET_PROFILE_KEY,
+    JSON.stringify(nextProfile),
+  );
+
+  return nextProfile;
 }
 
 function generateLocalPetId(): string {
@@ -129,6 +157,8 @@ function normalizeLocalPetProfile(value: unknown): LocalPetProfile | null {
         : null,
     profilePhotoUri:
       typeof value.profilePhotoUri === 'string' ? value.profilePhotoUri : null,
+    remotePetId:
+      typeof value.remotePetId === 'string' ? value.remotePetId : null,
     createdAt:
       typeof value.createdAt === 'string'
         ? value.createdAt

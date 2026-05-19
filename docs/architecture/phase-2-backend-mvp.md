@@ -120,12 +120,14 @@ The phone remains usable if the cloud is unavailable. Sync catches up later.
 
 ```txt
 App launch
-  → init Supabase client (session in SecureStore)
-  → if no session: signInAnonymously()
+  → authService.bootstrapAuthSession() (AuthProvider; Supabase impl today)
+  → if no session: signInAnonymously() inside provider
   → if legacy anon_* exists and not yet recorded: POST link-anonymous-user (idempotent)
   → upsert-pet from local pet profile
-  → upload_queue / sync use session JWT (auth.uid())
+  → upload_queue / sync use getAuthAccessToken() on HTTP APIs
 ```
+
+Mobile code must call **`bootstrapAuthSession` / `getAuthAccessToken`** from `modules/auth`, not `getSupabaseClient()` directly (keeps auth swappable).
 
 - Do **not** generate new `anon_*` ids for new installs once Supabase is wired; session `user.id` is enough.
 - Keep `getOrCreateAnonymousUserId()` only for **upgrading installs** that already shipped Phase 1.
@@ -710,5 +712,11 @@ Full detail: [AI job specification](#ai-job-specification). Result shape in `pac
 
 | Date       | Change                                                                                                                                                                                            |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-18 | **2.3 / 2.4** — `sync-event`, `get-event-updates`, `process-ai-job` Edge Functions; `event_media` + `ai_jobs` migrations; mobile sync/poll/merge + calm sync status UI; `@tailo/ai` stub captions (Vertex via `AI_PROVIDER=vertex` + GCP secrets) |
+| 2026-05-18 | Upload pipeline: `create-upload-urls` + `event-media` bucket; mobile compress/PUT worker with retry backoff; `sync-event` still Phase 2.3                                                         |
+| 2026-05-18 | Account settings: email link for anonymous users (`updateUser` + `verifyOtp`); `SaveMemoriesLink` on home; Apple/Google upgrade UI deferred                                                       |
+| 2026-05-18 | `upsert-pet` Edge Function + `pets` migration; mobile `syncRemotePetProfileIfNeeded` on launch and after profile save; stores `remotePetId` locally                                               |
+| 2026-05-18 | `link-anonymous-user` Edge Function + `anonymous_id_links` migration; mobile legacy bridge on launch                                                                                              |
+| 2026-05-18 | Mobile `AuthProvider` boundary; Supabase auth only in `providers/supabaseAuthProvider.ts`; portability rules in AGENTS.md                                                                         |
 | 2026-05-18 | Document Supabase Auth anonymous-first + optional Apple/Google/email upgrade; clarify legacy `anonymous_id_links`; align AI `eventType` with `@tailo/shared`; MVP delivery order + open questions |
 | 2026-05-18 | Add auth edge-case policy, upload/sync/AI specifications, schema fields for merge + AI lease/retry                                                                                                |

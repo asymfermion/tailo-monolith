@@ -19,7 +19,13 @@ import {
   t,
 } from '@/i18n';
 import { useNavigation } from '@/navigation/NavigationContext';
+import { SaveMemoriesLink } from '@/modules/auth';
 import { usePhotoAccess } from '@/modules/mediaScanner';
+import {
+  SyncStatusIndicator,
+  useEventUpdatesPoll,
+  useSyncStatus,
+} from '@/modules/sync';
 import { useLocalPetProfile } from '@/modules/pets/useLocalPetProfile';
 import { CaptureFab } from '@/modules/timeline/components/CaptureFab';
 import { PetProfileHeader } from '@/modules/timeline/components/PetProfileHeader';
@@ -36,7 +42,22 @@ export function HomeScreen() {
     photoAccess.bestImageSelectionProgress.selectedAssetCount +
     photoAccess.eventClusteringProgress.eventCandidateCount +
     navigation.captureCompletedNonce;
-  const timeline = useTimelineEvents({ refreshKey, favoritesOnly });
+  const [timelineRefreshNonce, setTimelineRefreshNonce] = useState(0);
+  const timeline = useTimelineEvents({
+    refreshKey: refreshKey + timelineRefreshNonce,
+    favoritesOnly,
+  });
+  const eventUpdatesPoll = useEventUpdatesPoll({
+    enabled: true,
+    refreshKey: timelineRefreshNonce,
+    onApplied: () => {
+      setTimelineRefreshNonce((value) => value + 1);
+    },
+  });
+  const syncStatus = useSyncStatus({
+    isPolling: eventUpdatesPoll.isPolling,
+    refreshKey: timelineRefreshNonce,
+  });
   const isPipelineActive =
     photoAccess.isScanning ||
     photoAccess.isDetectingPets ||
@@ -72,6 +93,8 @@ export function HomeScreen() {
         photoAccess={photoAccess}
         timelineEventCount={timeline.events.length}
         timelineIsLoading={timeline.isLoading}
+        syncHasPendingMemories={syncStatus.hasPendingMemories}
+        syncIsActive={syncStatus.isSyncing}
       />
     ),
     [
@@ -81,6 +104,8 @@ export function HomeScreen() {
       petProfile.isLoading,
       petProfile.profile,
       photoAccess,
+      syncStatus.hasPendingMemories,
+      syncStatus.isSyncing,
       timeline,
     ],
   );
@@ -129,6 +154,8 @@ type TimelineHeaderProps = {
   photoAccess: ReturnType<typeof usePhotoAccess>;
   timelineEventCount: number;
   timelineIsLoading: boolean;
+  syncHasPendingMemories: boolean;
+  syncIsActive: boolean;
 };
 
 function TimelineHeader({
@@ -146,6 +173,8 @@ function TimelineHeader({
   photoAccess,
   timelineEventCount,
   timelineIsLoading,
+  syncHasPendingMemories,
+  syncIsActive,
 }: TimelineHeaderProps) {
   return (
     <View style={styles.header}>
@@ -169,6 +198,13 @@ function TimelineHeader({
       </View>
 
       <PetProfileHeader isLoading={petProfileIsLoading} profile={petProfile} />
+
+      <SaveMemoriesLink />
+
+      <SyncStatusIndicator
+        hasPendingMemories={syncHasPendingMemories}
+        isSyncing={syncIsActive}
+      />
 
       <View style={styles.filterRow}>
         <Pressable

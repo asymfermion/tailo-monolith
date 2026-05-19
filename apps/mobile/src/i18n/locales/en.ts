@@ -1,3 +1,6 @@
+import { accountMessages } from '../messages/account';
+import { syncMessages } from '../messages/sync';
+
 /** English UI copy — single source for user-facing strings. */
 export const en = {
   common: {
@@ -182,6 +185,8 @@ export const en = {
     captionPlaceholderHint:
       'A quiet placeholder until Tailo learns more about this moment.',
   },
+  account: accountMessages,
+  sync: syncMessages,
   capture: {
     cameraTitle: 'Camera access',
     cameraMessage:

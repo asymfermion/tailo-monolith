@@ -5,10 +5,15 @@ import type { EventType } from '@tailo/shared';
 import type { LocalPetType } from '@/modules/pets';
 import type { NewLocalEvent } from '@/types';
 
+export type CaptionSource = 'user' | 'ai' | 'placeholder';
+
 export type LocalEventUpdate = {
   eventType?: EventType;
   caption?: string | null;
   isFavorite?: boolean;
+  userEditedCaption?: boolean;
+  userEditedEventType?: boolean;
+  captionSource?: CaptionSource;
 };
 
 export type LocalEventRow = {
@@ -16,13 +21,19 @@ export type LocalEventRow = {
   petId: string;
   timestamp: string;
   source: NewLocalEvent['source'];
-  eventType: NewLocalEvent['eventType'];
+  eventType: EventType;
   caption: string | null;
   captionLanguage: string | null;
   confidence: number | null;
   isFavorite: number;
   processingState: string;
   selectedAssetIds: string;
+  remoteEventId: string | null;
+  serverSyncVersion: number;
+  captionSource: CaptionSource | null;
+  userEditedCaption: number;
+  userEditedEventType: number;
+  pendingAi: number;
 };
 
 const UPSERT_LOCAL_EVENT_SQL = `
@@ -105,6 +116,37 @@ export async function getPromotableEventCandidates(
   `);
 }
 
+export async function getLocalEventById(
+  db: SQLite.SQLiteDatabase,
+  localEventId: string,
+): Promise<LocalEventRow | null> {
+  return db.getFirstAsync<LocalEventRow>(
+    `
+      SELECT
+        local_event_id AS localEventId,
+        pet_id AS petId,
+        timestamp,
+        source,
+        event_type AS eventType,
+        caption,
+        caption_language AS captionLanguage,
+        confidence,
+        is_favorite AS isFavorite,
+        processing_state AS processingState,
+        selected_asset_ids AS selectedAssetIds,
+        remote_event_id AS remoteEventId,
+        server_sync_version AS serverSyncVersion,
+        caption_source AS captionSource,
+        user_edited_caption AS userEditedCaption,
+        user_edited_event_type AS userEditedEventType,
+        pending_ai AS pendingAi
+      FROM local_events
+      WHERE local_event_id = ?
+    `,
+    [localEventId],
+  );
+}
+
 export async function clearLocalEvents(
   db: SQLite.SQLiteDatabase,
 ): Promise<void> {
@@ -181,6 +223,21 @@ export async function updateLocalEvent(
   if (update.isFavorite !== undefined) {
     assignments.push('is_favorite = ?');
     values.push(update.isFavorite ? 1 : 0);
+  }
+
+  if (update.userEditedCaption !== undefined) {
+    assignments.push('user_edited_caption = ?');
+    values.push(update.userEditedCaption ? 1 : 0);
+  }
+
+  if (update.userEditedEventType !== undefined) {
+    assignments.push('user_edited_event_type = ?');
+    values.push(update.userEditedEventType ? 1 : 0);
+  }
+
+  if (update.captionSource !== undefined) {
+    assignments.push('caption_source = ?');
+    values.push(update.captionSource);
   }
 
   if (assignments.length === 0) {

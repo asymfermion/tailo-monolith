@@ -16,6 +16,12 @@ jest.mock('@/modules/eventBuilder/rebuildPipelineForProfilePetType', () => ({
   rebuildPipelineForProfilePetType: jest.fn(),
 }));
 
+jest.mock('./remotePetSync', () => ({
+  syncRemotePetProfileIfNeeded: jest
+    .fn()
+    .mockResolvedValue({ status: 'skipped' }),
+}));
+
 function createStorage(initialValue: string | null = null): SecureStorage & {
   setItemAsync: jest.Mock;
 } {

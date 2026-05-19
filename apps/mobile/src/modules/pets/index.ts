@@ -18,3 +18,7 @@ export {
   isPetCandidateForProfile,
   matchesProfilePetType,
 } from './matchesProfilePetType';
+export {
+  syncRemotePetProfileIfNeeded,
+  type SyncRemotePetProfileResult,
+} from './remotePetSync';

@@ -27,6 +27,12 @@ jest.mock('@/modules/pets/resolveLocalPetId', () => ({
 
 jest.mock('@/modules/sync', () => ({
   enqueueEventMediaUploads: jest.fn().mockResolvedValue(1),
+  runUploadQueueWorker: jest.fn().mockResolvedValue({
+    processedBatches: 0,
+    uploadedAssets: 0,
+    failedAssets: 0,
+    skippedReason: null,
+  }),
 }));
 
 describe('promoteScoredCandidatesToLocalEvents', () => {

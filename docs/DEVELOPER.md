@@ -234,13 +234,46 @@ iOS Simulator can add sample photos via **Photos** or drag images into the simul
 
 ## Backend (Phase 2)
 
-Not set up yet. Task plan: **[BACKEND_TASKS.md](./BACKEND_TASKS.md)**. Architecture: **[architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md)**.
+Task plan: **[MOBILE_TASKS.md](./MOBILE_TASKS.md#phase-2--mobile--backend-integration)** (Phase 2 section). Architecture: **[architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md)**.
 
-When added:
+Dev project details: **[supabase/SETUP.md](../supabase/SETUP.md)** (ref `sgxtyxvithlmuuofkzlk`).
+
+### Environment variables
+
+| File                     | Purpose                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| `apps/mobile/.env.local` | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` (mobile client)  |
+| `supabase/.env.local`    | `DATABASE_URL` for CLI migrations (postgres password — **never** in the app) |
+
+Copy from `apps/mobile/.env.example` and `supabase/env.example`. Restart Metro after changing mobile env vars.
+
+The **direct** Postgres host (`db.*.supabase.co`) may be IPv6-only. On IPv4-only networks, use the **Session pooler** URI from the Supabase dashboard (see `supabase/SETUP.md`).
+
+### Supabase CLI
+
+From the repo root (uses `npx`, no global install required):
+
+```bash
+npx supabase login
+npx supabase link --project-ref sgxtyxvithlmuuofkzlk
+npm run deploy:supabase           # db push + deploy all Edge Functions
+npx supabase functions serve      # local edge functions
+npx supabase start                # optional full local stack
+```
+
+Scaffold lives in `supabase/` (`config.toml`, `migrations/`, `functions/`).
+
+Edge Functions bundle code from `packages/shared` and `packages/backend-core`. Deno needs `supabase/functions/import_map.json` (maps `@tailo/shared` to the monorepo package). See [supabase/SETUP.md](../supabase/SETUP.md#deploy-migrations--edge-functions-one-command).
+
+### Monorepo layout
 
 - Migrations → `supabase/migrations`
 - Edge Functions → `supabase/functions`
-- Portable logic → `packages/backend-core`
+- Portable logic → `packages/backend-core` (scaffold pending)
 - Shared API contracts → `packages/shared`
 
 Do not duplicate types across mobile and backend — use `@tailo/shared`.
+
+### CI deploy (main branch)
+
+Merges to `main` auto-deploy Supabase when backend paths change. Configure GitHub secrets `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` — see [supabase/SETUP.md](../supabase/SETUP.md#cicd-github-actions).

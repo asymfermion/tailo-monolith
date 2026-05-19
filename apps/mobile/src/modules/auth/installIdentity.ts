@@ -7,7 +7,7 @@ import {
   setSyncStateValue,
   SYNC_STATE_KEYS,
 } from '@/db/syncState';
-import { LOCAL_PET_PROFILE_KEY } from '@/modules/pets/petProfile';
+import { LOCAL_PET_PROFILE_KEY } from '@/modules/pets/keys';
 import { LAST_SCAN_TIMESTAMP_KEY } from '@/modules/mediaScanner/scanState';
 
 import { ANONYMOUS_USER_ID_KEY } from './identity';

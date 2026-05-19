@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -12,7 +13,7 @@ type TimelineMomentCardProps = {
   onPress: (localEventId: string) => void;
 };
 
-export function TimelineMomentCard({
+function TimelineMomentCardComponent({
   event,
   onPress,
 }: TimelineMomentCardProps) {
@@ -64,6 +65,33 @@ export function TimelineMomentCard({
     </Pressable>
   );
 }
+
+function eventMediaSignature(media: TimelineEventMedia[]): string {
+  return media
+    .map((item) => `${item.localAssetId}:${item.uri}:${item.isPrimary ? 1 : 0}`)
+    .join('|');
+}
+
+function areTimelineMomentCardPropsEqual(
+  previous: TimelineMomentCardProps,
+  next: TimelineMomentCardProps,
+): boolean {
+  return (
+    previous.onPress === next.onPress &&
+    previous.event.localEventId === next.event.localEventId &&
+    previous.event.caption === next.event.caption &&
+    previous.event.eventType === next.event.eventType &&
+    previous.event.isFavorite === next.event.isFavorite &&
+    previous.event.timestamp === next.event.timestamp &&
+    eventMediaSignature(previous.event.media) ===
+      eventMediaSignature(next.event.media)
+  );
+}
+
+export const TimelineMomentCard = memo(
+  TimelineMomentCardComponent,
+  areTimelineMomentCardPropsEqual,
+);
 
 function MomentImage({ media }: { media: TimelineEventMedia }) {
   return (

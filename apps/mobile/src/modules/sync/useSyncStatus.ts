@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import { getDatabase } from '@/db';
 import { countPendingUploadQueueItems } from '@/db/uploadQueue';
@@ -12,32 +13,47 @@ export type SyncStatusState = {
 
 export function useSyncStatus(options: {
   isPolling: boolean;
-  refreshKey?: number;
 }): SyncStatusState {
-  const { isPolling, refreshKey = 0 } = options;
+  const { isPolling } = options;
   const [pendingUploads, setPendingUploads] = useState(0);
   const [pendingAi, setPendingAi] = useState(false);
+  const appState = useRef<AppStateStatus>(AppState.currentState);
 
   const refresh = useCallback(async () => {
+    if (appState.current !== 'active') {
+      return;
+    }
+
     const database = await getDatabase();
     const [uploadCount, aiPending] = await Promise.all([
       countPendingUploadQueueItems(database),
       hasPendingAiEvents(database),
     ]);
-    setPendingUploads(uploadCount);
-    setPendingAi(aiPending);
+    setPendingUploads((current) =>
+      current === uploadCount ? current : uploadCount,
+    );
+    setPendingAi((current) => (current === aiPending ? current : aiPending));
   }, []);
 
   useEffect(() => {
     void refresh();
-  }, [refresh, refreshKey, isPolling]);
+  }, [refresh]);
 
   useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      appState.current = nextState;
+
+      if (nextState === 'active') {
+        void refresh();
+      }
+    });
+
     const interval = setInterval(() => {
       void refresh();
     }, 5_000);
 
     return () => {
+      subscription.remove();
       clearInterval(interval);
     };
   }, [refresh]);

@@ -2,6 +2,8 @@
 
 This file is the **entry point for all AI coding agents** (Cursor, Claude, Codex, etc.) working in this repository. Read it before making changes.
 
+**Tailo-specific agent rules live here** — not in separate `.cursor/rules/` files. Cursor loads this file as workspace context; duplicating the same guidance in `.mdc` rules causes drift. (Third-party or personal always-on rules, e.g. general coding behavior, may stay outside the repo if you use them.)
+
 For full product and architecture detail, see **[Tailo_Agent_Coding_Guidelines_v2.md](./Tailo_Agent_Coding_Guidelines_v2.md)**.
 
 ---
@@ -218,6 +220,76 @@ apps/mobile/src/
 - **Events over files** — timeline is event-centric, not a photo grid.
 - **No registration required** for core MVP value.
 - **One pet in UI**; include `pet_id` in data models for later multi-pet.
+
+---
+
+## React hooks (mobile) — avoid infinite loops
+
+These rules prevent **“Maximum update depth exceeded”** and runaway re-fetch/sync loops. Apply them whenever you add or change `useEffect`, custom hooks, or screen-level refresh keys.
+
+### `useEffect` dependencies
+
+1. **Never put a whole hook return object in a dependency array.**  
+   Custom hooks such as `usePhotoAccess()` return a **new object every render** (`{ ...state, startScan, … }`). Depending on `photoAccess` re-runs the effect every render → `setState` in the effect → infinite loop.
+
+   **Do:** depend on stable primitives and memoized callbacks only:
+
+   ```tsx
+   // Bad
+   useEffect(() => {
+     void photoAccess.startScan();
+   }, [photoAccess, step]);
+
+   // Good
+   useEffect(() => {
+     void photoAccess.startScan();
+   }, [
+     step,
+     photoAccess.initialScanCompleted,
+     photoAccess.permissionStatus,
+     photoAccess.startScan,
+   ]);
+   ```
+
+2. **Same rule for any object/array built inline** — `options`, `config`, `style` objects, and `timeline` state bags are not stable unless wrapped in `useMemo` with correct deps.
+
+3. **Do not call `setState` in an effect if the effect’s deps change on every render** because of (1) or (2). If you need to react to “something finished”, depend on a **boolean or counter that only changes when the transition happens** (e.g. pipeline was active → now idle).
+
+### Custom hooks that return objects
+
+4. **If a hook returns a composite object, wrap it in `useMemo`** so referential identity is stable when underlying state and callbacks are unchanged:
+
+   ```tsx
+   return useMemo(
+     () => ({ ...state, requestAccess, startScan }),
+     [state, requestAccess, startScan],
+   );
+   ```
+
+5. **Prefer returning a tuple or separate values** when consumers only need one field — easier to use safely in effects.
+
+### Refresh keys and polling
+
+6. **Do not drive `useTimelineEvents({ refreshKey })` from high-frequency pipeline progress** (scan counts, clustering counts, etc.). Those change many times per second and will hammer SQLite and promotion. Refresh when:
+   - capture completes,
+   - a sync/poll **actually merged** remote changes,
+   - or the pipeline **transitions** from active → idle.
+
+7. **Break feedback loops between poll and UI refresh:** remote apply → `onApplied` → timeline refresh → must **not** re-trigger poll via a shared `refreshKey`. Poll on mount, app resume, and interval when `pending_ai` only.
+
+8. **`applyRemoteEventUpdates` (and similar) must only count/write when merged data differs** from local — do not increment “applied” on no-op merges.
+
+### Module imports (require cycles)
+
+9. **Do not import from barrel `index.ts` inside low-level modules** (`db/`, `installIdentity`, `petProfile`, `uploadQueueWorker`, `scanState`). Import the concrete file (`authService`, `secureStorage`, `petProfile`, `uploadQueueWorker`) so Metro does not create `A → B → index → A` cycles (warnings and subtle init bugs).
+
+10. **Screens may use `@/modules/<name>` barrels; hooks/services used during DB open or sync should not.**
+
+### Before finishing hook/effect work
+
+- Grep new effects for deps that are **objects** (`photoAccess`, `timeline`, `options`, whole hook results).
+- Reload the screen once in the simulator — confirm no repeated **Maximum update depth exceeded** logs.
+- If adding sync poll + timeline refresh, trace the loop: poll → apply → callback → refresh → poll.
 
 ---
 

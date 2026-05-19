@@ -12,7 +12,10 @@ import {
   resetStuckUploadingQueueItems,
   type UploadQueueRow,
 } from '@/db/uploadQueue';
-import { getAuthSession, isRemoteAuthConfigured } from '@/modules/auth';
+import {
+  getAuthSession,
+  isRemoteAuthConfigured,
+} from '@/modules/auth/authService';
 import { loadLocalPetProfile } from '@/modules/pets/petProfile';
 
 import { createUploadUrls } from './createUploadUrls';

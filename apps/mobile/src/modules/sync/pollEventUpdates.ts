@@ -5,7 +5,10 @@ import {
   setSyncStateValue,
   SYNC_STATE_KEYS,
 } from '@/db/syncState';
-import { isRemoteAuthConfigured, getAuthSession } from '@/modules/auth';
+import {
+  getAuthSession,
+  isRemoteAuthConfigured,
+} from '@/modules/auth/authService';
 
 import { applyRemoteEventUpdates } from './applyRemoteEventUpdates';
 import { getEventUpdates } from './getEventUpdates';

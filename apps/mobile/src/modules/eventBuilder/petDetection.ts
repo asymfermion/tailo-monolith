@@ -6,7 +6,11 @@ import {
   updateLocalAssetDetectionResults,
 } from '@/db/localAssets';
 
-import { isPetCandidateForProfile, loadLocalPetProfile } from '@/modules/pets';
+import {
+  isPetCandidateForProfile,
+  loadLocalPetProfile,
+  type LocalPetType,
+} from '@/modules/pets';
 
 import {
   createPetDetector,
@@ -37,6 +41,71 @@ export type ProcessPendingPetCandidatesOptions = {
   detector?: PetDetector;
   onProgress?: (progress: PetDetectionProgress) => void;
 };
+
+export type RedetectLocalAssetsResult = {
+  redetectedCount: number;
+  validForProfileCount: number;
+};
+
+export type RedetectLocalAssetsOptions = {
+  database: Awaited<ReturnType<typeof getDatabase>>;
+  assets: LocalAssetDetectionInput[];
+  profilePetType: LocalPetType | null;
+  batchSize?: number;
+  detectionTimeoutMs?: number;
+  detector?: PetDetector;
+};
+
+export async function redetectLocalAssets({
+  database,
+  assets,
+  profilePetType,
+  batchSize = DETECTION_BATCH_SIZE,
+  detectionTimeoutMs = DETECTION_TIMEOUT_MS,
+  detector = createPetDetector(),
+}: RedetectLocalAssetsOptions): Promise<RedetectLocalAssetsResult> {
+  let redetectedCount = 0;
+  let validForProfileCount = 0;
+
+  for (let index = 0; index < assets.length; index += batchSize) {
+    const batch = assets.slice(index, index + batchSize);
+
+    for (const asset of batch) {
+      const result = await detectAssetWithTimeout(
+        asset,
+        detector,
+        detectionTimeoutMs,
+      );
+
+      const isPetCandidate = isPetCandidateForProfile(
+        result.isPetCandidate,
+        result.detectedPetType,
+        profilePetType,
+      );
+
+      await updateLocalAssetDetectionResults(database, [
+        {
+          localAssetId: asset.localAssetId,
+          isPetCandidate,
+          petConfidence: result.confidence,
+          detectedPetType: result.detectedPetType,
+          detectionSource: result.detectionSource,
+          detectionDebugLabel: result.detectionDebugLabel,
+        },
+      ]);
+
+      redetectedCount += 1;
+
+      if (isPetCandidate) {
+        validForProfileCount += 1;
+      }
+    }
+
+    await yieldToUi();
+  }
+
+  return { redetectedCount, validForProfileCount };
+}
 
 export async function processPendingPetCandidates({
   database,

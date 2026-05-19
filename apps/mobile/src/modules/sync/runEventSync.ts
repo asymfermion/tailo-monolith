@@ -3,7 +3,10 @@ import type * as SQLite from 'expo-sqlite';
 import { logDbInfo } from '@/db/dbLogger';
 import { getLocalEventById } from '@/db/localEvents';
 import { getDoneUploadQueueItemsForEvent } from '@/db/uploadQueue';
-import { getAuthSession, isRemoteAuthConfigured } from '@/modules/auth';
+import {
+  getAuthSession,
+  isRemoteAuthConfigured,
+} from '@/modules/auth/authService';
 import { loadLocalPetProfile } from '@/modules/pets/petProfile';
 
 import { buildSyncEventPayload } from './buildSyncEventPayload';

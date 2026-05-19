@@ -312,6 +312,26 @@ export async function getLocalAssetUploadSourcesByIds(
   );
 }
 
+export async function getLocalAssetDetectionInputsForPromotedEvents(
+  db: SQLite.SQLiteDatabase,
+): Promise<LocalAssetDetectionInput[]> {
+  return db.getAllAsync<LocalAssetDetectionInput>(`
+    SELECT DISTINCT
+      assets.local_asset_id AS localAssetId,
+      assets.uri,
+      assets.created_at AS createdAt,
+      assets.width,
+      assets.height
+    FROM local_media_scores AS scores
+    INNER JOIN local_assets AS assets
+      ON assets.local_asset_id = scores.local_asset_id
+    INNER JOIN local_events AS events
+      ON events.local_event_id = scores.local_event_id
+    WHERE events.processing_state = 'processed'
+      AND assets.media_type = 'photo'
+  `);
+}
+
 export async function getLocalAssetsByIds(
   db: SQLite.SQLiteDatabase,
   localAssetIds: string[],

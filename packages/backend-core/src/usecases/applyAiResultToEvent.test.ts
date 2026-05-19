@@ -17,6 +17,9 @@ describe('applyAiResultToEvent', () => {
           caption: 'A sunny nap',
           eventType: 'rest',
           confidence: 0.9,
+          profilePetValid: true,
+          visiblePetType: 'dog',
+          petValidationConfidence: 0.9,
         },
       ),
     ).toEqual({
@@ -40,6 +43,9 @@ describe('applyAiResultToEvent', () => {
           caption: 'Ignored',
           eventType: 'rest',
           confidence: 0.95,
+          profilePetValid: true,
+          visiblePetType: 'dog',
+          petValidationConfidence: 0.95,
         },
       ),
     ).toEqual({
@@ -63,6 +69,9 @@ describe('applyAiResultToEvent', () => {
           caption: 'Maybe something',
           eventType: 'walk',
           confidence: 0.2,
+          profilePetValid: true,
+          visiblePetType: 'dog',
+          petValidationConfidence: 0.2,
         },
       ),
     ).toEqual({

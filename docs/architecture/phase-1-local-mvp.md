@@ -93,6 +93,12 @@ Migration v4 **backfills** existing scored candidates into `local_events`.
 3. `upsertLocalEvents` with resolved `pet_id`
 4. `markEventCandidatesProcessed`
 
+### Pet validation (cloud, not on-device)
+
+On-device pet detection is used only to **find candidates** during scan. **Authoritative validation** for promoted moments happens in **`process-ai-job`** (Vertex): the model returns `profilePetValid`, `visiblePetType`, and `petValidationConfidence` alongside caption JSON.
+
+If validation fails (checked on the **primary** image only), the server sets `events.pet_validation_status = rejected`, deletes **all** `event_media` for that event, and the mobile poll removes the **whole** local timeline row. Per-image rejection is not implemented yet — see [FUTURE_FEATURES.md](../FUTURE_FEATURES.md#6-image-level-cloud-pet-validation).
+
 **DB:** `db/localEvents.ts`, `db/localEventCandidates.ts` (processing state helpers)
 
 ### Shared contract
@@ -202,6 +208,7 @@ Camera permission is **separate** from photo library — capture works when libr
 
 | Date       | Change                                                                                                                                                 |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-05-19 | Cloud pet validation in `process-ai-job`; `pet_validation_status` on events; mobile removes rejected moments on poll                                   |
 | 2026-05-18 | Phase 1 architecture doc created; documents 1.1 onboarding/identity and 1.2 `local_events`, processing state, promotion, shared mapper, scan timestamp |
 | 2026-05-18 | 1.3: Event detail screen, local event edits, favorites filter, pet profile header, Ask Tailo shell, `EventDetail` navigation                           |
 | 2026-05-18 | 1.4: In-app camera capture, preview confirm, `source: in_app` events, FAB without photo library                                                        |

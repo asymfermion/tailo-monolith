@@ -22,7 +22,7 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 DEFAULT_REGION="us-central1"
-DEFAULT_MODEL="gemini-2.0-flash-001"
+DEFAULT_MODEL="gemini-2.5-flash"
 
 read -r -p "GCP project ID${GCP_PROJECT_ID:+ [$GCP_PROJECT_ID]}: " PROJECT_INPUT
 GCP_PROJECT_ID="${GCP_PROJECT_ID:-${PROJECT_INPUT}}"

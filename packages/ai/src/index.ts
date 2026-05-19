@@ -11,7 +11,11 @@ export {
   parseModelJsonResponse,
 } from './providers/stubCaptionProvider';
 export {
+  buildVertexGenerationConfig,
   generateVertexCaption,
   type VertexCaptionConfig,
+  type VertexCaptionError,
   type VertexCaptionInput,
+  type VertexCaptionOutcome,
+  type VertexCaptionParseDebug,
 } from './providers/vertexCaptionProvider';

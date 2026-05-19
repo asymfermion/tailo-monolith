@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -33,47 +33,63 @@ import { TimelineMomentCard } from '@/modules/timeline/components/TimelineMoment
 import { useTimelineEvents } from '@/modules/timeline';
 import type { TimelineEvent } from '@/types';
 
+function keyExtractor(item: TimelineEvent): string {
+  return item.localEventId;
+}
+
 export function HomeScreen() {
   const navigation = useNavigation();
   const photoAccess = usePhotoAccess();
   const petProfile = useLocalPetProfile();
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const refreshKey =
-    photoAccess.bestImageSelectionProgress.selectedAssetCount +
-    photoAccess.eventClusteringProgress.eventCandidateCount +
-    navigation.captureCompletedNonce;
   const [timelineRefreshNonce, setTimelineRefreshNonce] = useState(0);
-  const timeline = useTimelineEvents({
-    refreshKey: refreshKey + timelineRefreshNonce,
-    favoritesOnly,
-  });
-  const eventUpdatesPoll = useEventUpdatesPoll({
-    enabled: true,
-    refreshKey: timelineRefreshNonce,
-    onApplied: () => {
-      setTimelineRefreshNonce((value) => value + 1);
-    },
-  });
-  const syncStatus = useSyncStatus({
-    isPolling: eventUpdatesPoll.isPolling,
-    refreshKey: timelineRefreshNonce,
-  });
   const isPipelineActive =
     photoAccess.isScanning ||
     photoAccess.isDetectingPets ||
     photoAccess.isClusteringEvents ||
     photoAccess.isSelectingImages;
+  const wasPipelineActiveRef = useRef(isPipelineActive);
+  const timelineRefreshKey =
+    navigation.captureCompletedNonce + timelineRefreshNonce;
+  const timeline = useTimelineEvents({
+    refreshKey: timelineRefreshKey,
+    favoritesOnly,
+  });
+
+  useEffect(() => {
+    if (wasPipelineActiveRef.current && !isPipelineActive) {
+      setTimelineRefreshNonce((value) => value + 1);
+    }
+
+    wasPipelineActiveRef.current = isPipelineActive;
+  }, [isPipelineActive]);
+
+  const handleRemoteEventUpdatesApplied = useCallback(() => {
+    setTimelineRefreshNonce((value) => value + 1);
+  }, []);
+  const eventUpdatesPoll = useEventUpdatesPoll({
+    enabled: true,
+    onApplied: handleRemoteEventUpdatesApplied,
+  });
+  const syncStatus = useSyncStatus({
+    isPolling: eventUpdatesPoll.isPolling,
+  });
   const hasPhotoAccess =
     photoAccess.permissionStatus === 'full' ||
     photoAccess.permissionStatus === 'limited';
 
-  const renderItem: ListRenderItem<TimelineEvent> = ({ item }) => (
-    <TimelineMomentCard
-      event={item}
-      onPress={(localEventId) =>
-        navigation.push('EventDetail', { localEventId })
-      }
-    />
+  const handleMomentPress = useCallback(
+    (localEventId: string) => {
+      navigation.push('EventDetail', { localEventId });
+    },
+    [navigation],
+  );
+
+  const renderItem: ListRenderItem<TimelineEvent> = useCallback(
+    ({ item }) => (
+      <TimelineMomentCard event={item} onPress={handleMomentPress} />
+    ),
+    [handleMomentPress],
   );
 
   const listHeader = useMemo(
@@ -106,7 +122,9 @@ export function HomeScreen() {
       photoAccess,
       syncStatus.hasPendingMemories,
       syncStatus.isSyncing,
-      timeline,
+      timeline.errorMessage,
+      timeline.events.length,
+      timeline.isLoading,
     ],
   );
 
@@ -115,7 +133,10 @@ export function HomeScreen() {
       <FlatList
         contentContainerStyle={styles.listContent}
         data={timeline.events}
-        keyExtractor={(item) => item.localEventId}
+        initialNumToRender={6}
+        keyExtractor={keyExtractor}
+        maxToRenderPerBatch={8}
+        windowSize={7}
         ListEmptyComponent={
           <TimelineEmptyState
             favoritesOnly={favoritesOnly}
@@ -133,6 +154,7 @@ export function HomeScreen() {
         renderItem={renderItem}
         refreshing={timeline.isLoading && !isPipelineActive}
         onRefresh={timeline.refresh}
+        updateCellsBatchingPeriod={50}
       />
       <CaptureFab onPress={() => navigation.push('Capture')} />
     </View>

@@ -29,6 +29,14 @@ export {
   type RebuildPipelineForProfilePetTypeResult,
 } from './rebuildPipelineForProfilePetType';
 export {
+  revalidatePromotedEventPetMedia,
+  type RevalidatePromotedEventPetMediaResult,
+} from './revalidatePromotedEventPetMedia';
+export {
+  redetectLocalAssets,
+  type RedetectLocalAssetsResult,
+} from './petDetection';
+export {
   createFallbackPetDetector,
   createPetDetector,
   detectPetCandidate as detectPetCandidateWithDetector,

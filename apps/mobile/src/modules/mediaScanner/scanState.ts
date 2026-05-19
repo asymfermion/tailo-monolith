@@ -1,4 +1,7 @@
-import { secureStorage, type SecureStorage } from '@/modules/auth';
+import {
+  secureStorage,
+  type SecureStorage,
+} from '@/modules/auth/secureStorage';
 
 export const LAST_SCAN_TIMESTAMP_KEY = 'tailo.last_scan_timestamp';
 

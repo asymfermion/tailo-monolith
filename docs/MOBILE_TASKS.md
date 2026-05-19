@@ -258,9 +258,20 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [ ] **B2.5.2** Vertex/GCP secrets in Supabase; prompt in `packages/ai` — see [supabase/GCP_VERTEX_SETUP.md](../supabase/GCP_VERTEX_SETUP.md) + `./scripts/set-gcp-vertex-secrets.sh`
 - [x] **B2.5.3** Retry/backoff: 1m / 5m / 15m; max 3 attempts
 - [x] **B2.5.4** Post-parse: caption max 280 chars; safety filter (no medical / “AI” phrasing)
-- [x] **B2.5.5** Trigger: invoke from `sync-event` (scheduled sweep deferred)
+- [x] **B2.5.5** Trigger: invoke from `sync-event` on enqueue (happy path)
+- [ ] **B2.5.7** Server AI sweep — mobile poll is UX only, not the only guarantee:
+  - Scheduled `process-ai-job` (Supabase cron / `pg_cron`, every **2–5 min**) to drain `pending` jobs and re-invoke after backoff
+  - Lease recovery: if `status = 'processing'` and `leased_until < now()`, reset to `pending` so the next sweep can pick it up
 - [x] **B2.5.6** Unit tests: low confidence → placeholder; user_edited → no overwrite
 - [x] **B2.4.7** Deploy all functions to dev; document base URLs for mobile
+
+### 2.10 Future — image-level pet validation (not MVP)
+
+- [ ] **B2.10.1** Per-asset validation in `process-ai-job` (not only primary); drop failed `event_media` rows only
+- [ ] **B2.10.2** Event stays on timeline when ≥1 asset passes; reassign `is_primary`
+- [ ] **B2.10.3** Mobile merge: prune `selected_asset_ids` / scores per asset instead of `deletePromotedLocalEvent` on event-level `rejected`
+
+**Current behavior (event-level):** Vertex sees the primary image only; if validation fails → delete all server media for the event, `pet_validation_status = rejected`, phone removes the whole local moment. See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#6-image-level-cloud-pet-validation).
 
 ### 2.9 Backend hardening & QA
 

@@ -295,10 +295,13 @@ export function usePhotoAccess(
     };
   }, [applyPermission, autoResumeOnMount, resumeIfNeeded]);
 
-  return {
-    ...state,
-    requestAccess,
-    startScan,
-    redetectPets,
-  };
+  return useMemo(
+    () => ({
+      ...state,
+      requestAccess,
+      startScan,
+      redetectPets,
+    }),
+    [redetectPets, requestAccess, startScan, state],
+  );
 }

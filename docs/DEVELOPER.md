@@ -68,13 +68,17 @@ npx expo install expo-dev-client
 npx expo prebuild --platform ios
 ```
 
-After adding or changing a local native module, refresh CocoaPods before rebuilding:
+After adding or changing **any** native Expo module (e.g. `expo-image-manipulator` for upload compression), regenerate native projects and reinstall the app — **Metro reload is not enough**:
 
 ```bash
-cd ios
-pod install
-cd ..
+cd apps/mobile
+npx expo prebuild --platform ios
+cd ios && pod install && cd ..
+npx expo run:ios --device    # or open ios/Tailo.xcworkspace and Run in Xcode
+npx expo start --dev-client
 ```
+
+If you see `Cannot find native module 'ExpoImageManipulator'`, the installed dev client was built before that dependency was linked. Run the steps above (not Expo Go alone).
 
 Connect and unlock the iPhone, trust the Mac if prompted, and confirm Xcode can see the device:
 
@@ -225,6 +229,9 @@ No Supabase or network required for this phase.
 - iOS: open Xcode once and accept licenses; ensure a simulator runtime is installed.
 - Android: start an AVD from Android Studio before `npm run mobile:android`.
 - Clear Metro cache: `cd apps/mobile && npx expo start -c`
+- **`Unable to resolve "../../App"`** — start Metro from `apps/mobile` (or `npm run mobile` from repo root), not `expo start` at the monorepo root without a workspace.
+- **`Cannot find native module 'ExpoImageManipulator'`** — rebuild the dev client after `expo-image-manipulator` was added (see [Real iPhone testing](#real-iphone-testing-with-a-development-build)); Expo Go / an old binary will not have it.
+- **Require cycle warnings** — usually harmless in dev; note them but prioritize fixing native-module errors first.
 
 ### Photo permissions on simulator
 
@@ -234,9 +241,9 @@ iOS Simulator can add sample photos via **Photos** or drag images into the simul
 
 ## Backend (Phase 2)
 
-Task plan: **[MOBILE_TASKS.md](./MOBILE_TASKS.md#phase-2--mobile--backend-integration)** (Phase 2 section). Architecture: **[architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md)**.
+Task plan: **[MOBILE_TASKS.md](./MOBILE_TASKS.md#phase-2--mobile--backend-integration)** (Phase 2 section). Architecture: **[architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md)** (includes [sync + AI loop diagram](./architecture/phase-2-backend-mvp.md#sync-and-ai-loop-end-to-end)).
 
-Dev project details: **[supabase/SETUP.md](../supabase/SETUP.md)** (ref `sgxtyxvithlmuuofkzlk`).
+Dev project details: **[supabase/SETUP.md](../supabase/SETUP.md)** (ref `sgxtyxvithlmuuofkzlk`). Operator view of upload → AI → poll back: **[How AI captions return to the app](../supabase/SETUP.md#how-ai-captions-return-to-the-app)**.
 
 ### Environment variables
 

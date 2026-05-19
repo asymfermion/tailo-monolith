@@ -53,3 +53,18 @@ export function mergeRemoteEventUpdate(
     pendingAi,
   };
 }
+
+export function hasMergedEventChanges(
+  before: LocalEventSyncSnapshot,
+  after: LocalEventSyncSnapshot,
+): boolean {
+  return (
+    before.remoteEventId !== after.remoteEventId ||
+    before.eventType !== after.eventType ||
+    before.caption !== after.caption ||
+    before.captionSource !== after.captionSource ||
+    before.isFavorite !== after.isFavorite ||
+    before.serverSyncVersion !== after.serverSyncVersion ||
+    before.pendingAi !== after.pendingAi
+  );
+}

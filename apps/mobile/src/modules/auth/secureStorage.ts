@@ -14,9 +14,59 @@ export type SecureStorage = {
   deleteItemAsync: (key: string) => Promise<void>;
 };
 
+/** iOS Keychain rejects access while backgrounded or before first unlock. */
+export function isSecureStoreInteractionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return (
+    message.includes('User interaction is not allowed') ||
+    message.includes('errSecInteractionNotAllowed') ||
+    message.includes('kSecErrInteractionNotAllowed')
+  );
+}
+
+async function safeGetItemAsync(key: string): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(key);
+  } catch (error) {
+    if (isSecureStoreInteractionError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+async function safeSetItemAsync(
+  key: string,
+  value: string,
+  options: SecureStore.SecureStoreOptions = SECURE_STORE_OPTIONS,
+): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(key, value, options);
+  } catch (error) {
+    if (isSecureStoreInteractionError(error)) {
+      return;
+    }
+
+    throw error;
+  }
+}
+
+async function safeDeleteItemAsync(key: string): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(key);
+  } catch (error) {
+    if (isSecureStoreInteractionError(error)) {
+      return;
+    }
+
+    throw error;
+  }
+}
+
 export const secureStorage: SecureStorage = {
-  getItemAsync: SecureStore.getItemAsync,
-  setItemAsync: (key, value, options = SECURE_STORE_OPTIONS) =>
-    SecureStore.setItemAsync(key, value, options),
-  deleteItemAsync: SecureStore.deleteItemAsync,
+  getItemAsync: safeGetItemAsync,
+  setItemAsync: safeSetItemAsync,
+  deleteItemAsync: safeDeleteItemAsync,
 };

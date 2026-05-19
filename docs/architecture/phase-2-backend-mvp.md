@@ -91,10 +91,117 @@ Phone builds local events
   → backend creates ai_job
   → AI worker generates caption / event type
   → backend stores result
-  → phone polls or subscribes and merges result into local timeline
+  → phone polls get-event-updates and merges into local timeline
 ```
 
 The phone remains usable if the cloud is unavailable. Sync catches up later.
+
+### Sync and AI loop (end-to-end)
+
+After upload + `sync-event`, rows appear in Supabase **`events`** and **`event_media`**. Caption enrichment is **async**: an **`ai_jobs`** row is queued, a worker updates **`events`**, and the phone **polls** (no push/WebSocket in MVP).
+
+```mermaid
+sequenceDiagram
+  participant App as Mobile app
+  participant Upload as create-upload-urls + Storage
+  participant Sync as sync-event
+  participant AI as process-ai-job
+  participant DB as Postgres events / ai_jobs
+  participant Poll as get-event-updates
+
+  App->>Upload: Upload photos for a moment
+  App->>Sync: Event payload + storage paths
+  Sync->>DB: Upsert events + event_media
+  Sync->>DB: Insert ai_jobs (pending)
+  Sync-->>App: event_id, pending AI
+  Sync->>AI: Fire-and-forget (service role)
+  AI->>DB: Read image, run caption model
+  AI->>DB: Update events.caption / event_type
+  AI->>DB: ai_jobs → done
+  App->>Poll: Poll with cursor (while pending_ai)
+  Poll->>DB: Events updated since cursor
+  Poll-->>App: caption, type, ai_job_status
+  App->>App: Merge into SQLite, refresh timeline
+```
+
+The mobile app **never** calls the AI provider directly. It uploads, syncs, then polls for richer server rows.
+
+#### Stage reference
+
+| Stage         | Supabase                                                                                          | Mobile (`local_events`)                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Upload + sync | `events`, `event_media` rows; optional `ai_jobs.pending`                                          | `remote_event_id`, `server_sync_version`; `pending_ai = 1` if job queued |
+| AI running    | `ai_jobs.processing` (leased)                                                                     | Poll every **30 s** while foreground + any `pending_ai`                  |
+| AI done       | `events.caption` / `event_type` / `caption_source` updated; `sync_version` bumped; `ai_jobs.done` | Next poll merges; timeline card updates                                  |
+| AI failed     | `ai_jobs.failed`, `last_error` set                                                                | Placeholder caption remains; check Edge Function logs                    |
+
+#### Server: when `ai_jobs` is created
+
+`sync-event` enqueues **`caption_event`** when **all** are true (see [AI job specification](#ai-job-specification)):
+
+- At least one `event_media` row exists.
+- Server `caption_source` is not `user`.
+- No existing job in `pending` \| `processing`.
+- MVP re-enqueue: skip if a `done` job exists for the same primary asset (see `input_snapshot.primary_asset_id`).
+
+On success, `sync-event` returns `{ event_id, server_sync_version, ai_job?: { status: 'pending' } }` and **fire-and-forgets** `process-ai-job` (service role). Stuck jobs can be swept manually or on a schedule.
+
+#### Server: `process-ai-job`
+
+1. Claim a `pending` job (lease, max **3** attempts, backoff 1 → 5 → 15 min).
+2. Read primary image from Storage (signed URL).
+3. Run provider: **`AI_PROVIDER=stub`** (default) or **`vertex`** (GCP — [supabase/GCP_VERTEX_SETUP.md](../../supabase/GCP_VERTEX_SETUP.md); default **`GCP_VERTEX_MODEL=gemini-2.5-flash`**, see [model versions](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/model-versions) to change). Model returns caption JSON **and** cloud pet validation (`profilePetValid`, `visiblePetType`, `petValidationConfidence`).
+4. If validation fails for the profile pet → **event-level** rejection: `pet_validation_status = rejected`, delete **all** `event_media` for the event, bump `sync_version` (no caption applied). Validation input is the **primary** image only. Image-level drop is [future](../FUTURE_FEATURES.md#6-image-level-cloud-pet-validation) (B2.10.x).
+5. If valid → `applyAiResultToEvent` (confidence threshold, respect `user_edited_*` flags), `pet_validation_status = valid`, **`UPDATE events`** caption/type.
+6. **`UPDATE ai_jobs`** → `done` (or `failed` / retry). Mobile poll drops rejected events from the local timeline.
+
+Canonical AI text lives on **`events`**, not in the job row.
+
+#### Mobile: sync back to the app
+
+| Trigger                 | Code                                         |
+| ----------------------- | -------------------------------------------- |
+| Home mount / app resume | `useEventUpdatesPoll`, `useBackgroundSync`   |
+| While any `pending_ai`  | Poll every **30 s** (foreground)             |
+| After merge             | `applyRemoteEventUpdates` → timeline refresh |
+
+**`get-event-updates`:** returns events for `auth.uid()` with `updated_at` after stored cursor (`sync.events_cursor`); includes `ai_job_status` and `pet_validation_status` per event.
+
+**Merge rules** (`mergeRemoteEventUpdate` / `applyRemoteEventUpdates`):
+
+- Match on `source_local_event_id`.
+- Do not overwrite caption/type the user edited locally.
+- Only SQLite `UPDATE` when merged fields differ (avoids poll ↔ refresh loops).
+
+**Display:** `getTimelineEvents` uses `resolveDisplayCaption` (`@tailo/ai`) for calm placeholder copy until AI returns.
+
+#### Direction of sync
+
+| Direction     | Mechanism                                                                      |
+| ------------- | ------------------------------------------------------------------------------ |
+| Phone → cloud | `upload_queue` → `create-upload-urls` → Storage PUT → `sync-event`             |
+| Cloud → phone | **`get-event-updates` poll only** (captions, types, favorites, `sync_version`) |
+
+Pushing user edits from device back to server is limited in MVP; server AI must not stomp user-edited fields.
+
+#### Debug in Supabase SQL
+
+```sql
+SELECT event_id, source_local_event_id, caption, caption_source, event_type,
+       sync_version, updated_at
+FROM events
+ORDER BY updated_at DESC
+LIMIT 10;
+
+SELECT ai_job_id, event_id, status, attempt_count, last_error, updated_at
+FROM ai_jobs
+ORDER BY updated_at DESC
+LIMIT 10;
+```
+
+Manual worker run (service role, local only): see [GCP_VERTEX_SETUP.md § Manually run one AI job](../../supabase/GCP_VERTEX_SETUP.md#manually-run-one-ai-job-service-role).
+
+Operator quick reference: [supabase/SETUP.md § How AI captions return to the app](../../supabase/SETUP.md#how-ai-captions-return-to-the-app).
 
 ---
 
@@ -376,7 +483,7 @@ pending → processing → done
 
 ### Worker (`process-ai-job`)
 
-- **Trigger:** Edge Function invoked by `sync-event` (fire-and-forget) **or** scheduled sweep every **2 min** for stuck `pending`.
+- **Trigger:** Edge Function invoked by `sync-event` (fire-and-forget). **Planned (B2.5.7):** scheduled sweep every **2–5 min** + lease recovery (`processing` → `pending` when `leased_until` expired). Mobile poll remains UX-only.
 - **Concurrency:** Process one job per invocation; use `UPDATE … WHERE status = 'pending' … RETURNING` lease pattern.
 - **Max attempts:** **3** (`attempt_count`).
 - **Backoff before retry:** 1 min → 5 min → 15 min (store `next_attempt_at`).
@@ -710,13 +817,18 @@ Full detail: [AI job specification](#ai-job-specification). Result shape in `pac
 
 ## Change log
 
-| Date       | Change                                                                                                                                                                                            |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date       | Change                                                                                                                                                                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-19 | Cloud pet validation in `process-ai-job` (`profilePetValid` / `visiblePetType`); `events.pet_validation_status`; mobile removes rejected moments on poll                                                                                          |
+| 2026-05-19 | Default Vertex caption model **gemini-2.5-flash** (`GCP_VERTEX_SETUP`, secrets script, `process-ai-job` fallback)                                                                                                                                 |
+| 2026-05-19 | Vertex model selection docs → [Gemini model versions](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/model-versions) (`GCP_VERTEX_SETUP`, `SETUP.md`)                                                                      |
+| 2026-05-19 | Edge Functions structured JSON logging; `process-ai-job` `verify_jwt=false` + service invoke `apikey`; fix gateway 401 before handler                                                                                                             |
+| 2026-05-19 | Document end-to-end sync + AI loop (mermaid sequence diagram, stage table, mobile poll/merge, debug SQL); link from `supabase/SETUP.md` and `DEVELOPER.md`                                                                                        |
 | 2026-05-18 | **2.3 / 2.4** — `sync-event`, `get-event-updates`, `process-ai-job` Edge Functions; `event_media` + `ai_jobs` migrations; mobile sync/poll/merge + calm sync status UI; `@tailo/ai` stub captions (Vertex via `AI_PROVIDER=vertex` + GCP secrets) |
-| 2026-05-18 | Upload pipeline: `create-upload-urls` + `event-media` bucket; mobile compress/PUT worker with retry backoff; `sync-event` still Phase 2.3                                                         |
-| 2026-05-18 | Account settings: email link for anonymous users (`updateUser` + `verifyOtp`); `SaveMemoriesLink` on home; Apple/Google upgrade UI deferred                                                       |
-| 2026-05-18 | `upsert-pet` Edge Function + `pets` migration; mobile `syncRemotePetProfileIfNeeded` on launch and after profile save; stores `remotePetId` locally                                               |
-| 2026-05-18 | `link-anonymous-user` Edge Function + `anonymous_id_links` migration; mobile legacy bridge on launch                                                                                              |
-| 2026-05-18 | Mobile `AuthProvider` boundary; Supabase auth only in `providers/supabaseAuthProvider.ts`; portability rules in AGENTS.md                                                                         |
-| 2026-05-18 | Document Supabase Auth anonymous-first + optional Apple/Google/email upgrade; clarify legacy `anonymous_id_links`; align AI `eventType` with `@tailo/shared`; MVP delivery order + open questions |
-| 2026-05-18 | Add auth edge-case policy, upload/sync/AI specifications, schema fields for merge + AI lease/retry                                                                                                |
+| 2026-05-18 | Upload pipeline: `create-upload-urls` + `event-media` bucket; mobile compress/PUT worker with retry backoff; `sync-event` still Phase 2.3                                                                                                         |
+| 2026-05-18 | Account settings: email link for anonymous users (`updateUser` + `verifyOtp`); `SaveMemoriesLink` on home; Apple/Google upgrade UI deferred                                                                                                       |
+| 2026-05-18 | `upsert-pet` Edge Function + `pets` migration; mobile `syncRemotePetProfileIfNeeded` on launch and after profile save; stores `remotePetId` locally                                                                                               |
+| 2026-05-18 | `link-anonymous-user` Edge Function + `anonymous_id_links` migration; mobile legacy bridge on launch                                                                                                                                              |
+| 2026-05-18 | Mobile `AuthProvider` boundary; Supabase auth only in `providers/supabaseAuthProvider.ts`; portability rules in AGENTS.md                                                                                                                         |
+| 2026-05-18 | Document Supabase Auth anonymous-first + optional Apple/Google/email upgrade; clarify legacy `anonymous_id_links`; align AI `eventType` with `@tailo/shared`; MVP delivery order + open questions                                                 |
+| 2026-05-18 | Add auth edge-case policy, upload/sync/AI specifications, schema fields for merge + AI lease/retry                                                                                                                                                |

@@ -201,7 +201,13 @@ export function OnboardingScreen({
     }
 
     void photoAccess.startScan();
-  }, [isPipelineActive, photoAccess, step]);
+  }, [
+    isPipelineActive,
+    photoAccess.initialScanCompleted,
+    photoAccess.permissionStatus,
+    photoAccess.startScan,
+    step,
+  ]);
 
   const selectedProfilePhoto = useMemo(
     () =>

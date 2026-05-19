@@ -8,6 +8,8 @@ export type RemoteAiJobStatus =
   | 'skipped'
   | null;
 
+export type PetValidationStatus = 'pending' | 'valid' | 'rejected';
+
 export type RemoteEventUpdate = {
   event_id: string;
   source_local_event_id: string;
@@ -20,6 +22,7 @@ export type RemoteEventUpdate = {
   user_edited_caption: boolean;
   user_edited_event_type: boolean;
   ai_job_status: RemoteAiJobStatus;
+  pet_validation_status: PetValidationStatus;
 };
 
 export type GetEventUpdatesRequest = {

@@ -2,13 +2,13 @@
 
 Tailo runs caption generation in the **`process-ai-job`** Edge Function. The mobile app never talks to GCP directly.
 
-| Variable | Required | Default | Purpose |
-| -------- | -------- | ------- | ------- |
-| `AI_PROVIDER` | yes | `stub` | Set to `vertex` to use Gemini |
-| `GCP_PROJECT_ID` | yes | — | Google Cloud project ID |
-| `GCP_VERTEX_REGION` | no | `us-central1` | Vertex region (must support your model) |
-| `GCP_VERTEX_MODEL` | no | `gemini-2.0-flash-001` | Gemini model ID |
-| `GCP_SERVICE_ACCOUNT_JSON` | yes | — | Full service account key JSON (one line) |
+| Variable                   | Required | Default            | Purpose                                                                                                                                                                                                                                          |
+| -------------------------- | -------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `AI_PROVIDER`              | yes      | `stub`             | Set to `vertex` to use Gemini                                                                                                                                                                                                                    |
+| `GCP_PROJECT_ID`           | yes      | —                  | Google Cloud project ID                                                                                                                                                                                                                          |
+| `GCP_VERTEX_REGION`        | no       | `us-central1`      | Vertex region (must support your model)                                                                                                                                                                                                          |
+| `GCP_VERTEX_MODEL`         | no       | `gemini-2.5-flash` | Gemini **Model ID** from [model versions](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/model-versions). Tailo defaults to **gemini-2.5-flash** (thinking off, fast). Use exact id, not aliases like `gemini-2.0-flash`. |
+| `GCP_SERVICE_ACCOUNT_JSON` | yes      | —                  | Full service account key JSON (one line)                                                                                                                                                                                                         |
 
 Until `AI_PROVIDER=vertex` and the GCP secrets are set, captions use the **stub** provider (safe placeholder text).
 
@@ -76,7 +76,7 @@ export GCP_KEY_FILE="$HOME/Downloads/tailo-vertex-edge-xxxxx.json"
 npx supabase secrets set AI_PROVIDER=vertex
 npx supabase secrets set GCP_PROJECT_ID=YOUR_PROJECT_ID
 npx supabase secrets set GCP_VERTEX_REGION=us-central1
-npx supabase secrets set GCP_VERTEX_MODEL=gemini-2.0-flash-001
+npx supabase secrets set GCP_VERTEX_MODEL=gemini-2.5-flash
 npx supabase secrets set GCP_SERVICE_ACCOUNT_JSON="$(jq -c . < "$GCP_KEY_FILE")"
 ```
 
@@ -112,7 +112,8 @@ npm run deploy:supabase
    - `status: done` — success
    - `Vertex request failed (403)` — IAM/API not enabled
    - `Could not obtain GCP access token` — bad or malformed JSON key
-   - `Vertex response could not be parsed` — model returned non-JSON (retry or adjust prompt)
+   - `Vertex response could not be parsed` — model returned non-JSON (retry or adjust prompt). Check Edge Function logs for `vertex_response_parse_failed` (`extractedTextPreview`, `responsePreview`).
+   - `MAX_TOKENS` with **gemini-2.5-pro** — thinking tokens count toward the output budget; Tailo raises `maxOutputTokens` to 1024 and caps `thinkingBudget` at 128. **gemini-2.5-flash** (our default) sets `thinkingBudget: 0` and is better suited to short caption JSON.
 4. On device: within ~30s (poll) the timeline caption should update to a Gemini-generated line (calm, no “AI” wording).
 5. Edit the caption in event detail → wait for another poll → caption must **not** change.
 
@@ -134,14 +135,14 @@ LIMIT 5;
 
 ## 7. Troubleshooting
 
-| Symptom | Likely fix |
-| ------- | ---------- |
-| Still stub captions | `AI_PROVIDER` not `vertex`, or secrets on wrong project |
-| `403` from Vertex | Enable Vertex AI API; confirm `roles/aiplatform.user` on the service account |
-| `404` model | Use a model available in your region; try `gemini-2.0-flash-001` in `us-central1` |
-| Token error | Re-download key; ensure `GCP_SERVICE_ACCOUNT_JSON` is minified JSON (use `jq -c`) |
-| Job stuck `pending` | Invoke `process-ai-job` manually (see below); check `last_error` on `ai_jobs` |
-| `Could not read primary image` | Upload/sync incomplete; confirm `event_media` row and Storage object exist |
+| Symptom                         | Likely fix                                                                                                                                                                                                              |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Still stub captions             | `AI_PROVIDER` not `vertex`, or secrets on wrong project                                                                                                                                                                 |
+| `403` from Vertex               | Enable Vertex AI API; confirm `roles/aiplatform.user` on the service account                                                                                                                                            |
+| `404` Publisher Model not found | Use the exact **Model ID** from [model versions](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/model-versions) (e.g. `gemini-2.5-flash`). **Do not** use short aliases like `gemini-2.0-flash`. |
+| Token error                     | Re-download key; ensure `GCP_SERVICE_ACCOUNT_JSON` is minified JSON (use `jq -c`)                                                                                                                                       |
+| Job stuck `pending`             | Invoke `process-ai-job` manually (see below); check `last_error` on `ai_jobs`                                                                                                                                           |
+| `Could not read primary image`  | Upload/sync incomplete; confirm `event_media` row and Storage object exist                                                                                                                                              |
 
 ### Manually run one AI job (service role)
 
@@ -151,8 +152,12 @@ From **Project Settings → API → service_role** (local only, never in the app
 curl -s -X POST \
   "https://sgxtyxvithlmuuofkzlk.supabase.co/functions/v1/process-ai-job" \
   -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY" \
-  -H "Content-Type: application/json"
+  -H "apikey: YOUR_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"sweep":true}'
 ```
+
+Deploy with gateway JWT off: `npx supabase functions deploy process-ai-job --no-verify-jwt` (or `npm run deploy:supabase`).
 
 ---
 

@@ -153,6 +153,19 @@ export async function clearLocalEvents(
   await db.execAsync('DELETE FROM local_events;');
 }
 
+/** Removes a promoted timeline moment after cloud pet validation rejects it. */
+export async function deletePromotedLocalEvent(
+  db: SQLite.SQLiteDatabase,
+  localEventId: string,
+): Promise<void> {
+  await db.runAsync(`DELETE FROM local_media_scores WHERE local_event_id = ?`, [
+    localEventId,
+  ]);
+  await db.runAsync(`DELETE FROM local_events WHERE local_event_id = ?`, [
+    localEventId,
+  ]);
+}
+
 export type PruneLocalTimelineResult = {
   removedEventCount: number;
   removedScoreCount: number;

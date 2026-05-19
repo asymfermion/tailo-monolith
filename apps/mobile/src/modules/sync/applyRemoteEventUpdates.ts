@@ -1,8 +1,29 @@
 import type * as SQLite from 'expo-sqlite';
 import type { RemoteEventUpdate } from '@tailo/shared';
 
-import { getLocalEventById } from '@/db/localEvents';
-import { mergeRemoteEventUpdate } from './mergeRemoteEventUpdate';
+import { deletePromotedLocalEvent, getLocalEventById } from '@/db/localEvents';
+import {
+  hasMergedEventChanges,
+  mergeRemoteEventUpdate,
+  type LocalEventSyncSnapshot,
+} from './mergeRemoteEventUpdate';
+
+function toSyncSnapshot(
+  local: NonNullable<Awaited<ReturnType<typeof getLocalEventById>>>,
+): LocalEventSyncSnapshot {
+  return {
+    localEventId: local.localEventId,
+    eventType: local.eventType ?? 'unknown',
+    caption: local.caption,
+    captionSource: local.captionSource,
+    isFavorite: local.isFavorite === 1,
+    serverSyncVersion: local.serverSyncVersion,
+    userEditedCaption: local.userEditedCaption === 1,
+    userEditedEventType: local.userEditedEventType === 1,
+    pendingAi: local.pendingAi === 1,
+    remoteEventId: local.remoteEventId ?? '',
+  };
+}
 
 export async function applyRemoteEventUpdates(
   database: SQLite.SQLiteDatabase,
@@ -20,21 +41,24 @@ export async function applyRemoteEventUpdates(
       continue;
     }
 
+    if (remote.pet_validation_status === 'rejected') {
+      await deletePromotedLocalEvent(database, local.localEventId);
+      applied += 1;
+      continue;
+    }
+
+    const before = toSyncSnapshot(local);
     const merged = mergeRemoteEventUpdate(
       {
-        localEventId: local.localEventId,
-        eventType: local.eventType ?? 'unknown',
-        caption: local.caption,
-        captionSource: local.captionSource,
-        isFavorite: local.isFavorite === 1,
-        serverSyncVersion: local.serverSyncVersion,
-        userEditedCaption: local.userEditedCaption === 1,
-        userEditedEventType: local.userEditedEventType === 1,
-        pendingAi: local.pendingAi === 1,
+        ...before,
         remoteEventId: local.remoteEventId ?? remote.event_id,
       },
       remote,
     );
+
+    if (!hasMergedEventChanges(before, merged)) {
+      continue;
+    }
 
     await database.runAsync(
       `

@@ -44,6 +44,17 @@ Allow multiple pets to appear in the same timeline experience.
 - Timeline can show mixed-pet moments
 - Filters can switch between all pets and individual pets
 
+### 6. Image-level cloud pet validation
+
+Today, Vertex validates only the **primary** image, but a failed check **rejects the whole event** (all `event_media` rows deleted; local timeline row removed).
+
+Future behavior:
+
+- Validate each asset in an event (or at least primary + alternates)
+- Remove only assets that fail (`profilePetValid` / type mismatch)
+- Keep the event if any valid pet photos remain; re-pick primary thumbnail
+- Sync rejected assets back to the phone (`selected_asset_ids` / scores), not only `pet_validation_status` on the event
+
 ---
 
 ## Notes

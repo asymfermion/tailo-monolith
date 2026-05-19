@@ -8,6 +8,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 
 import { colors, spacing } from '@/constants/theme';
+import { useSupabaseAuthAutoRefresh } from '@/lib/useSupabaseAuthAutoRefresh';
 import { useOnboardingSession } from '@/modules/auth';
 import { useBackgroundSync } from '@/modules/sync';
 import { CapturePreviewScreen } from '@/screens/CapturePreviewScreen';
@@ -29,6 +30,7 @@ export function AppShell() {
 }
 
 function AppShellContent() {
+  useSupabaseAuthAutoRefresh();
   useBackgroundSync();
   const onboardingSession = useOnboardingSession();
   const navigation = useNavigation();

@@ -1,6 +1,7 @@
 import type { RemoteEventUpdate } from '@tailo/shared';
 
 import {
+  hasMergedEventChanges,
   mergeRemoteEventUpdate,
   type LocalEventSyncSnapshot,
 } from './mergeRemoteEventUpdate';
@@ -30,6 +31,7 @@ const baseRemote: RemoteEventUpdate = {
   user_edited_caption: false,
   user_edited_event_type: false,
   ai_job_status: 'done',
+  pet_validation_status: 'valid',
 };
 
 describe('mergeRemoteEventUpdate', () => {
@@ -55,6 +57,21 @@ describe('mergeRemoteEventUpdate', () => {
 
     expect(merged.caption).toBe('AI wrote this');
     expect(merged.captionSource).toBe('ai');
+  });
+
+  it('detects when merged snapshot differs from local', () => {
+    const before: LocalEventSyncSnapshot = {
+      ...baseLocal,
+      caption: 'Old',
+      pendingAi: false,
+    };
+    const after: LocalEventSyncSnapshot = {
+      ...before,
+      caption: 'New',
+    };
+
+    expect(hasMergedEventChanges(before, after)).toBe(true);
+    expect(hasMergedEventChanges(before, before)).toBe(false);
   });
 
   it('marks pending AI while job is processing', () => {

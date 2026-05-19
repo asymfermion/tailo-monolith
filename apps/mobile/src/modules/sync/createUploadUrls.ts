@@ -1,5 +1,5 @@
 import { appEnv } from '@/lib/env';
-import { getAuthAccessToken } from '@/modules/auth';
+import { getAuthAccessToken } from '@/modules/auth/authService';
 import {
   isCreateUploadUrlsResponse,
   type CreateUploadUrlsRequest,

@@ -20,7 +20,12 @@ export function buildCaptionEventPrompt(
     `Pet type: ${input.petType}.`,
     `Moment source: ${input.eventSource}.`,
     `Timestamp: ${input.timestamp}.`,
-    'Respond with JSON only: {"caption":"...","eventType":"walk|play|rest|eating|unknown","confidence":0.0}',
+    'Output ONLY one JSON object (no markdown, no code fences, no preamble).',
+    'Set profilePetValid true only if a ' +
+      input.petType +
+      ' is clearly the main subject (not another animal, not empty scene).',
+    'Use JSON null for visiblePetType when no dog or cat is the main subject (never the string "null").',
+    'Shape: {"caption":"...","eventType":"walk|play|rest|eating|unknown","confidence":0.0,"profilePetValid":true,"visiblePetType":"dog","petValidationConfidence":0.0}',
   ].join('\n');
 }
 

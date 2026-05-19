@@ -14,19 +14,23 @@ export type EventUpdatesPollState = {
 
 export function useEventUpdatesPoll(options: {
   enabled?: boolean;
-  refreshKey?: number;
   onApplied?: () => void;
 }): EventUpdatesPollState {
-  const { enabled = true, refreshKey = 0, onApplied } = options;
+  const { enabled = true, onApplied } = options;
   const [isPolling, setIsPolling] = useState(false);
   const [lastAppliedCount, setLastAppliedCount] = useState(0);
   const appState = useRef<AppStateStatus>(AppState.currentState);
+  const onAppliedRef = useRef(onApplied);
+  const isPollingRef = useRef(false);
+
+  onAppliedRef.current = onApplied;
 
   const pollOnce = useCallback(async () => {
-    if (!enabled || appState.current !== 'active') {
+    if (!enabled || appState.current !== 'active' || isPollingRef.current) {
       return;
     }
 
+    isPollingRef.current = true;
     setIsPolling(true);
 
     try {
@@ -35,16 +39,17 @@ export function useEventUpdatesPoll(options: {
       setLastAppliedCount(result.applied);
 
       if (result.applied > 0) {
-        onApplied?.();
+        onAppliedRef.current?.();
       }
     } finally {
+      isPollingRef.current = false;
       setIsPolling(false);
     }
-  }, [enabled, onApplied]);
+  }, [enabled]);
 
   useEffect(() => {
     void pollOnce();
-  }, [pollOnce, refreshKey]);
+  }, [pollOnce]);
 
   useEffect(() => {
     if (!enabled) {

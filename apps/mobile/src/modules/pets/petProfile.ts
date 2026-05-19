@@ -1,7 +1,11 @@
-import { secureStorage, type SecureStorage } from '@/modules/auth';
+import {
+  secureStorage,
+  type SecureStorage,
+} from '@/modules/auth/secureStorage';
 import { getDatabase } from '@/db';
 import { rebuildPipelineForProfilePetType } from '@/modules/eventBuilder/rebuildPipelineForProfilePetType';
 
+import { LOCAL_PET_PROFILE_KEY } from './keys';
 import { syncRemotePetProfileIfNeeded } from './remotePetSync';
 
 export type LocalPetType = 'dog' | 'cat';
@@ -28,7 +32,7 @@ export type SaveLocalPetProfileInput = {
   profilePhotoUri?: string | null;
 };
 
-export const LOCAL_PET_PROFILE_KEY = 'tailo.local_pet_profile';
+export { LOCAL_PET_PROFILE_KEY } from './keys';
 
 export async function loadLocalPetProfile(
   storage: SecureStorage = secureStorage,

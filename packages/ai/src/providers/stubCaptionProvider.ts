@@ -15,11 +15,24 @@ export function generateStubCaption(
     caption,
     eventType: 'unknown',
     confidence: 0.72,
+    profilePetValid: true,
+    visiblePetType: input.petType,
+    petValidationConfidence: 0.9,
   };
 }
 
+function stripMarkdownCodeFence(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+
+  if (fenced?.[1]) {
+    return fenced[1].trim();
+  }
+
+  return text;
+}
+
 export function parseModelJsonResponse(text: string): AiCaptionResult | null {
-  const trimmed = text.trim();
+  const trimmed = stripMarkdownCodeFence(text.trim());
   const jsonStart = trimmed.indexOf('{');
   const jsonEnd = trimmed.lastIndexOf('}');
 

@@ -55,7 +55,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.100.0
 
       - name: Deploy migrations and Edge Functions
         run: npm run deploy:supabase

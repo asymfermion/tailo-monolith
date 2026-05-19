@@ -25,8 +25,11 @@ jest.mock('@/modules/pets/resolveLocalPetId', () => ({
   resolveLocalPetId: jest.fn().mockResolvedValue('local_pet_1'),
 }));
 
-jest.mock('@/modules/sync', () => ({
+jest.mock('@/modules/sync/enqueueEventMediaUploads', () => ({
   enqueueEventMediaUploads: jest.fn().mockResolvedValue(1),
+}));
+
+jest.mock('@/modules/sync/uploadQueueWorker', () => ({
   runUploadQueueWorker: jest.fn().mockResolvedValue({
     processedBatches: 0,
     uploadedAssets: 0,

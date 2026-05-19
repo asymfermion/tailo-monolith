@@ -8,7 +8,8 @@ import {
   markEventCandidatesProcessing,
 } from '@/db/localEventCandidates';
 import { resolveLocalPetId } from '@/modules/pets/resolveLocalPetId';
-import { enqueueEventMediaUploads, runUploadQueueWorker } from '@/modules/sync';
+import { enqueueEventMediaUploads } from '@/modules/sync/enqueueEventMediaUploads';
+import { runUploadQueueWorker } from '@/modules/sync/uploadQueueWorker';
 import type { NewLocalEvent } from '@/types';
 
 export type PromoteLocalEventsProgress = {

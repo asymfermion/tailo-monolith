@@ -6,7 +6,7 @@ import { pruneLocalTimelineForProfilePetType } from '@/db/localEvents';
 import { getTimelineEvents } from '@/db/timelineEvents';
 import { getSyncStateValue, SYNC_STATE_KEYS } from '@/db/syncState';
 import { rebuildPipelineForProfilePetType } from '@/modules/eventBuilder/rebuildPipelineForProfilePetType';
-import { loadLocalPetProfile } from '@/modules/pets';
+import { loadLocalPetProfile } from '@/modules/pets/petProfile';
 import type { TimelineEvent } from '@/types';
 
 export type UseTimelineEventsOptions = {

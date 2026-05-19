@@ -1,3 +1,9 @@
+const mockCreateClient = jest.fn();
+
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: (...args: unknown[]) => mockCreateClient(...args),
+}));
+
 jest.mock('@/lib/env', () => ({
   appEnv: {
     hasSupabaseConfig: false,
@@ -24,6 +30,7 @@ import {
 describe('getSupabaseClient', () => {
   afterEach(() => {
     resetSupabaseClientForTests();
+    mockCreateClient.mockReset();
   });
 
   it('reports whether env vars are present', () => {
@@ -35,6 +42,10 @@ describe('getSupabaseClient', () => {
   });
 
   it('returns a singleton client when env vars are set', () => {
+    const fakeClient = { auth: {} };
+
+    mockCreateClient.mockReturnValue(fakeClient);
+
     Object.assign(appEnv, {
       hasSupabaseConfig: true,
       supabaseUrl: 'https://example.supabase.co',
@@ -46,5 +57,16 @@ describe('getSupabaseClient', () => {
 
     expect(first).toBe(second);
     expect(first.auth).toBeDefined();
+    expect(mockCreateClient).toHaveBeenCalledTimes(1);
+    expect(mockCreateClient).toHaveBeenCalledWith(
+      'https://example.supabase.co',
+      'test-anon-key',
+      expect.objectContaining({
+        auth: expect.objectContaining({
+          storageKey: 'tailo.supabase.auth',
+          persistSession: true,
+        }),
+      }),
+    );
   });
 });

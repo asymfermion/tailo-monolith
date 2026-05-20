@@ -22,35 +22,49 @@ export function useEventDetail(localEventId: string): EventDetailState {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const loadEvent = useCallback(
+    async (options: { showLoading: boolean }) => {
+      if (options.showLoading) {
+        setIsLoading(true);
+      }
+
+      setErrorMessage(null);
+
+      try {
+        const database = await getDatabase();
+        const profile = await loadLocalPetProfile();
+        if (!profile?.type) {
+          setEvent(null);
+          setErrorMessage(t('errors.choosePetToViewMoment'));
+          return;
+        }
+
+        const nextEvent = await getTimelineEventById(database, localEventId, {
+          profilePetType: profile.type,
+        });
+        setEvent(nextEvent);
+
+        if (!nextEvent) {
+          setErrorMessage(t('errors.momentUnavailable'));
+        }
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : t('errors.couldNotLoadMoment'),
+        );
+      } finally {
+        if (options.showLoading) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [localEventId],
+  );
+
   const refresh = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const database = await getDatabase();
-      const profile = await loadLocalPetProfile();
-      if (!profile?.type) {
-        setEvent(null);
-        setErrorMessage(t('errors.choosePetToViewMoment'));
-        return;
-      }
-
-      const nextEvent = await getTimelineEventById(database, localEventId, {
-        profilePetType: profile.type,
-      });
-      setEvent(nextEvent);
-
-      if (!nextEvent) {
-        setErrorMessage(t('errors.momentUnavailable'));
-      }
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : t('errors.couldNotLoadMoment'),
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [localEventId]);
+    await loadEvent({ showLoading: true });
+  }, [loadEvent]);
 
   const saveUpdate = useCallback(
     async (update: LocalEventUpdate) => {
@@ -72,7 +86,7 @@ export function useEventDetail(localEventId: string): EventDetailState {
           return false;
         }
 
-        await refresh();
+        await loadEvent({ showLoading: false });
         return true;
       } catch (error) {
         setErrorMessage(
@@ -85,7 +99,7 @@ export function useEventDetail(localEventId: string): EventDetailState {
         setIsSaving(false);
       }
     },
-    [localEventId, refresh],
+    [localEventId, loadEvent],
   );
 
   useEffect(() => {

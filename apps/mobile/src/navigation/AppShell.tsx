@@ -1,25 +1,15 @@
-import {
-  ActivityIndicator,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, spacing } from '@/constants/theme';
 import { useSupabaseAuthAutoRefresh } from '@/lib/useSupabaseAuthAutoRefresh';
 import { useOnboardingSession } from '@/modules/auth';
 import { useBackgroundSync } from '@/modules/sync';
-import { CapturePreviewScreen } from '@/screens/CapturePreviewScreen';
-import { CaptureScreen } from '@/screens/CaptureScreen';
-import { EventDetailScreen } from '@/screens/EventDetailScreen';
-import { AccountSettingsScreen } from '@/screens/AccountSettingsScreen';
-import { HomeScreen } from '@/screens/HomeScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 
+import { ModalStackLayer } from './components/ModalStackLayer';
 import { NavigationProvider, useNavigation } from './NavigationContext';
-import type { RootRoute } from './routes';
 
 export function AppShell() {
   return (
@@ -32,12 +22,21 @@ export function AppShell() {
 function AppShellContent() {
   useSupabaseAuthAutoRefresh();
   useBackgroundSync();
+  const insets = useSafeAreaInsets();
   const onboardingSession = useOnboardingSession();
   const navigation = useNavigation();
-  const activeRoute = navigation.stack.at(-1);
+  const activeModal = navigation.modalStack.at(-1);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View
+      style={[
+        styles.root,
+        {
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
       <StatusBar style="dark" />
       <View style={styles.screen}>
         {onboardingSession.isLoading ? (
@@ -53,48 +52,18 @@ function AppShellContent() {
             onStepChange={onboardingSession.setOnboardingStep}
           />
         ) : (
-          renderRoute(activeRoute)
+          <ModalStackLayer activeModal={activeModal} onPop={navigation.pop} />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
-function renderRoute(route: RootRoute | undefined) {
-  if (!route) {
-    return <HomeScreen />;
-  }
-
-  switch (route.name) {
-    case 'AccountSettings':
-      return <AccountSettingsScreen />;
-    case 'EventDetail': {
-      const localEventId = route.params.localEventId;
-
-      if (!localEventId) {
-        return <HomeScreen />;
-      }
-
-      return <EventDetailScreen localEventId={localEventId} />;
-    }
-    case 'Capture':
-      return <CaptureScreen />;
-    case 'CapturePreview':
-      return (
-        <CapturePreviewScreen
-          height={route.params.height}
-          tempUri={route.params.tempUri}
-          width={route.params.width}
-        />
-      );
-    case 'Home':
-      return <HomeScreen />;
-  }
-}
-
 function LoadingState() {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.centered}>
+    <View style={[styles.centered, { paddingTop: insets.top }]}>
       <ActivityIndicator color={colors.accent} />
       <Text style={styles.centeredText}>Preparing Tailo...</Text>
     </View>
@@ -102,8 +71,10 @@ function LoadingState() {
 }
 
 function ErrorState({ message }: { message: string }) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.centered}>
+    <View style={[styles.centered, { paddingTop: insets.top }]}>
       <Text style={styles.errorTitle}>Tailo needs a moment</Text>
       <Text style={styles.centeredText}>{message}</Text>
     </View>
@@ -111,9 +82,9 @@ function ErrorState({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
+  root: {
     backgroundColor: colors.background,
+    flex: 1,
   },
   screen: {
     flex: 1,

@@ -1,5 +1,15 @@
-export { DEFAULT_LOCALE, type AppLocale } from './locale';
+export {
+  APP_LOCALES,
+  DEFAULT_LOCALE,
+  getAppLocale,
+  getIntlLocale,
+  hydrateAppLocale,
+  setAppLocale,
+  useAppLocale,
+  type AppLocale,
+} from './locale';
 export { en, type TranslationTree } from './locales/en';
+export { zhHans } from './locales/zhHans';
 export { formatCount, pluralSuffix, t } from './t';
 export {
   getOnboardingPipelineTitle,

@@ -2,11 +2,15 @@ import type * as SQLite from 'expo-sqlite';
 import type { RemoteEventUpdate } from '@tailo/shared';
 
 import { deletePromotedLocalEvent, getLocalEventById } from '@/db/localEvents';
+import { isLocalEventTombstoned } from '@/db/localEventTombstones';
+import { acquireEventSyncLock } from '@/db/eventSyncLock';
+
 import {
   hasMergedEventChanges,
   mergeRemoteEventUpdate,
   type LocalEventSyncSnapshot,
 } from './mergeRemoteEventUpdate';
+import { shouldApplyRemoteEventUpdate } from './shouldApplyRemoteEventUpdate';
 
 function toSyncSnapshot(
   local: NonNullable<Awaited<ReturnType<typeof getLocalEventById>>>,
@@ -22,6 +26,7 @@ function toSyncSnapshot(
     userEditedEventType: local.userEditedEventType === 1,
     pendingAi: local.pendingAi === 1,
     remoteEventId: local.remoteEventId ?? '',
+    syncLockOwner: local.syncLockOwner,
   };
 }
 
@@ -38,6 +43,21 @@ export async function applyRemoteEventUpdates(
     );
 
     if (!local) {
+      continue;
+    }
+
+    const isTombstoned = await isLocalEventTombstoned(
+      database,
+      remote.source_local_event_id,
+    );
+
+    if (
+      !shouldApplyRemoteEventUpdate({
+        isTombstoned,
+        local,
+        remote,
+      })
+    ) {
       continue;
     }
 
@@ -60,6 +80,8 @@ export async function applyRemoteEventUpdates(
       continue;
     }
 
+    await acquireEventSyncLock(database, local.localEventId, 'ai');
+
     await database.runAsync(
       `
         UPDATE local_events
@@ -73,8 +95,10 @@ export async function applyRemoteEventUpdates(
           user_edited_caption = ?,
           user_edited_event_type = ?,
           pending_ai = ?,
+          sync_lock_owner = NULL,
           updated_at = CURRENT_TIMESTAMP
         WHERE local_event_id = ?
+          AND (sync_lock_owner IS NULL OR sync_lock_owner = 'ai')
       `,
       [
         merged.remoteEventId,

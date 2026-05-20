@@ -41,6 +41,8 @@ GitHub Actions installs **Supabase CLI 2.100.0** via `supabase/setup-cli`; the d
 
 ```bash
 npx supabase db push          # apply migrations to linked remote
+npm run test:supabase:rls -- --linked   # RLS smoke: user A vs user B (B2.1.10)
+npm run test:supabase:upload          # Signed PUT rejects non-JPEG Content-Type (B2.4.3a)
 npx supabase functions serve  # local edge functions
 npx supabase start            # optional local stack
 ```
@@ -94,12 +96,27 @@ curl -s -X POST \
   -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY" \
   -H "apikey: YOUR_SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"sweep":true}'
+  -d '{"sweep":true,"max_jobs":5}'
 ```
 
 After deploy, logs appear under **Edge Functions → process-ai-job → Logs** (JSON lines: `invoked`, `auth_ok`, `job_leased`, …).
 
 Upgraded devices (Phase 1 `anon_*` in SecureStore) call `link-anonymous-user` once on launch after anonymous sign-in.
+
+## Known limitation: session loss (B2.6.9)
+
+If the Supabase refresh token is cleared (app reinstall, SecureStore wipe, or hard auth failure), the app signs in **anonymously again** and receives a **new** `auth.users.id`. Cloud pets/events from the previous anonymous user remain on the old account; the MVP does **not** auto-merge or restore them. Permanent account linking (email / Apple / Google) is the path to keep data on one user id. See [Auth edge-case policy](../docs/architecture/phase-2-backend-mvp.md#auth-edge-case-policy).
+
+## Backend QA scripts (B2.6)
+
+| Script | Purpose |
+| ------ | ------- |
+| `npm run test:supabase:rls -- --linked` | RLS cross-user smoke |
+| `npm run test:supabase:upload` | Signed PUT `Content-Type` enforcement |
+| `npm run test:supabase:qa` | Edge Function hardening integration tests |
+| `npm run audit:supabase` | `npm audit` for function-related workspace deps |
+
+Staging/prod promotion: **[STAGING_CHECKLIST.md](./STAGING_CHECKLIST.md)**.
 
 ## How AI captions return to the app
 
@@ -139,7 +156,44 @@ sequenceDiagram
 
 **Default AI:** `AI_PROVIDER=stub` (no GCP) — you still get caption updates to prove the loop. For Gemini, see [GCP_VERTEX_SETUP.md](./GCP_VERTEX_SETUP.md) (production captions use **`gemini-2.5-flash`**; [model versions](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/model-versions) to override).
 
-**Stuck on `pending`?** Trigger the worker (service role, never in the app):
+## Scheduled AI worker (B2.5.7)
+
+Mobile poll is UX-only. The server also drains `ai_jobs` on a schedule:
+
+1. Apply migrations: `npm run deploy:supabase` (enables `pg_cron` + `pg_net`).
+2. Deploy `process-ai-job` (includes lease recovery + sweep).
+3. One-time cron setup (requires `DATABASE_URL` + service role in env):
+
+```bash
+# 1. Link CLI (recommended — avoids DATABASE_URL / password encoding issues):
+npx supabase login
+npx supabase link --project-ref sgxtyxvithlmuuofkzlk
+
+# 2. In supabase/.env.local add only (service_role — never commit):
+#    SUPABASE_URL=https://sgxtyxvithlmuuofkzlk.supabase.co
+#    SUPABASE_SERVICE_ROLE_KEY=...
+
+npm run setup:ai-job-cron
+```
+
+Without `supabase link`, you must set `DATABASE_URL` to the **exact** URI from Dashboard → Connect (encoded password). If you see “multiple @ characters”, the password was pasted raw — use the dashboard URI or link the CLI instead.
+
+**`line N: No such file or directory` when sourcing `.env.local`:** the script no longer uses `source`. Passwords with `&`, `!`, or `@` must use the **Dashboard URI** (URL-encoded), wrapped in single quotes: `DATABASE_URL='postgresql://...'`.
+
+**`psql not found`:** the script falls back to `npx supabase db query` (no separate install). Optional: `brew install libpq` then `export PATH="/opt/homebrew/opt/libpq/bin:$PATH"` for `psql`.
+
+**`invalid URL escape` / `multiple @` / `failed to parse connection string`:** the password in `DATABASE_URL` is not URL-encoded. Open **Dashboard → Connect → URI**, copy the entire string, replace `DATABASE_URL` in `supabase/.env.local` (single quotes). Example: raw password `p@ss%word` becomes `p%40ss%25word` in the URI — never paste the raw password after `postgres:`.
+
+Runs every **3 minutes**, processes up to **5** pending jobs per tick, and resets stuck `processing` leases before each run.
+
+Verify:
+
+```sql
+select jobid, jobname, schedule, active from cron.job
+where jobname = 'tailo-process-ai-job-sweep';
+```
+
+**Stuck on `pending`?** Trigger the worker manually (service role, never in the app):
 
 ```bash
 curl -s -X POST \

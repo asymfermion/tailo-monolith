@@ -8,19 +8,22 @@ import {
   type ReactNode,
 } from 'react';
 
-import { INITIAL_ROUTE_NAME } from './routes';
-import type { RootRouteName, RootStackParamList } from './routes';
-import {
-  createInitialStack,
-  navigationReducer,
-  type NavigationStack,
-} from './stack';
+import { createEmptyModalStack, modalStackReducer } from './modalStack';
+import type { MainTabId, ModalRouteName, ModalStackParamList } from './routes';
+import { INITIAL_MAIN_TAB } from './routes';
+
+export type OpenSettingsOptions = {
+  section?: 'account';
+};
 
 type NavigationContextValue = {
-  stack: NavigationStack;
-  push: <RouteName extends RootRouteName>(
+  activeTab: MainTabId;
+  setActiveTab: (tab: MainTabId) => void;
+  openSettings: (options?: OpenSettingsOptions) => void;
+  modalStack: ReturnType<typeof createEmptyModalStack>;
+  push: <RouteName extends ModalRouteName>(
     routeName: RouteName,
-    params?: RootStackParamList[RouteName],
+    params?: ModalStackParamList[RouteName],
   ) => void;
   pop: () => void;
   popToRoot: () => void;
@@ -32,47 +35,74 @@ type NavigationContextValue = {
 const NavigationContext = createContext<NavigationContextValue | null>(null);
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
-  const [stack, dispatch] = useReducer(
-    navigationReducer,
-    INITIAL_ROUTE_NAME,
-    createInitialStack,
+  const [activeTab, setActiveTabState] = useState<MainTabId>(INITIAL_MAIN_TAB);
+  const [modalStack, dispatchModal] = useReducer(
+    modalStackReducer,
+    undefined,
+    createEmptyModalStack,
   );
   const [captureCompletedNonce, setCaptureCompletedNonce] = useState(0);
 
+  const setActiveTab = useCallback((tab: MainTabId) => {
+    setActiveTabState(tab);
+  }, []);
+
   const push = useCallback(
-    <RouteName extends RootRouteName>(
+    <RouteName extends ModalRouteName>(
       routeName: RouteName,
-      params?: RootStackParamList[RouteName],
+      params?: ModalStackParamList[RouteName],
     ) => {
-      dispatch({ type: 'push', routeName, params });
+      dispatchModal({ type: 'push', routeName, params });
     },
     [],
   );
 
   const pop = useCallback(() => {
-    dispatch({ type: 'pop' });
+    dispatchModal({ type: 'pop' });
   }, []);
 
   const popToRoot = useCallback(() => {
-    dispatch({ type: 'popToRoot' });
+    dispatchModal({ type: 'popAll' });
+  }, []);
+
+  const openSettings = useCallback((options?: OpenSettingsOptions) => {
+    setActiveTabState('Settings');
+
+    if (options?.section === 'account') {
+      dispatchModal({ type: 'push', routeName: 'AccountSettings' });
+    }
   }, []);
 
   const completeCapture = useCallback(() => {
     setCaptureCompletedNonce((value) => value + 1);
-    dispatch({ type: 'popToRoot' });
+    setActiveTabState('Timeline');
+    dispatchModal({ type: 'popAll' });
   }, []);
 
   const value = useMemo(
     () => ({
-      stack,
+      activeTab,
+      setActiveTab,
+      openSettings,
+      modalStack,
       push,
       pop,
       popToRoot,
-      canGoBack: stack.length > 1,
+      canGoBack: modalStack.length > 0,
       captureCompletedNonce,
       completeCapture,
     }),
-    [captureCompletedNonce, completeCapture, pop, popToRoot, push, stack],
+    [
+      activeTab,
+      captureCompletedNonce,
+      completeCapture,
+      modalStack,
+      openSettings,
+      pop,
+      popToRoot,
+      push,
+      setActiveTab,
+    ],
   );
 
   return (

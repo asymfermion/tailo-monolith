@@ -6,6 +6,9 @@ export const colors = {
   textMuted: '#6B6B66',
   accent: '#5C7C6A',
   border: '#E8E4DE',
+  /** Moment separators — visible on background without feeling harsh */
+  timelineDivider: '#D8D2C8',
+  tabBarBorder: 'rgba(232, 228, 222, 0.4)',
 } as const;
 
 export const spacing = {

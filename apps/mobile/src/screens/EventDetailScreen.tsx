@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { EVENT_TYPES } from '@tailo/shared';
 import { Image } from 'expo-image';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,12 +12,19 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MediaDetectionDebugBadge } from '@/components/MediaDetectionDebugBadge';
 import { colors, spacing } from '@/constants/theme';
 import { t } from '@/i18n';
 import { formatEventType, formatTimestamp } from '@/lib/formatMoment';
+import { ModalBackButton } from '@/navigation/components/ModalBackButton';
+import {
+  getModalHeaderHeight,
+  getModalHeaderTopInset,
+} from '@/navigation/modalHeaderInset';
 import { useNavigation } from '@/navigation/NavigationContext';
+import { MomentActionMenu } from '@/modules/timeline/components/MomentActionMenu';
 import { useEventDetail } from '@/modules/timeline/useEventDetail';
 import type { TimelineEventMedia } from '@/types';
 
@@ -27,12 +36,30 @@ type EventDetailScreenProps = {
 
 export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const headerHeight = getModalHeaderHeight(insets.top);
   const detail = useEventDetail(localEventId);
   const [captionDraft, setCaptionDraft] = useState('');
 
   useEffect(() => {
     setCaptionDraft(detail.event?.caption ?? '');
   }, [detail.event?.caption, detail.event?.localEventId]);
+
+  // TODO: share-moment — export primary image (and optional caption) to the system share sheet.
+  const handleShareMoment = useCallback(() => {
+    Alert.alert(
+      t('timeline.moment.shareSoonTitle'),
+      t('timeline.moment.shareSoonMessage'),
+    );
+  }, []);
+
+  // TODO: delete-moment — remove from local DB, pop detail, refresh timeline, and sync deletion when account is linked.
+  const handleDeleteMoment = useCallback(() => {
+    Alert.alert(
+      t('timeline.moment.deleteSoonTitle'),
+      t('timeline.moment.deleteSoonMessage'),
+    );
+  }, []);
 
   if (detail.isLoading) {
     return (
@@ -52,11 +79,7 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
         <Text style={styles.centeredText}>
           {detail.errorMessage ?? t('errors.momentNotFound')}
         </Text>
-        <Pressable style={styles.backButton} onPress={navigation.pop}>
-          <Text style={styles.backButtonText}>
-            {t('eventDetail.backToTimeline')}
-          </Text>
-        </Pressable>
+        <ModalBackButton onPress={navigation.pop} />
       </View>
     );
   }
@@ -71,107 +94,164 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
   });
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={styles.toolbar}>
-        <Pressable accessibilityRole="button" onPress={navigation.pop}>
-          <Text style={styles.backLink}>{t('common.back')}</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={detail.isSaving}
-          onPress={() =>
-            void detail.saveUpdate({ isFavorite: !event.isFavorite })
-          }
-        >
-          <Text style={styles.favoriteAction}>
-            {event.isFavorite
-              ? t('eventDetail.favorited')
-              : t('eventDetail.addFavorite')}
-          </Text>
-        </Pressable>
-      </View>
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: headerHeight },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        style={styles.scroll}
+      >
+        <Text style={styles.timestamp}>{formatTimestamp(event.timestamp)}</Text>
 
-      <Text style={styles.timestamp}>{formatTimestamp(event.timestamp)}</Text>
+        <View style={styles.gallery}>
+          {orderedMedia.map((media, index) => (
+            <GalleryImage
+              key={media.localAssetId}
+              isHero={index === 0}
+              media={media}
+            />
+          ))}
+        </View>
 
-      <View style={styles.gallery}>
-        {orderedMedia.map((media, index) => (
-          <GalleryImage
-            key={media.localAssetId}
-            isHero={index === 0}
-            media={media}
-          />
-        ))}
-      </View>
+        <Text style={styles.sectionLabel}>{t('eventDetail.typeSection')}</Text>
+        <View style={styles.typeRow}>
+          {EDITABLE_EVENT_TYPES.map((eventType) => {
+            const isSelected = event.eventType === eventType;
 
-      <Text style={styles.sectionLabel}>{t('eventDetail.typeSection')}</Text>
-      <View style={styles.typeRow}>
-        {EDITABLE_EVENT_TYPES.map((eventType) => {
-          const isSelected = event.eventType === eventType;
-
-          return (
-            <Pressable
-              key={eventType}
-              accessibilityRole="button"
-              disabled={detail.isSaving}
-              style={[styles.typeChip, isSelected && styles.typeChipSelected]}
-              onPress={() => void detail.saveUpdate({ eventType })}
-            >
-              <Text
-                style={[
-                  styles.typeChipText,
-                  isSelected && styles.typeChipTextSelected,
-                ]}
+            return (
+              <Pressable
+                key={eventType}
+                accessibilityRole="button"
+                disabled={detail.isSaving}
+                style={[styles.typeChip, isSelected && styles.typeChipSelected]}
+                onPress={() => void detail.saveUpdate({ eventType })}
               >
-                {formatEventType(eventType)}
+                <Text
+                  style={[
+                    styles.typeChipText,
+                    isSelected && styles.typeChipTextSelected,
+                  ]}
+                >
+                  {formatEventType(eventType)}
+                </Text>
+              </Pressable>
+            );
+          })}
+          {event.eventType === 'unknown' ? (
+            <View style={[styles.typeChip, styles.typeChipSelected]}>
+              <Text style={[styles.typeChipText, styles.typeChipTextSelected]}>
+                {formatEventType('unknown')}
               </Text>
-            </Pressable>
-          );
-        })}
-        {event.eventType === 'unknown' ? (
-          <View style={[styles.typeChip, styles.typeChipSelected]}>
-            <Text style={[styles.typeChipText, styles.typeChipTextSelected]}>
-              {formatEventType('unknown')}
-            </Text>
-          </View>
+            </View>
+          ) : null}
+        </View>
+
+        <Text style={styles.sectionLabel}>
+          {t('eventDetail.captionSection')}
+        </Text>
+        <TextInput
+          editable={!detail.isSaving}
+          multiline
+          placeholder={t('eventDetail.captionPlaceholder')}
+          placeholderTextColor={colors.textMuted}
+          style={styles.captionInput}
+          value={captionDraft}
+          onChangeText={setCaptionDraft}
+          onEndEditing={() => {
+            const trimmed = captionDraft.trim();
+            const nextCaption = trimmed.length > 0 ? trimmed : null;
+
+            if (nextCaption === event.caption) {
+              return;
+            }
+
+            void detail.saveUpdate({ caption: nextCaption });
+          }}
+        />
+        <Text style={styles.captionHint}>
+          {event.caption
+            ? t('eventDetail.captionEditHint')
+            : t('eventDetail.captionPlaceholderHint')}
+        </Text>
+
+        {detail.errorMessage ? (
+          <Text style={styles.errorText}>{detail.errorMessage}</Text>
         ) : null}
-      </View>
+      </ScrollView>
 
-      <Text style={styles.sectionLabel}>{t('eventDetail.captionSection')}</Text>
-      <TextInput
-        editable={!detail.isSaving}
-        multiline
-        placeholder={t('eventDetail.captionPlaceholder')}
-        placeholderTextColor={colors.textMuted}
-        style={styles.captionInput}
-        value={captionDraft}
-        onChangeText={setCaptionDraft}
-        onEndEditing={() => {
-          const trimmed = captionDraft.trim();
-          const nextCaption = trimmed.length > 0 ? trimmed : null;
-
-          if (nextCaption === event.caption) {
-            return;
-          }
-
-          void detail.saveUpdate({ caption: nextCaption });
-        }}
+      <EventDetailToolbar
+        isFavorite={event.isFavorite}
+        isSaving={detail.isSaving}
+        onBack={navigation.pop}
+        onDelete={handleDeleteMoment}
+        onShare={handleShareMoment}
+        onToggleFavorite={() =>
+          void detail.saveUpdate({ isFavorite: !event.isFavorite })
+        }
+        topInset={getModalHeaderTopInset(insets.top)}
       />
-      <Text style={styles.captionHint}>
-        {event.caption
-          ? t('eventDetail.captionEditHint')
-          : t('eventDetail.captionPlaceholderHint')}
-      </Text>
+    </View>
+  );
+}
 
-      {detail.isSaving ? (
-        <Text style={styles.savingText}>{t('common.saving')}</Text>
-      ) : null}
-      {detail.errorMessage ? (
-        <Text style={styles.errorText}>{detail.errorMessage}</Text>
-      ) : null}
-    </ScrollView>
+type EventDetailToolbarProps = {
+  isFavorite: boolean;
+  isSaving: boolean;
+  onBack: () => void;
+  onDelete: () => void;
+  onShare: () => void;
+  onToggleFavorite: () => void;
+  topInset: number;
+};
+
+function EventDetailToolbar({
+  isFavorite,
+  isSaving,
+  onBack,
+  onDelete,
+  onShare,
+  onToggleFavorite,
+  topInset,
+}: EventDetailToolbarProps) {
+  return (
+    <View style={[styles.fixedHeader, { paddingTop: topInset }]}>
+      <View style={styles.toolbar}>
+        <ModalBackButton align="leading" onPress={onBack} />
+        <View style={styles.toolbarActions}>
+          <Pressable
+            accessibilityLabel={
+              isFavorite
+                ? t('timeline.moment.removeFavorite')
+                : t('timeline.moment.addFavorite')
+            }
+            accessibilityRole="button"
+            disabled={isSaving}
+            hitSlop={8}
+            style={styles.iconButton}
+            onPress={onToggleFavorite}
+          >
+            <Ionicons
+              color={isFavorite ? colors.accent : colors.textMuted}
+              name={isFavorite ? 'star' : 'star-outline'}
+              size={24}
+            />
+          </Pressable>
+          <Pressable
+            accessibilityLabel={t('timeline.moment.share')}
+            accessibilityRole="button"
+            disabled={isSaving}
+            hitSlop={8}
+            style={styles.iconButton}
+            onPress={onShare}
+          >
+            <Ionicons color={colors.textMuted} name="share-outline" size={22} />
+          </Pressable>
+          <MomentActionMenu showEdit={false} onDelete={onDelete} />
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -200,12 +280,28 @@ function GalleryImage({
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flexGrow: 1,
+  screen: {
     backgroundColor: colors.background,
+    flex: 1,
+  },
+  fixedHeader: {
+    backgroundColor: colors.background,
+    left: 0,
+    paddingBottom: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 10,
+  },
+  scroll: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
   },
   centered: {
     alignItems: 'center',
@@ -232,30 +328,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  backLink: {
-    color: colors.accent,
-    fontSize: 16,
-    fontWeight: '600',
+  toolbarActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
-  favoriteAction: {
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  backButton: {
-    marginTop: spacing.lg,
-    borderRadius: 8,
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  backButtonText: {
-    color: colors.surface,
-    fontSize: 15,
-    fontWeight: '600',
+  iconButton: {
+    alignItems: 'center',
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
   },
   timestamp: {
-    marginTop: spacing.md,
     color: colors.textMuted,
     fontSize: 15,
   },
@@ -332,11 +416,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 13,
     lineHeight: 18,
-  },
-  savingText: {
-    marginTop: spacing.md,
-    color: colors.textMuted,
-    fontSize: 13,
   },
   errorText: {
     marginTop: spacing.md,

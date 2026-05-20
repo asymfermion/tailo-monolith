@@ -8,9 +8,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 
 import { colors, spacing } from '@/constants/theme';
+import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
 import {
   formatPetOptionPhotoCount,
   getOnboardingPipelineTitle,
@@ -59,6 +61,7 @@ export function OnboardingScreen({
   onComplete,
   onStepChange,
 }: OnboardingScreenProps) {
+  const insets = useSafeAreaInsets();
   const photoAccess = usePhotoAccess({ autoResumeOnMount: false });
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState<LocalPetType | null>(null);
@@ -472,8 +475,16 @@ export function OnboardingScreen({
 
   return (
     <ScrollView
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[
+        styles.container,
+        {
+          paddingTop: getTabScreenTopPadding(insets.top),
+          paddingBottom: insets.bottom + spacing.lg,
+        },
+      ]}
+      contentInsetAdjustmentBehavior="never"
       keyboardShouldPersistTaps="handled"
+      style={styles.screen}
     >
       <Text style={styles.logo}>{t('common.appName')}</Text>
       {body}
@@ -658,11 +669,15 @@ function getEffectiveStep(
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
   container: {
     flexGrow: 1,
     backgroundColor: colors.background,
     justifyContent: 'center',
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
   logo: {
     color: colors.text,

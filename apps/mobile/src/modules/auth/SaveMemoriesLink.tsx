@@ -1,13 +1,14 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, spacing } from '@/constants/theme';
-import { t } from '@/i18n';
+import { t, useAppLocale } from '@/i18n';
 import { useNavigation } from '@/navigation/NavigationContext';
 
 import { useAuthAccountStatus } from './useAuthAccountStatus';
 
 /** Soft entry to email account upgrade — only for anonymous remote sessions. */
 export function SaveMemoriesLink() {
+  useAppLocale();
   const navigation = useNavigation();
   const account = useAuthAccountStatus();
 
@@ -19,7 +20,7 @@ export function SaveMemoriesLink() {
     <Pressable
       accessibilityRole="button"
       style={styles.link}
-      onPress={() => navigation.push('AccountSettings')}
+      onPress={() => navigation.openSettings({ section: 'account' })}
     >
       <Text style={styles.linkText}>{t('account.saveMemoriesLink')}</Text>
     </Pressable>

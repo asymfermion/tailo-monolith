@@ -8,9 +8,11 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { colors, spacing } from '@/constants/theme';
 import { getDatabase } from '@/db';
+import { hydrateAppLocale, t, useAppLocale } from '@/i18n';
 import {
   bootstrapAuthSession,
   linkLegacyAnonymousUserIfNeeded,
@@ -25,6 +27,7 @@ type StartupState =
   | { status: 'error'; message: string };
 
 export default function App() {
+  useAppLocale();
   const [startupState, setStartupState] = useState<StartupState>({
     status: 'loading',
   });
@@ -37,6 +40,7 @@ export default function App() {
         const [database, authResult] = await Promise.all([
           getDatabase(),
           bootstrapAuthSession(),
+          hydrateAppLocale(),
         ]);
 
         if (authResult.status === 'ready') {
@@ -78,7 +82,11 @@ export default function App() {
         errorMessage={startupState.message}
         onRetry={() => {
           setStartupState({ status: 'loading' });
-          void Promise.all([getDatabase(), bootstrapAuthSession()])
+          void Promise.all([
+            getDatabase(),
+            bootstrapAuthSession(),
+            hydrateAppLocale(),
+          ])
             .then(async ([, authResult]) => {
               if (authResult.status === 'ready') {
                 await linkLegacyAnonymousUserIfNeeded();
@@ -101,7 +109,11 @@ export default function App() {
     );
   }
 
-  return <AppShell />;
+  return (
+    <SafeAreaProvider>
+      <AppShell />
+    </SafeAreaProvider>
+  );
 }
 
 type StartupScreenProps = {
@@ -116,18 +128,18 @@ function StartupScreen({ errorMessage, onRetry }: StartupScreenProps) {
       <View style={styles.container}>
         {errorMessage ? (
           <>
-            <Text style={styles.title}>Tailo needs a moment</Text>
+            <Text style={styles.title}>{t('startup.errorTitle')}</Text>
             <Text style={styles.message}>{errorMessage}</Text>
             {onRetry ? (
               <Pressable style={styles.button} onPress={onRetry}>
-                <Text style={styles.buttonText}>Try again</Text>
+                <Text style={styles.buttonText}>{t('startup.retry')}</Text>
               </Pressable>
             ) : null}
           </>
         ) : (
           <>
             <ActivityIndicator color={colors.accent} />
-            <Text style={styles.message}>Preparing your local timeline...</Text>
+            <Text style={styles.message}>{t('startup.loading')}</Text>
           </>
         )}
       </View>

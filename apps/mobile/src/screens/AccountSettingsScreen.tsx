@@ -7,9 +7,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, spacing } from '@/constants/theme';
 import { t } from '@/i18n';
+import { ModalBackButton } from '@/navigation/components/ModalBackButton';
+import { getModalHeaderTopInset } from '@/navigation/modalHeaderInset';
 import {
   isValidAccountEmail,
   normalizeAccountEmail,
@@ -199,11 +202,16 @@ function AccountLayout({
   children: ReactNode;
   onBack: () => void;
 }) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.screen}>
-      <Pressable accessibilityRole="button" onPress={onBack}>
-        <Text style={styles.back}>{t('common.back')}</Text>
-      </Pressable>
+    <View
+      style={[
+        styles.screen,
+        { paddingTop: getModalHeaderTopInset(insets.top) },
+      ]}
+    >
+      <ModalBackButton onPress={onBack} />
       <View style={styles.content}>{children}</View>
     </View>
   );
@@ -234,17 +242,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
   },
   centered: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-  },
-  back: {
-    color: colors.accent,
-    fontSize: 16,
-    fontWeight: '600',
   },
   content: {
     flex: 1,

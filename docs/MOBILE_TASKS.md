@@ -180,6 +180,8 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [x] **2.1.3** One-time legacy bridge: Phase 1 `anonymous_user_id` → `link-anonymous-user` after first session (upgrades only)
 - [x] **2.1.4** Create/link pet record on server after local pet profile exists (`upsert-pet`)
 - [x] **2.1.5** Account upgrade UI (settings): **email** via `updateUser` + OTP (`verifyOtp`); Apple / Google deferred
+- [ ] **2.1.6** After auth bootstrap, resolve the current Supabase session into a stable backend `app_user_id` (`ensure-current-user`) instead of treating Supabase `user.id` as the canonical owner id
+- [ ] **2.1.7** Update auth/session UX and dev diagnostics to distinguish Supabase auth subject from Tailo `app_user_id`
 
 ### 2.2 Upload pipeline (`storage`, `sync`)
 
@@ -227,7 +229,13 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [x] **B2.1.7** RLS: `auth.uid() = user_id` on all user-owned tables
 - [x] **B2.1.8** RLS: `event_media` via join to `events` ownership
 - [x] **B2.1.9** Indexes: `events(user_id, updated_at)`, unique `(user_id, source_local_event_id)`, `ai_jobs(status, next_attempt_at)`, `event_media(event_id)`
-- [ ] **B2.1.10** SQL smoke: user A cannot read/write user B rows
+- [x] **B2.1.10** SQL smoke: user A cannot read/write user B rows (`supabase/tests/rls_cross_user_smoke.sql`; `npm run test:supabase:rls -- --linked`)
+- [ ] **B2.1.11** Identity portability refactor: add `app_users` as the canonical Tailo user table
+- [ ] **B2.1.12** Add `user_identities` mapping table (`provider`, `provider_subject`, `app_user_id`) and uniqueness constraints
+- [ ] **B2.1.13** Migrate ownership columns on `pets`, `events`, and related tables from Supabase `user_id` to canonical `app_user_id`
+- [ ] **B2.1.14** Add SQL helper / RLS function to resolve `auth.uid()` → `app_user_id`, then update policies to use it
+- [ ] **B2.1.15** Re-key storage path rules from `{user_id}/...` to `{app_user_id}/...`
+- [ ] **B2.1.16** Update smoke tests and integration tests for the `app_user_id` ownership model
 
 ### 2.7 Backend auth & upload APIs (`functions`, `backend-core`)
 
@@ -242,7 +250,7 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [x] **B2.3.4** `validateUploadRequest()` — pet ownership, 1–5 assets, duplicate asset ids rejected
 - [x] **B2.3.4a** Unit tests: over limit, wrong pet, expired retry
 - [x] **B2.4.3** `create-upload-urls` — returns paired URLs + paths + `expires_at`
-- [ ] **B2.4.3a** Integration test: signed PUT with wrong `Content-Type` fails (if enforceable)
+- [x] **B2.4.3a** Integration test: signed PUT with wrong `Content-Type` fails (`event-media` bucket `allowed_mime_types`; `npm run test:supabase:upload`)
 
 ### 2.8 Backend sync & AI (`functions`, `packages/ai`)
 
@@ -255,15 +263,24 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [x] **B2.4.5** `get-event-updates` — cursor in/out; include AI status
 - [x] **B2.4.6** Shared handler: CORS, error codes (`401`, `409`, `422`), no tokens in logs
 - [x] **B2.5.1** `process-ai-job` — lease + `pending` → `processing` → `done`/`failed`
-- [ ] **B2.5.2** Vertex/GCP secrets in Supabase; prompt in `packages/ai` — see [supabase/GCP_VERTEX_SETUP.md](../supabase/GCP_VERTEX_SETUP.md) + `./scripts/set-gcp-vertex-secrets.sh`
+- [x] **B2.5.2** Vertex/GCP secrets in Supabase; prompt in `packages/ai` — see [supabase/GCP_VERTEX_SETUP.md](../supabase/GCP_VERTEX_SETUP.md) + `./scripts/set-gcp-vertex-secrets.sh`
 - [x] **B2.5.3** Retry/backoff: 1m / 5m / 15m; max 3 attempts
 - [x] **B2.5.4** Post-parse: caption max 280 chars; safety filter (no medical / “AI” phrasing)
+- [ ] **B2.5.6** Preferred-language captions: pass the user’s preferred language into the caption prompt when available, persist `caption_language` from the AI result, and keep `caption_source = user` untouched when the user has edited the caption
 - [x] **B2.5.5** Trigger: invoke from `sync-event` on enqueue (happy path)
-- [ ] **B2.5.7** Server AI sweep — mobile poll is UX only, not the only guarantee:
-  - Scheduled `process-ai-job` (Supabase cron / `pg_cron`, every **2–5 min**) to drain `pending` jobs and re-invoke after backoff
-  - Lease recovery: if `status = 'processing'` and `leased_until < now()`, reset to `pending` so the next sweep can pick it up
+- [x] **B2.5.7** Server AI sweep — mobile poll is UX only, not the only guarantee:
+  - Scheduled `process-ai-job` (`pg_cron` every **3 min** via `npm run setup:ai-job-cron`; body `{"sweep":true,"max_jobs":5}`)
+  - Lease recovery on each invoke: `processing` with expired/null `leased_until` → `pending`
+  - Migration `20260520010000_enable_pg_cron_pg_net.sql`; deploy `process-ai-job` after pull
 - [x] **B2.5.6** Unit tests: low confidence → placeholder; user_edited → no overwrite
 - [x] **B2.4.7** Deploy all functions to dev; document base URLs for mobile
+
+### 2.9a Timeline sync ownership (implemented)
+
+- [x] **B2.9a.1** Redetect pets = user timeline wipe: tombstone all `source_local_event_id`s, bump `sync.timeline_generation`, clear upload queue + poll cursor + local pipeline
+- [x] **B2.9a.2** Poll merge skips tombstoned events and events with `sync_lock_owner = user`
+- [x] **B2.9a.3** User edits acquire `sync_lock_owner = user`; promote clears tombstone + lock for new moments
+- [x] **B2.9a.4** `sync-event` accepts `client_timeline_generation`; server resets `pet_validation_status` and re-enqueues AI when generation advances
 
 ### 2.10 Future — image-level pet validation (not MVP)
 
@@ -273,18 +290,79 @@ This phase now tracks both the mobile client work and the backend work needed to
 
 **Current behavior (event-level):** Vertex sees the primary image only; if validation fails → delete all server media for the event, `pet_validation_status = rejected`, phone removes the whole local moment. See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#6-image-level-cloud-pet-validation).
 
+### 2.12 Future — pet identity validation (cloud, same individual)
+
+Today: `profilePetValid` + `visiblePetType` only — **same breed, wrong pet** can pass. Later: reject unless the primary subject matches **this** pet profile.
+
+**Design (prefer low token / no extra on-device detection):**
+
+| Layer           | What                                                                                                   |
+| --------------- | ------------------------------------------------------------------------------------------------------ |
+| References      | Profile photo + up to ~5–8 **confirmed** primaries (`pet_validation_status = valid`, not user-deleted) |
+| Stored features | Multimodal **embeddings** per reference; pet-level centroid in DB (`pgvector`)                         |
+| New event       | Embed primary once → similarity vs centroid; reject if below threshold                                 |
+| Borderline      | Optional tiny Gemini yes/no with **one** ref + candidate (not full gallery every time)                 |
+| Caption         | Run only after identity pass (or skip caption tokens on reject)                                        |
+
+- [ ] **B2.12.1** Schema: `pet_reference_media` (pet_id, storage_path, source: profile \| event, event_id?, embedding vector); enable `pgvector` if needed
+- [ ] **B2.12.2** Build reference gallery: on profile save + on event `valid`; cap size; exclude deleted/dismissed assets
+- [ ] **B2.12.3** Worker: compute/update embeddings for new refs (async, not in hot scan path)
+- [ ] **B2.12.4** `process-ai-job`: identity gate before caption — embedding similarity + threshold; extend result JSON (`samePetIndividual`, `identityConfidence`, `identityMethod: embedding \| llm`)
+- [ ] **B2.12.5** Borderline band only → optional 2-image Gemini check (minimal tokens)
+- [ ] **B2.12.6** Cold start: `insufficient_refs` when only type check possible; tighten as gallery grows
+- [ ] **B2.12.7** Pass pet context in caption prompt (name, type) once identity passed — still one primary image for caption
+- [ ] **B2.12.8** Tests with fixture embeddings; document thresholds and gallery rules in phase-2 doc
+
+**Out of scope:** Device-side re-identification; sending full timeline or all event_media to Vertex per job.
+
+### 2.11 Future — user delete moment (local + cloud)
+
+Today there is **no** user-facing delete. Local-only removes (`deletePromotedLocalEvent`, Redetect wipe) do **not** delete Supabase `events` / Storage. See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#8-user-delete-moment).
+
+- [ ] **B2.11.1** Timeline UI: delete moment (confirm); acquire `sync_lock_owner = user` before delete
+- [ ] **B2.11.2** Local: remove `local_events` + scores; **tombstone** `source_local_event_id`; cancel pending upload queue rows for that event
+- [ ] **B2.11.3** Cloud: Edge Function `delete-event` — delete `event_media`, Storage objects, and `events` row (RLS: owner only); mobile calls after local delete
+- [ ] **B2.11.4** **Do not re-detect dismissed photos:** mark each asset in the deleted moment as excluded from passive scan/clustering (e.g. `local_assets.user_dismissed_at` or `excluded_from_auto_detect`); pipeline skips them on scan/redetect/rebuild
+- [ ] **B2.11.5** Re-inclusion only via **manual pick** (e.g. in-app capture flow or explicit “add photos” picker that clears exclusion for chosen assets)
+- [ ] **B2.11.6** Tests: delete removes cloud row; excluded assets stay out of next `runLocalPipeline` / Redetect until manually selected
+
+### 2.13 Future — user edit moment (capabilities & sync)
+
+Today: caption, event type, and favorite can be edited locally; `user_edited_*` + `sync_lock_owner` partially protect against AI/poll overwrite. Rules are spread across merge code and lack a single **product matrix** for what a user may do to a moment and what happens on device vs cloud.
+
+**Goal:** Define and harden **allowed actions per moment** and consistent sync/AI behavior for each.
+
+| Area                     | Questions to decide                                                                         |
+| ------------------------ | ------------------------------------------------------------------------------------------- |
+| **Editable fields**      | Caption only? Event type? Favorite? Primary photo? Add/remove photos in an existing moment? |
+| **Irreversible actions** | Delete (see B2.11); “not my pet” dismiss; hide from timeline without deleting assets        |
+| **AI vs user**           | When can AI refresh caption/type after user edit? Explicit “reset to automatic” affordance? |
+| **Sync**                 | `sync_lock_owner` lifetime; release on blur/save/timeout; multi-tab/device (deferred)       |
+| **Poll merge**           | Full matrix: local `user_edited_*` × remote `caption_source` × `ai_job_status`              |
+| **Rejected / pending**   | Can user edit a moment while `pet_validation_status = pending`? After `rejected`?           |
+
+- [ ] **B2.13.1** Product spec: **moment actions matrix** (view, edit caption, edit type, favorite, delete, change photos, dismiss from auto-detect) — allowed / hidden / disabled per moment state
+- [ ] **B2.13.2** Document merge rules in [phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md#sync-specification) and implement any gaps in `syncEventMerge` + `mergeRemoteEventUpdate`
+- [ ] **B2.13.3** `sync_lock_owner`: acquire on edit start, release on save/cancel; prevent stuck locks blocking AI forever
+- [ ] **B2.13.4** UI: event detail reflects matrix (what is tappable); calm copy for “your edit is saved” vs automatic caption
+- [ ] **B2.13.4a** When a user edits an AI-generated caption, set `caption_source = user` locally + server, keep `user_edited_caption = true`, and stop later AI/translation flows from treating that caption as automatic
+- [ ] **B2.13.5** Optional “use automatic caption again” — clears `user_edited_caption` locally + server and allows next AI job
+- [ ] **B2.13.6** Tests: matrix cases for server merge + mobile poll merge; integration smoke for edit → sync → poll → AI
+
+See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
+
 ### 2.9 Backend hardening & QA
 
-- [ ] **B2.6.1** All functions reject missing/invalid JWT
-- [ ] **B2.6.2** Upload URLs scoped to event paths; expired URL returns 403
-- [ ] **B2.6.3** `npm audit` on function bundles
-- [ ] **B2.6.4** Auth: fresh anonymous user; legacy link; duplicate legacy link → 409
-- [ ] **B2.6.5** Upload: 1 asset; 5 assets; 6 assets → 422
-- [ ] **B2.6.6** Sync: double `sync-event` idempotent; user caption survives AI job
-- [ ] **B2.6.7** Sync: user_edited blocks AI overwrite on poll merge
-- [ ] **B2.6.8** AI: failed job after 3 attempts; pending retry respects `next_attempt_at`
-- [ ] **B2.6.9** Document session loss → new anonymous user as known limitation
-- [ ] **B2.6.10** Staging project checklist (when ready); prod secrets separate
+- [x] **B2.6.1** All functions reject missing/invalid JWT (`backendHardening.integration.test.ts`)
+- [x] **B2.6.2** Upload URLs scoped to event paths; invalid/tampered token rejected (`npm run test:supabase:qa`)
+- [x] **B2.6.3** `npm run audit:supabase` (root workspace deps used by Edge Functions)
+- [x] **B2.6.4** Auth: fresh anonymous user; legacy link; duplicate legacy link → 409 (integration + `linkAnonymousUser.test.ts`)
+- [x] **B2.6.5** Upload: 1 asset; 5 assets; 6 assets → 422 (integration)
+- [x] **B2.6.6** Sync: double `sync-event` idempotent; user caption survives (integration + `syncEventMerge.test.ts`)
+- [x] **B2.6.7** Sync: user_edited blocks AI overwrite on poll merge (`mergeRemoteEventUpdate.test.ts` + server merge tests)
+- [x] **B2.6.8** AI: failed job after 3 attempts (`aiJobFailure.test.ts`); `next_attempt_at` respected (integration when `SUPABASE_SERVICE_ROLE_KEY` set)
+- [x] **B2.6.9** Document session loss → new anonymous user (`supabase/SETUP.md`, phase-2 auth policy)
+- [x] **B2.6.10** Staging checklist (`supabase/STAGING_CHECKLIST.md`)
 
 ### Phase 2 — notes & decisions
 
@@ -293,7 +371,7 @@ This phase now tracks both the mobile client work and the backend work needed to
 - 2026-05-18: **Auth decouple** — `AuthProvider` + `authService` (`modules/auth/`); Supabase isolated in `providers/supabaseAuthProvider.ts`. Portability rules in [AGENTS.md](../AGENTS.md#backend-portability-phase-2).
 - 2026-05-18: **2.1.2** — `bootstrapAuthSession()` on app launch (reuse persisted session or `signInAnonymously()`); skips when env unset; does not block local SQLite if auth fails.
 - 2026-05-18: **B0 / 2.1.1** — Dev project `sgxtyxvithlmuuofkzlk`; `supabase/` scaffold + [SETUP.md](../supabase/SETUP.md); mobile `getSupabaseClient()` with SecureStore session (`apps/mobile/src/lib/supabase.ts`). Postgres URI is CLI-only; mobile uses API URL + anon key.
-- 2026-05-18: Auth model — **Supabase `signInAnonymously()`** is canonical; Phase 1 SecureStore `anon_*` is legacy-only via `anonymous_id_links`. Permanent providers (Apple/Google/email) via identity linking later; same `user.id`. See [architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md#1-identity--auth).
+- 2026-05-20: Identity portability decision — Supabase `signInAnonymously()` still bootstraps the session, but canonical ownership should move to Tailo-managed `app_user_id` with separate `user_identities` mappings. The completed Supabase-coupled schema tasks remain useful first-pass work, but the follow-up refactor tasks **B2.1.11–B2.1.16** now define the target model. See [architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md#1-identity--auth).
 - 2026-05-18: Upload/sync/AI numbers and merge rules live in phase-2 spec; backend tasks are tracked inline in this Phase 2 section with `B...` task IDs preserved.
 
 ---
@@ -304,16 +382,22 @@ This phase now tracks both the mobile client work and the backend work needed to
 
 ### 3.0 Navigation & app structure
 
-- [ ] **3.0.1** Define main app pages: `Timeline`, `Pet profile`, `Settings`
-- [ ] **3.0.2** Settings IA: user account settings, localisation, and app preferences
-- [ ] **3.0.3** Replace the lightweight temporary stack with the long-term app navigation shell
-- [ ] **3.0.4** Keep capture, capture preview, event detail, and future edit/share flows as secondary routes or modals under the main pages
+- [x] **3.0.1** Define main app pages: `Timeline`, `Pet profile`, `Settings` — see [phase-3-navigation.md](./architecture/phase-3-navigation.md)
+- [x] **3.0.2** Settings IA: user account settings, localisation, and app preferences (`SettingsScreen` sections)
+- [x] **3.0.3** Replace the lightweight temporary stack with the long-term app navigation shell (`MainTabShell` + `modalStack`)
+- [x] **3.0.4** Keep capture, capture preview, event detail, and account upgrade as modal routes (`ModalShell`)
+- [ ] **3.0.5** Add anonymous-to-email upgrade IA per [account-upgrade-ux.md](./architecture/account-upgrade-ux.md): home reminder, settings entry, and linked state
+- [ ] **3.0.6** Tune reminder timing/cooldown so account prompts appear only after the user has seen timeline value and never feel blocking or repetitive
+- [ ] **3.0.7** Distinguish anonymous vs linked account capabilities in UI/UX: recent-only scan for anonymous users, deeper historical scan for linked users
+- [ ] **3.0.8** Add provider strategy to Settings/account UX: email OTP first; Apple and Google as later linked-provider options on iOS / cross-platform builds
+- [ ] **3.0.9** Design linked-account state UI so users can see whether they are anonymous, email-linked, Apple-linked, or Google-linked
 
 ### 3.1 Onboarding & permissions
 
 - [ ] **3.1.1** Refine onboarding animations and pacing
 - [ ] **3.1.2** Limited-access flow: process available photos + prompt to grant more later
 - [ ] **3.1.3** Privacy copy: what is scanned, what is uploaded, what stays on device
+- [ ] **3.1.4** Keep onboarding anonymous-first: no email prompt before first meaningful timeline value; align copy and flow with [account-upgrade-ux.md](./architecture/account-upgrade-ux.md)
 
 ### 3.2 Timeline & event UX
 
@@ -321,12 +405,20 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [ ] **3.2.2** Event detail polish (transitions, edit affordances)
 - [ ] **3.2.3** Floating `+` for capture (per layout guidelines)
 - [ ] **3.2.4** Pull-to-refresh / incremental rescan behavior
+- [ ] **3.2.5** Polish `Save your memories` home reminder and linked-success confirmation states
+- [ ] **3.2.6** Add historical-scan upsell UX when anonymous users hit the recent-image cap (calm framing: fuller story, older memories)
+- [ ] **3.2.7** AI caption localisation: translate AI-generated captions for the current app language on device, but never translate user-authored or user-edited captions; if a user edits an AI caption, flip the source to `user` and stop automatic translation for that caption
+- [ ] **3.2.8** Cache translated AI captions per event + locale locally, and invalidate them when the source caption changes
+- [ ] **3.2.9** Fallback rules for caption localisation: show the original AI caption when on-device translation is unavailable, model download is pending, or translation fails
 
 ### 3.3 Reliability & edge cases
 
 - [ ] **3.3.1** Error states: scan failure, processing failure, upload failure
 - [ ] **3.3.2** Retry actions without losing local data
 - [ ] **3.3.3** Low storage / low memory graceful degradation
+- [ ] **3.3.4** Document the intentional local SQLite ↔ cloud Postgres mapping for shared entities and fields; keep the mapping alongside the phase architecture docs
+- [ ] **3.3.5** Add a schema-parity checklist for fields that exist on both device and cloud (`events`, caption metadata, identity ownership, sync cursors) so migrations update both sides intentionally
+- [ ] **3.3.6** Add tests or verification helpers for local/cloud contract consistency: shared payload schemas, field-name alignment, and safe fallback behavior when one side lags behind the other
 
 ### 3.4 Observability (minimal)
 
@@ -338,10 +430,21 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [ ] **3.5.1** App icons and splash aligned with brand
 - [ ] **3.5.2** iOS build via EAS (or dev client) with correct entitlements
 - [ ] **3.5.3** TestFlight checklist from [Testing guidelines](../Tailo_Agent_Coding_Guidelines_v2.md#18-testing-guidelines)
+- [ ] **3.5.4** Prepare auth-provider configuration checklist for `dev` and `prod`: Supabase redirect URLs, email templates, Apple capability, Google OAuth clients
+- [ ] **3.5.5** Defer phone auth until a regional launch requires it; when scheduled, scope SMS provider, abuse controls, and market-specific UX
+- [ ] **3.5.6** Validate layout and interaction fit across recent iPhone sizes, iPads, and common Android phone sizes: safe areas, text wrapping, scroll behavior, and no clipped or overlapping UI
 
 ### Phase 3 — notes & decisions
 
-<!-- Add dated notes here -->
+- 2026-05-20: **3.0** — Tab shell (Timeline / Pet / Settings) + modal stack for EventDetail, Capture, CapturePreview, AccountSettings. `HomeScreen` renamed `TimelineScreen`; pet summary moved off timeline header to Pet tab.
+
+- 2026-05-20: Email account linking remains a **soft upgrade** after anonymous onboarding. Settings is the permanent home for account state; home/timeline can show a calm `Save your memories` reminder only after the user has seen timeline value. See [architecture/account-upgrade-ux.md](./architecture/account-upgrade-ux.md).
+- 2026-05-20: Anonymous users can use Tailo normally but are capped at **500 recent images** plus ongoing new-photo detection. Linking email unlocks deeper historical scanning to build a fuller pet story. See [architecture/account-upgrade-ux.md](./architecture/account-upgrade-ux.md).
+- 2026-05-20: Auth-provider rollout is `anonymous -> email OTP -> Apple -> Google`, with phone auth deferred unless a regional launch makes it worth the extra SMS and abuse-prevention work. See [architecture/account-upgrade-ux.md](./architecture/account-upgrade-ux.md).
+- 2026-05-20: Screen-fit rule — the app should fit recent iPhones, iPads, and common Android phone sizes without clipped/overlapping UI; validate safe areas, wrapping, and scroll behavior before release.
+- 2026-05-20: Caption localisation rule — only AI-generated captions should be translated for the current app language, on device where possible. Never auto-translate user-authored or user-edited captions; once a user edits an AI caption, treat it as `caption_source = user`.
+- 2026-05-20: Backend caption-language direction — when the app has a preferred language, AI caption generation should request that language and persist `caption_language`; user-edited captions still win and should not be overwritten.
+- 2026-05-20: Schema consistency rule — local SQLite and cloud Postgres are separate by design, but overlapping entities and fields must stay intentionally mapped through shared contracts, mapping docs, and parity checks rather than ad hoc drift.
 
 ---
 
@@ -357,6 +460,6 @@ This phase now tracks both the mobile client work and the backend work needed to
 
 ## Suggested next task
 
-**Phase 0 → task 0.7.1** — manual test matrix (full / limited / denied photo access; many vs few pet photos; duplicates).
+**Phase 3 → 3.0.5** — anonymous-to-email upgrade IA ([account-upgrade-ux.md](./architecture/account-upgrade-ux.md)), or **3.1.1** onboarding polish.
 
 When picking up work, reference the GitHub issue (e.g. _“Continue #25”_) or task ID in `docs/MOBILE_TASKS.md`.

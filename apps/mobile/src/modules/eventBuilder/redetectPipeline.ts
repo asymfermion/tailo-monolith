@@ -1,6 +1,6 @@
 import type { getDatabase } from '@/db';
-import { clearLocalEventPipeline } from '@/db/localEventCandidates';
 import { resetLocalAssetsForRedetection } from '@/db/localAssets';
+import { recordUserTimelineWipe } from '@/modules/sync/userTimelineWipe';
 
 import {
   processPendingPetCandidates,
@@ -15,19 +15,19 @@ export type RedetectLocalPetPipelineOptions = {
 export type RedetectLocalPetPipelineResult = {
   resetAssetCount: number;
   petDetectionProgress: PetDetectionProgress;
+  wipe: Awaited<ReturnType<typeof recordUserTimelineWipe>>;
 };
 
 export async function redetectLocalPetPipeline({
   database,
   onDetectingProgress,
 }: RedetectLocalPetPipelineOptions): Promise<RedetectLocalPetPipelineResult> {
+  const wipe = await recordUserTimelineWipe(database);
   const resetAssetCount = await resetLocalAssetsForRedetection(database);
 
   if (resetAssetCount === 0) {
     throw new Error('No saved photos to redetect yet.');
   }
-
-  await clearLocalEventPipeline(database);
 
   const petDetectionProgress = await processPendingPetCandidates({
     database,
@@ -37,5 +37,6 @@ export async function redetectLocalPetPipeline({
   return {
     resetAssetCount,
     petDetectionProgress,
+    wipe,
   };
 }

@@ -25,6 +25,8 @@ export type SyncEventRequest = {
   caption_source: 'user' | 'placeholder';
   is_favorite: boolean;
   client_sync_version?: number;
+  /** Bumped when the user wipes the local timeline (e.g. Redetect pets). */
+  client_timeline_generation?: number;
   user_edited?: SyncEventUserEdited;
   media: SyncEventMediaInput[];
 };
@@ -157,6 +159,10 @@ export function parseSyncEventRequest(body: unknown): SyncEventRequest | null {
   }
 
   const clientSyncVersion = Reflect.get(body, 'client_sync_version');
+  const clientTimelineGeneration = Reflect.get(
+    body,
+    'client_timeline_generation',
+  );
   const userEditedRaw = Reflect.get(body, 'user_edited');
 
   let userEdited: SyncEventUserEdited | undefined;
@@ -182,6 +188,11 @@ export function parseSyncEventRequest(body: unknown): SyncEventRequest | null {
     client_sync_version:
       typeof clientSyncVersion === 'number' && clientSyncVersion >= 0
         ? clientSyncVersion
+        : undefined,
+    client_timeline_generation:
+      typeof clientTimelineGeneration === 'number' &&
+      clientTimelineGeneration >= 0
+        ? clientTimelineGeneration
         : undefined,
     user_edited: userEdited,
     media: parsedMedia,

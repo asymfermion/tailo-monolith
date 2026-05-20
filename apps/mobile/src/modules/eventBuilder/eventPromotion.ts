@@ -1,8 +1,10 @@
 import type { getDatabase } from '@/db';
+import { clearLocalEventTombstone } from '@/db/localEventTombstones';
 import {
   getPromotableEventCandidates,
   upsertLocalEvents,
 } from '@/db/localEvents';
+import { releaseEventSyncLock } from '@/db/eventSyncLock';
 import {
   markEventCandidatesProcessed,
   markEventCandidatesProcessing,
@@ -51,6 +53,12 @@ export async function promoteScoredCandidatesToLocalEvents({
   }));
 
   const promotedCount = await upsertLocalEvents(database, events);
+
+  for (const event of events) {
+    await clearLocalEventTombstone(database, event.localEventId);
+    await releaseEventSyncLock(database, event.localEventId);
+  }
+
   await markEventCandidatesProcessed(
     database,
     candidates.map((candidate) => candidate.localEventId),

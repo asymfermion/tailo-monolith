@@ -318,6 +318,8 @@ The Expo app uses **React Native `StyleSheet`**, not CSS files. Do not add `.css
 3. **Reuse components** — prefer shared buttons, rows, and bands in `src/components/` over duplicating style definitions across screens.
 4. **Calm UI** — off-white backgrounds, muted text, one accent; generous spacing from `theme.ts`. Match existing screens (`HomeScreen`, `OnboardingScreen`).
 5. **Do not** introduce global style frameworks or theme providers without an explicit task — the project standard is `theme.ts` + `StyleSheet`.
+6. **Fit current devices** — screens must work on recent iPhones, iPads, and common Android phone sizes. Avoid clipped, overlapping, or off-screen UI; respect safe areas; prefer layouts that adapt cleanly to compact phone widths and wider tablet widths.
+7. **Treat responsiveness as required** — when building or changing screens, check text wrapping, scroll behavior, touch targets, and image sizing so the UI remains usable across small phones, large phones, and tablets.
 
 ### Example
 

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
   type ListRenderItem,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, spacing } from '@/constants/theme';
 import {
@@ -17,8 +20,11 @@ import {
   getTimelineEmptyMessage,
   getTimelineEmptyTitle,
   t,
+  useAppLocale,
 } from '@/i18n';
+import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
 import { useNavigation } from '@/navigation/NavigationContext';
+import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
 import { SaveMemoriesLink } from '@/modules/auth';
 import { usePhotoAccess } from '@/modules/mediaScanner';
 import {
@@ -26,21 +32,23 @@ import {
   useEventUpdatesPoll,
   useSyncStatus,
 } from '@/modules/sync';
-import { useLocalPetProfile } from '@/modules/pets/useLocalPetProfile';
 import { CaptureFab } from '@/modules/timeline/components/CaptureFab';
-import { PetProfileHeader } from '@/modules/timeline/components/PetProfileHeader';
 import { TimelineMomentCard } from '@/modules/timeline/components/TimelineMomentCard';
-import { useTimelineEvents } from '@/modules/timeline';
+import { TimelineMomentSeparator } from '@/modules/timeline/components/TimelineMomentSeparator';
+import { toggleMomentFavorite, useTimelineEvents } from '@/modules/timeline';
 import type { TimelineEvent } from '@/types';
 
 function keyExtractor(item: TimelineEvent): string {
   return item.localEventId;
 }
 
-export function HomeScreen() {
+export function TimelineScreen() {
+  const locale = useAppLocale();
+  const insets = useSafeAreaInsets();
+  const topPadding = getTabScreenTopPadding(insets.top);
   const navigation = useNavigation();
+  const tabBarContentInset = useTabBarContentInset();
   const photoAccess = usePhotoAccess();
-  const petProfile = useLocalPetProfile();
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [timelineRefreshNonce, setTimelineRefreshNonce] = useState(0);
   const isPipelineActive =
@@ -78,23 +86,82 @@ export function HomeScreen() {
     photoAccess.permissionStatus === 'full' ||
     photoAccess.permissionStatus === 'limited';
 
-  const handleMomentPress = useCallback(
+  const openMomentDetail = useCallback(
     (localEventId: string) => {
       navigation.push('EventDetail', { localEventId });
     },
     [navigation],
   );
 
+  const handleToggleFavorite = useCallback(
+    async (localEventId: string, isFavorite: boolean) => {
+      const updated = await toggleMomentFavorite(localEventId, isFavorite);
+      if (updated) {
+        setTimelineRefreshNonce((value) => value + 1);
+      }
+    },
+    [],
+  );
+
+  // TODO: delete-moment — remove from local DB, refresh timeline, and sync deletion when account is linked.
+  const handleDeleteMoment = useCallback(() => {
+    Alert.alert(
+      t('timeline.moment.deleteSoonTitle'),
+      t('timeline.moment.deleteSoonMessage'),
+    );
+  }, []);
+
+  // TODO: share-moment — export primary image (and optional caption) to the system share sheet.
+  const handleShareMoment = useCallback(() => {
+    Alert.alert(
+      t('timeline.moment.shareSoonTitle'),
+      t('timeline.moment.shareSoonMessage'),
+    );
+  }, []);
+
   const renderItem: ListRenderItem<TimelineEvent> = useCallback(
     ({ item }) => (
-      <TimelineMomentCard event={item} onPress={handleMomentPress} />
+      <TimelineMomentCard
+        event={item}
+        onDelete={handleDeleteMoment}
+        onEdit={openMomentDetail}
+        onPress={openMomentDetail}
+        onShare={handleShareMoment}
+        onToggleFavorite={handleToggleFavorite}
+      />
     ),
-    [handleMomentPress],
+    [
+      handleDeleteMoment,
+      handleShareMoment,
+      handleToggleFavorite,
+      locale,
+      openMomentDetail,
+    ],
+  );
+
+  const refreshControl = useMemo(
+    () => (
+      <RefreshControl
+        colors={[colors.accent]}
+        progressBackgroundColor={colors.background}
+        progressViewOffset={topPadding}
+        refreshing={timeline.isLoading && !isPipelineActive}
+        tintColor={colors.accent}
+        onRefresh={timeline.refresh}
+      />
+    ),
+    [
+      isPipelineActive,
+      timeline.isLoading,
+      timeline.refresh,
+      topPadding,
+    ],
   );
 
   const listHeader = useMemo(
     () => (
       <TimelineHeader
+        topPadding={topPadding}
         canAskAgain={photoAccess.canAskAgain}
         errorMessage={photoAccess.errorMessage ?? timeline.errorMessage}
         favoritesOnly={favoritesOnly}
@@ -104,8 +171,6 @@ export function HomeScreen() {
         onRequestAccess={photoAccess.requestAccess}
         onStartScan={photoAccess.startScan}
         onToggleFavoritesOnly={() => setFavoritesOnly((value) => !value)}
-        petProfile={petProfile.profile}
-        petProfileIsLoading={petProfile.isLoading}
         photoAccess={photoAccess}
         timelineEventCount={timeline.events.length}
         timelineIsLoading={timeline.isLoading}
@@ -117,9 +182,9 @@ export function HomeScreen() {
       favoritesOnly,
       hasPhotoAccess,
       isPipelineActive,
-      petProfile.isLoading,
-      petProfile.profile,
+      locale,
       photoAccess,
+      topPadding,
       syncStatus.hasPendingMemories,
       syncStatus.isSyncing,
       timeline.errorMessage,
@@ -131,8 +196,13 @@ export function HomeScreen() {
   return (
     <View style={styles.screen}>
       <FlatList
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: tabBarContentInset },
+        ]}
+        contentInsetAdjustmentBehavior="never"
         data={timeline.events}
+        extraData={locale}
         initialNumToRender={6}
         keyExtractor={keyExtractor}
         maxToRenderPerBatch={8}
@@ -150,10 +220,12 @@ export function HomeScreen() {
             processedCount={photoAccess.petDetectionProgress.processedCount}
           />
         }
+        ItemSeparatorComponent={TimelineMomentSeparator}
         ListHeaderComponent={listHeader}
+        ListHeaderComponentStyle={styles.listHeaderContainer}
+        refreshControl={refreshControl}
         renderItem={renderItem}
-        refreshing={timeline.isLoading && !isPipelineActive}
-        onRefresh={timeline.refresh}
+        style={styles.list}
         updateCellsBatchingPeriod={50}
       />
       <CaptureFab onPress={() => navigation.push('Capture')} />
@@ -162,6 +234,7 @@ export function HomeScreen() {
 }
 
 type TimelineHeaderProps = {
+  topPadding: number;
   canAskAgain: boolean;
   errorMessage: string | null;
   favoritesOnly: boolean;
@@ -171,8 +244,6 @@ type TimelineHeaderProps = {
   onRequestAccess: () => Promise<void>;
   onStartScan: () => Promise<void>;
   onToggleFavoritesOnly: () => void;
-  petProfile: ReturnType<typeof useLocalPetProfile>['profile'];
-  petProfileIsLoading: boolean;
   photoAccess: ReturnType<typeof usePhotoAccess>;
   timelineEventCount: number;
   timelineIsLoading: boolean;
@@ -181,6 +252,7 @@ type TimelineHeaderProps = {
 };
 
 function TimelineHeader({
+  topPadding,
   canAskAgain,
   errorMessage,
   favoritesOnly,
@@ -190,8 +262,6 @@ function TimelineHeader({
   onRequestAccess,
   onStartScan,
   onToggleFavoritesOnly,
-  petProfile,
-  petProfileIsLoading,
   photoAccess,
   timelineEventCount,
   timelineIsLoading,
@@ -199,7 +269,7 @@ function TimelineHeader({
   syncIsActive,
 }: TimelineHeaderProps) {
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: topPadding }]}>
       <View style={styles.headerTitleRow}>
         <View>
           <Text style={styles.title}>{t('common.appName')}</Text>
@@ -218,8 +288,6 @@ function TimelineHeader({
           </View>
         ) : null}
       </View>
-
-      <PetProfileHeader isLoading={petProfileIsLoading} profile={petProfile} />
 
       <SaveMemoriesLink />
 
@@ -470,14 +538,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  list: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
+  listHeaderContainer: {
+    backgroundColor: colors.background,
+  },
   listContent: {
     flexGrow: 1,
     backgroundColor: colors.background,
-    paddingBottom: spacing.xl,
     paddingHorizontal: spacing.lg,
-  },
-  header: {
-    paddingTop: spacing.xl,
   },
   headerTitleRow: {
     alignItems: 'flex-start',
@@ -531,7 +602,8 @@ const styles = StyleSheet.create({
   statusBand: {
     marginTop: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.timelineDivider,
+    marginBottom: spacing.xl,
     paddingBottom: spacing.lg,
   },
   statusLabel: {

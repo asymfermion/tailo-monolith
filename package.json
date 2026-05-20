@@ -22,7 +22,12 @@
     "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,json}\" \"packages/**/*.{ts,tsx,js,json}\" \"*.{json,md}\" \"docs/**/*.md\" \".prettierrc\"",
     "supabase": "npx supabase",
     "deploy:supabase": "bash scripts/deploy-supabase.sh",
+    "setup:ai-job-cron": "bash scripts/setup-ai-job-cron.sh",
     "verify:supabase": "node scripts/verify-supabase-setup.mjs",
+    "test:supabase:rls": "node scripts/test-supabase-rls.mjs",
+    "test:supabase:upload": "npm run test:integration --workspace=@tailo/backend-core -- src/integration/signedUploadContentType.integration.test.ts",
+    "test:supabase:qa": "npm run test:integration --workspace=@tailo/backend-core -- src/integration/backendHardening.integration.test.ts",
+    "audit:supabase": "bash scripts/audit-supabase.sh",
     "prepare": "husky"
   },
   "devDependencies": {

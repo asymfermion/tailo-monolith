@@ -21,6 +21,14 @@ jest.mock('@/db/localEventCandidates', () => ({
   markEventCandidatesProcessing: jest.fn(),
 }));
 
+jest.mock('@/db/localEventTombstones', () => ({
+  clearLocalEventTombstone: jest.fn(),
+}));
+
+jest.mock('@/db/eventSyncLock', () => ({
+  releaseEventSyncLock: jest.fn(),
+}));
+
 jest.mock('@/modules/pets/resolveLocalPetId', () => ({
   resolveLocalPetId: jest.fn().mockResolvedValue('local_pet_1'),
 }));

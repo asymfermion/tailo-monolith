@@ -8,6 +8,7 @@ export const SYNC_STATE_KEYS = {
   APP_INSTALL_ID: 'app.install_id',
   PROFILE_PET_FILTER_APPLIED: 'pipeline.profile_pet_filter_applied',
   EVENTS_CURSOR: 'sync.events_cursor',
+  TIMELINE_GENERATION: 'sync.timeline_generation',
 } as const;
 
 export type SyncStateKey =
@@ -113,6 +114,31 @@ export async function saveScanProgress(
       SYNC_STATE_KEYS.SCAN_AFTER,
     ]);
   }
+}
+
+export async function getTimelineGeneration(
+  db: SQLite.SQLiteDatabase,
+): Promise<number> {
+  const raw = await getSyncStateValue(db, SYNC_STATE_KEYS.TIMELINE_GENERATION);
+
+  if (!raw) {
+    return 0;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+export async function incrementTimelineGeneration(
+  db: SQLite.SQLiteDatabase,
+): Promise<number> {
+  const next = (await getTimelineGeneration(db)) + 1;
+  await setSyncStateValue(
+    db,
+    SYNC_STATE_KEYS.TIMELINE_GENERATION,
+    String(next),
+  );
+  return next;
 }
 
 export async function getScanProgress(db: SQLite.SQLiteDatabase): Promise<{

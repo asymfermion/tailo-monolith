@@ -1,15 +1,19 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing } from '@/constants/theme';
-import { t } from '@/i18n';
+import { t, useAppLocale } from '@/i18n';
+import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
 
 type CaptureFabProps = {
   onPress: () => void;
 };
 
 export function CaptureFab({ onPress }: CaptureFabProps) {
+  useAppLocale();
+  const bottom = useTabBarContentInset();
+
   return (
-    <View pointerEvents="box-none" style={styles.container}>
+    <View pointerEvents="box-none" style={[styles.container, { bottom }]}>
       <Pressable
         accessibilityLabel={t('accessibility.captureMoment')}
         accessibilityRole="button"
@@ -26,7 +30,6 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     right: spacing.lg,
-    bottom: spacing.lg,
   },
   button: {
     alignItems: 'center',

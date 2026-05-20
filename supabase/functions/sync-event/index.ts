@@ -12,7 +12,11 @@ import { servePostFunction } from '../_shared/serve.ts';
 const AI_JOB_TYPE = 'caption_event';
 
 function triggerProcessAiJob(log: FunctionLogger): void {
-  void invokeServiceFunction('process-ai-job', { sweep: true }, log);
+  void invokeServiceFunction(
+    'process-ai-job',
+    { sweep: true, max_jobs: 1 },
+    log,
+  );
 }
 
 servePostFunction('sync-event', async (request, log) => {
@@ -53,7 +57,7 @@ servePostFunction('sync-event', async (request, log) => {
   const { data: existingRow, error: existingError } = await adminClient
     .from('events')
     .select(
-      'event_id, user_id, pet_id, source_local_event_id, timestamp, source, event_type, caption, caption_source, is_favorite, user_edited_caption, user_edited_event_type, sync_version',
+      'event_id, user_id, pet_id, source_local_event_id, timestamp, source, event_type, caption, caption_source, is_favorite, user_edited_caption, user_edited_event_type, sync_version, client_timeline_generation, pet_validation_status',
     )
     .eq('user_id', authResult.user.id)
     .eq('source_local_event_id', body.source_local_event_id)
@@ -90,6 +94,14 @@ servePostFunction('sync-event', async (request, log) => {
   }
 
   const now = new Date().toISOString();
+  const incomingGeneration = body.client_timeline_generation ?? 0;
+  const existingGeneration = existingRow?.client_timeline_generation ?? 0;
+  const generationAdvanced = incomingGeneration > existingGeneration;
+  const nextTimelineGeneration = Math.max(
+    incomingGeneration,
+    existingGeneration,
+  );
+
   const upsertPayload = {
     event_id: merged.eventId,
     user_id: authResult.user.id,
@@ -104,6 +116,10 @@ servePostFunction('sync-event', async (request, log) => {
     user_edited_caption: merged.userEditedCaption,
     user_edited_event_type: merged.userEditedEventType,
     sync_version: merged.nextSyncVersion,
+    client_timeline_generation: nextTimelineGeneration,
+    pet_validation_status: generationAdvanced
+      ? 'pending'
+      : (existingRow?.pet_validation_status ?? 'pending'),
     updated_at: now,
   };
 
@@ -154,7 +170,10 @@ servePostFunction('sync-event', async (request, log) => {
     const primaryChanged =
       doneJob?.input_snapshot?.primary_asset_id !== merged.primaryAssetId;
 
-    if ((activeJobs?.length ?? 0) === 0 && (!doneJob || primaryChanged)) {
+    if (
+      (activeJobs?.length ?? 0) === 0 &&
+      (!doneJob || primaryChanged || generationAdvanced)
+    ) {
       const aiJobId = crypto.randomUUID();
       const { error: jobError } = await adminClient.from('ai_jobs').insert({
         ai_job_id: aiJobId,

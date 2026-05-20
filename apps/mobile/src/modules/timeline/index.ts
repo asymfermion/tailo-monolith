@@ -5,3 +5,4 @@ export {
   type UseTimelineEventsOptions,
 } from './useTimelineEvents';
 export { useEventDetail, type EventDetailState } from './useEventDetail';
+export { toggleMomentFavorite } from './toggleMomentFavorite';

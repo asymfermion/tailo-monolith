@@ -1,5 +1,17 @@
-export type RootStackParamList = {
-  Home: undefined;
+/** Primary tabs shown in the main shell (3.0). */
+export type MainTabId = 'Timeline' | 'PetProfile' | 'Settings';
+
+export const INITIAL_MAIN_TAB = 'Timeline' satisfies MainTabId;
+
+/** Tab order for the main pager (left → right). */
+export const MAIN_TAB_ORDER = [
+  'Timeline',
+  'PetProfile',
+  'Settings',
+] as const satisfies readonly MainTabId[];
+
+/** Full-screen flows pushed above the tab shell (3.0.4). */
+export type ModalStackParamList = {
   AccountSettings: undefined;
   EventDetail: {
     localEventId: string;
@@ -12,26 +24,36 @@ export type RootStackParamList = {
   };
 };
 
-export type RootRouteName = keyof RootStackParamList;
+export type ModalRouteName = keyof ModalStackParamList;
 
 type RouteBase = {
   key: string;
 };
 
-export type RootRoute =
-  | (RouteBase & { name: 'Home'; params: RootStackParamList['Home'] })
+export type ModalRoute =
   | (RouteBase & {
       name: 'AccountSettings';
-      params: RootStackParamList['AccountSettings'];
+      params: ModalStackParamList['AccountSettings'];
     })
   | (RouteBase & {
       name: 'EventDetail';
-      params: RootStackParamList['EventDetail'];
+      params: ModalStackParamList['EventDetail'];
     })
-  | (RouteBase & { name: 'Capture'; params: RootStackParamList['Capture'] })
+  | (RouteBase & { name: 'Capture'; params: ModalStackParamList['Capture'] })
   | (RouteBase & {
       name: 'CapturePreview';
-      params: RootStackParamList['CapturePreview'];
+      params: ModalStackParamList['CapturePreview'];
     });
 
-export const INITIAL_ROUTE_NAME = 'Home' satisfies RootRouteName;
+/** @deprecated Use MainTabId + ModalRouteName. Kept for gradual migration in tests. */
+export type RootStackParamList = {
+  Home: undefined;
+  AccountSettings: undefined;
+  EventDetail: ModalStackParamList['EventDetail'];
+  Capture: undefined;
+  CapturePreview: ModalStackParamList['CapturePreview'];
+};
+
+export type RootRouteName = keyof RootStackParamList;
+
+export type RootRoute = ModalRoute;

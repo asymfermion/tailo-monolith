@@ -148,6 +148,13 @@ If validation fails (checked on the **primary** image only), the server sets `ev
 
 `lib/formatMoment.ts` — `formatTimestamp`, `formatEventType`, `formatPetType`
 
+### Localisation
+
+- UI strings live under `src/i18n/`
+- English remains the default locale
+- Settings can switch the app to **Simplified Chinese** on-device
+- Locale choice is stored locally and applied across the app shell
+
 ---
 
 ## 1.4 Active capture (done)
@@ -208,6 +215,7 @@ Camera permission is **separate** from photo library — capture works when libr
 
 | Date       | Change                                                                                                                                                 |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-05-20 | Added on-device locale switching: English default + Simplified Chinese option in Settings, backed by `src/i18n/` and local persisted app locale        |
 | 2026-05-19 | Cloud pet validation in `process-ai-job`; `pet_validation_status` on events; mobile removes rejected moments on poll                                   |
 | 2026-05-18 | Phase 1 architecture doc created; documents 1.1 onboarding/identity and 1.2 `local_events`, processing state, promotion, shared mapper, scan timestamp |
 | 2026-05-18 | 1.3: Event detail screen, local event edits, favorites filter, pet profile header, Ask Tailo shell, `EventDetail` navigation                           |

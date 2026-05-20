@@ -243,6 +243,30 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 8,
+    name: 'event tombstones sync locks and timeline generation',
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS local_event_tombstones (
+          source_local_event_id TEXT PRIMARY KEY NOT NULL,
+          remote_event_id TEXT,
+          wiped_at TEXT NOT NULL,
+          timeline_generation INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE INDEX IF NOT EXISTS local_event_tombstones_generation_idx
+          ON local_event_tombstones (timeline_generation);
+
+        ALTER TABLE local_events
+          ADD COLUMN sync_lock_owner TEXT
+            CHECK (sync_lock_owner IN ('user', 'ai') OR sync_lock_owner IS NULL);
+
+        INSERT OR IGNORE INTO sync_state (state_key, state_value)
+        VALUES ('sync.timeline_generation', '0');
+      `);
+    },
+  },
 ];
 
 async function backfillLocalEventsFromCandidates(

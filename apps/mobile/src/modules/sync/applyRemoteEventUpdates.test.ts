@@ -1,6 +1,7 @@
 import type * as SQLite from 'expo-sqlite';
 
 import { deletePromotedLocalEvent, getLocalEventById } from '@/db/localEvents';
+import { isLocalEventTombstoned } from '@/db/localEventTombstones';
 
 import { applyRemoteEventUpdates } from './applyRemoteEventUpdates';
 
@@ -9,11 +10,20 @@ jest.mock('@/db/localEvents', () => ({
   deletePromotedLocalEvent: jest.fn(),
 }));
 
+jest.mock('@/db/localEventTombstones', () => ({
+  isLocalEventTombstoned: jest.fn(),
+}));
+
+jest.mock('@/db/eventSyncLock', () => ({
+  acquireEventSyncLock: jest.fn(),
+}));
+
 describe('applyRemoteEventUpdates', () => {
   const database = {} as SQLite.SQLiteDatabase;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(isLocalEventTombstoned).mockResolvedValue(false);
   });
 
   it('deletes local timeline event when cloud pet validation rejects', async () => {
@@ -35,6 +45,7 @@ describe('applyRemoteEventUpdates', () => {
       userEditedCaption: 0,
       userEditedEventType: 0,
       pendingAi: 0,
+      syncLockOwner: null,
     });
 
     const applied = await applyRemoteEventUpdates(database, [
@@ -56,5 +67,91 @@ describe('applyRemoteEventUpdates', () => {
 
     expect(applied).toBe(1);
     expect(deletePromotedLocalEvent).toHaveBeenCalledWith(database, 'event-1');
+  });
+
+  it('skips remote updates for tombstoned events', async () => {
+    jest.mocked(getLocalEventById).mockResolvedValue({
+      localEventId: 'event-1',
+      petId: 'pet-1',
+      timestamp: '2026-05-19T12:00:00.000Z',
+      source: 'camera_roll',
+      eventType: 'unknown',
+      caption: 'Keep me',
+      captionLanguage: null,
+      confidence: null,
+      isFavorite: 0,
+      processingState: 'processed',
+      selectedAssetIds: '[]',
+      remoteEventId: 'remote-1',
+      serverSyncVersion: 1,
+      captionSource: 'user',
+      userEditedCaption: 1,
+      userEditedEventType: 0,
+      pendingAi: 0,
+      syncLockOwner: null,
+    });
+    jest.mocked(isLocalEventTombstoned).mockResolvedValue(true);
+
+    const applied = await applyRemoteEventUpdates(database, [
+      {
+        event_id: 'remote-1',
+        source_local_event_id: 'event-1',
+        event_type: 'play',
+        caption: 'Cloud caption',
+        caption_source: 'ai',
+        is_favorite: false,
+        sync_version: 5,
+        updated_at: '2026-05-19T12:00:00.000Z',
+        user_edited_caption: false,
+        user_edited_event_type: false,
+        ai_job_status: 'done',
+        pet_validation_status: 'valid',
+      },
+    ]);
+
+    expect(applied).toBe(0);
+    expect(deletePromotedLocalEvent).not.toHaveBeenCalled();
+  });
+
+  it('skips remote updates when user holds sync lock', async () => {
+    jest.mocked(getLocalEventById).mockResolvedValue({
+      localEventId: 'event-1',
+      petId: 'pet-1',
+      timestamp: '2026-05-19T12:00:00.000Z',
+      source: 'camera_roll',
+      eventType: 'unknown',
+      caption: 'User caption',
+      captionLanguage: null,
+      confidence: null,
+      isFavorite: 0,
+      processingState: 'processed',
+      selectedAssetIds: '[]',
+      remoteEventId: 'remote-1',
+      serverSyncVersion: 1,
+      captionSource: 'user',
+      userEditedCaption: 1,
+      userEditedEventType: 0,
+      pendingAi: 0,
+      syncLockOwner: 'user',
+    });
+
+    const applied = await applyRemoteEventUpdates(database, [
+      {
+        event_id: 'remote-1',
+        source_local_event_id: 'event-1',
+        event_type: 'play',
+        caption: 'Cloud caption',
+        caption_source: 'ai',
+        is_favorite: false,
+        sync_version: 5,
+        updated_at: '2026-05-19T12:00:00.000Z',
+        user_edited_caption: false,
+        user_edited_event_type: false,
+        ai_job_status: 'done',
+        pet_validation_status: 'valid',
+      },
+    ]);
+
+    expect(applied).toBe(0);
   });
 });

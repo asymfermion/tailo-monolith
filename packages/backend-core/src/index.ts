@@ -32,3 +32,19 @@ export {
   type UpsertPetProfileInput,
   type UpsertPetProfileResult,
 } from './usecases/upsertPetProfile';
+export {
+  AI_JOB_LEASE_SECONDS,
+  SWEEP_MAX_JOBS_CAP,
+  SWEEP_MAX_JOBS_DEFAULT,
+  parseProcessAiJobInvokeRequest,
+  shouldReleaseAiJobLease,
+  type ProcessAiJobInvokeRequest,
+} from './usecases/aiJobLease';
+export {
+  AI_JOB_MAX_ATTEMPTS,
+  AI_JOB_BACKOFF_MINUTES,
+  getAiJobBackoffIso,
+  isAiJobDue,
+  resolveAiJobFailure,
+  type AiJobFailureResolution,
+} from './usecases/aiJobFailure';

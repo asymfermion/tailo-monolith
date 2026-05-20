@@ -1,13 +1,13 @@
 import type * as SQLite from 'expo-sqlite';
 
-import { clearLocalEventPipeline } from '@/db/localEventCandidates';
 import { resetLocalAssetsForRedetection } from '@/db/localAssets';
+import { recordUserTimelineWipe } from '@/modules/sync/userTimelineWipe';
 
 import { processPendingPetCandidates } from './petDetection';
 import { redetectLocalPetPipeline } from './redetectPipeline';
 
-jest.mock('@/db/localEventCandidates', () => ({
-  clearLocalEventPipeline: jest.fn(),
+jest.mock('@/modules/sync/userTimelineWipe', () => ({
+  recordUserTimelineWipe: jest.fn(),
 }));
 
 jest.mock('@/db/localAssets', () => ({
@@ -23,6 +23,11 @@ describe('redetectLocalPetPipeline', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(recordUserTimelineWipe).mockResolvedValue({
+      timelineGeneration: 2,
+      tombstonedCount: 1,
+      clearedUploadQueue: true,
+    });
     jest.mocked(resetLocalAssetsForRedetection).mockResolvedValue(3);
     jest.mocked(processPendingPetCandidates).mockResolvedValue({
       batchCount: 1,
@@ -33,7 +38,7 @@ describe('redetectLocalPetPipeline', () => {
     });
   });
 
-  it('resets assets, clears events, and reruns detection', async () => {
+  it('wipes timeline for user, resets assets, and reruns detection', async () => {
     const onDetectingProgress = jest.fn();
 
     await expect(
@@ -50,10 +55,15 @@ describe('redetectLocalPetPipeline', () => {
         petCandidateCount: 2,
         hasMore: false,
       },
+      wipe: {
+        timelineGeneration: 2,
+        tombstonedCount: 1,
+        clearedUploadQueue: true,
+      },
     });
 
+    expect(recordUserTimelineWipe).toHaveBeenCalledWith(database);
     expect(resetLocalAssetsForRedetection).toHaveBeenCalledWith(database);
-    expect(clearLocalEventPipeline).toHaveBeenCalledWith(database);
     expect(processPendingPetCandidates).toHaveBeenCalledWith({
       database,
       onProgress: onDetectingProgress,
@@ -67,7 +77,7 @@ describe('redetectLocalPetPipeline', () => {
       'No saved photos to redetect yet.',
     );
 
-    expect(clearLocalEventPipeline).not.toHaveBeenCalled();
+    expect(recordUserTimelineWipe).toHaveBeenCalledWith(database);
     expect(processPendingPetCandidates).not.toHaveBeenCalled();
   });
 });

@@ -27,18 +27,18 @@
 
 ## Recommended stack
 
-| Layer              | Choice                               | Why                                                     |
-| ------------------ | ------------------------------------ | ------------------------------------------------------- |
-| Language           | `TypeScript`                         | Matches mobile and shared package                       |
-| Function runtime   | `Supabase Edge Functions` on `Deno`  | Small operational surface for MVP                       |
-| Database           | `Supabase Postgres`                  | Relational model, RLS, migrations                       |
-| Auth               | `Supabase Auth` (anonymous → linked) | Silent sign-in first; optional Apple/Google/email later |
-| Object storage     | `Supabase Storage`                   | Easiest first integration for selected event media      |
-| AI invocation      | `OpenAI` via Edge Functions          | Keeps secrets and prompt logic off the phone            |
-| Shared contracts   | `packages/shared`                    | One schema source for mobile and backend                |
-| Backend core logic | `packages/backend-core`              | Portable domain layer, testable outside Supabase        |
+| Layer              | Choice                                       | Why                                                     |
+| ------------------ | -------------------------------------------- | ------------------------------------------------------- |
+| Language           | `TypeScript`                                 | Matches mobile and shared package                       |
+| Function runtime   | `Supabase Edge Functions` on `Deno`          | Small operational surface for MVP                       |
+| Database           | `Supabase Postgres`                          | Relational model, RLS, migrations                       |
+| Auth               | `Supabase Auth` + app-owned identity mapping | Silent sign-in first; optional Apple/Google/email later |
+| Object storage     | `Supabase Storage`                           | Easiest first integration for selected event media      |
+| AI invocation      | `OpenAI` via Edge Functions                  | Keeps secrets and prompt logic off the phone            |
+| Shared contracts   | `packages/shared`                            | One schema source for mobile and backend                |
+| Backend core logic | `packages/backend-core`                      | Portable domain layer, testable outside Supabase        |
 
-**Optional later:** swap storage to R2 or move handlers to another platform without rewriting core logic.
+**Optional later:** swap storage to R2, replace Supabase Auth, or move handlers to another platform without rewriting core logic.
 
 ---
 
@@ -157,6 +157,42 @@ On success, `sync-event` returns `{ event_id, server_sync_version, ai_job?: { st
 
 Canonical AI text lives on **`events`**, not in the job row.
 
+#### Future: pet identity validation (cloud)
+
+Planned in **B2.12** — distinguish **this pet** from another animal of the same type (e.g. neighbour’s dog).
+
+**Problem with today’s gate:** `profilePetValid` + `visiblePetType` only check species and presence, not individual identity.
+
+**Reference set (no full-library upload):**
+
+| Source                  | When it enters the gallery                                   |
+| ----------------------- | ------------------------------------------------------------ |
+| `pets.profile_media_id` | User sets / updates profile photo                            |
+| Event primary           | After `pet_validation_status = valid` (and not user-deleted) |
+| Cap                     | ~5–8 images; drop oldest when full                           |
+
+**Pipeline (cost-aware):**
+
+```mermaid
+flowchart LR
+  primary[Primary image] --> embed[Embed candidate once]
+  embed --> sim{Similarity vs pet centroid}
+  sim -->|high| caption[Caption + eventType]
+  sim -->|low| reject[Reject event]
+  sim -->|borderline| llm[Optional 2-image Gemini yes/no]
+  llm --> caption
+  llm --> reject
+```
+
+1. **Embeddings (default)** — On gallery add/update, store a multimodal embedding per reference (Vertex multimodal embedding or similar). Maintain a **centroid** (mean vector) per `pet_id` in `pet_reference_embeddings` / `pgvector`. New job: embed primary → cosine similarity; reject if below τ (~0.55–0.65 tunable). **No extra detection** on device; **no multi-image caption** on clear rejects.
+2. **LLM fallback (borderline only)** — If similarity in a gray band, one cheap call: candidate + **single** best reference, JSON `{ "sameIndividual": true, "confidence": 0.0 }`, low `maxOutputTokens`.
+3. **Caption** — Current Gemini caption runs **after** identity pass (saves tokens when rejecting wrong individuals).
+4. **Cold start** — Until profile photo exists (or &lt;2 refs), use species-only validation or `identity_status: insufficient_refs`; do not over-reject.
+
+**API shape (extend `AiCaptionResult`):** `samePetIndividual`, `identityConfidence`, `identityMethod: "embedding" | "llm" | "species_only"`.
+
+**Privacy:** Only referenced thumbnails already uploaded for this pet; never send the camera roll.
+
 #### Mobile: sync back to the app
 
 | Trigger                 | Code                                         |
@@ -165,13 +201,15 @@ Canonical AI text lives on **`events`**, not in the job row.
 | While any `pending_ai`  | Poll every **30 s** (foreground)             |
 | After merge             | `applyRemoteEventUpdates` → timeline refresh |
 
-**`get-event-updates`:** returns events for `auth.uid()` with `updated_at` after stored cursor (`sync.events_cursor`); includes `ai_job_status` and `pet_validation_status` per event.
+**`get-event-updates`:** returns events for the current `app_user_id` resolved from `auth.uid()`, with `updated_at` after stored cursor (`sync.events_cursor`); includes `ai_job_status` and `pet_validation_status` per event.
 
 **Merge rules** (`mergeRemoteEventUpdate` / `applyRemoteEventUpdates`):
 
 - Match on `source_local_event_id`.
 - Do not overwrite caption/type the user edited locally.
 - Only SQLite `UPDATE` when merged fields differ (avoids poll ↔ refresh loops).
+- **User wipe (Redetect pets):** tombstones prior `source_local_event_id`s so poll cannot merge stale cloud rows; `client_timeline_generation` on `sync-event` resets server validation when the user rebuilds the timeline.
+- **Per-event lock:** `local_events.sync_lock_owner = user` blocks AI poll overwrites while the user is editing; remote merge uses `ai` lock + `WHERE sync_lock_owner IS NULL OR sync_lock_owner = 'ai'`.
 
 **Display:** `getTimelineEvents` uses `resolveDisplayCaption` (`@tailo/ai`) for calm placeholder copy until AI returns.
 
@@ -215,13 +253,14 @@ Operator quick reference: [supabase/SETUP.md § How AI captions return to the ap
 - User gets timeline value while `is_anonymous` in the JWT.
 - Optional “Save your memories” / sign-in later — never a hard gate on scan, capture, or timeline.
 
-**Canonical owner id:** Supabase `auth.users.id` from **`signInAnonymously()`**, not the Phase 1 SecureStore string alone.
+**Canonical owner id:** Tailo-owned **`app_user_id`**, not Supabase `auth.users.id`.
 
 | Id                                                    | Role                                                                     |
 | ----------------------------------------------------- | ------------------------------------------------------------------------ |
-| `auth.users.id`                                       | **Canonical** `user_id` on `pets`, `events`, RLS, storage paths          |
+| `app_user_id`                                         | **Canonical** owner id on `pets`, `events`, storage paths, export/import |
+| `auth.users.id`                                       | Current Supabase session subject; used to resolve current `app_user_id`  |
 | Phase 1 `anonymous_user_id` (`anon_*` in SecureStore) | **Legacy device id** — one-time migration into `anonymous_id_links` only |
-| After account upgrade                                 | **Same** `auth.users.id`; JWT `is_anonymous` becomes false               |
+| After account upgrade                                 | Same `app_user_id`; linked provider set expands                          |
 
 #### Mobile bootstrap (Phase 2.1)
 
@@ -229,6 +268,7 @@ Operator quick reference: [supabase/SETUP.md § How AI captions return to the ap
 App launch
   → authService.bootstrapAuthSession() (AuthProvider; Supabase impl today)
   → if no session: signInAnonymously() inside provider
+  → ensure-current-user maps auth.users.id → stable app_user_id
   → if legacy anon_* exists and not yet recorded: POST link-anonymous-user (idempotent)
   → upsert-pet from local pet profile
   → upload_queue / sync use getAuthAccessToken() on HTTP APIs
@@ -236,7 +276,7 @@ App launch
 
 Mobile code must call **`bootstrapAuthSession` / `getAuthAccessToken`** from `modules/auth`, not `getSupabaseClient()` directly (keeps auth swappable).
 
-- Do **not** generate new `anon_*` ids for new installs once Supabase is wired; session `user.id` is enough.
+- Do **not** generate new `anon_*` ids for new installs once Supabase is wired; the server-created `app_user_id` is enough.
 - Keep `getOrCreateAnonymousUserId()` only for **upgrading installs** that already shipped Phase 1.
 
 #### Account upgrade (optional — not required for Phase 2 MVP sync)
@@ -249,7 +289,7 @@ When the user chooses to link a permanent identity (settings / soft prompt, not 
 | Google | `linkIdentity({ provider: 'google' })`                        | Same                                             |
 | Email  | `updateUser({ email })` + verify OTP; password optional later | Must verify before treating as permanent         |
 
-Supabase keeps the **same user id** when linking — local SQLite and server rows keyed by `user_id` need no migration.
+Supabase currently keeps the **same auth user id** when linking. Tailo should still record provider identities against the same `app_user_id`, so future migration off Supabase does not depend on Supabase continuing to be the canonical identity source.
 
 **Enable in Supabase dashboard:** Anonymous sign-ins; **Manual linking** (for `linkIdentity`); Apple/Google providers when upgrade UI ships.
 
@@ -257,21 +297,22 @@ Supabase keeps the **same user id** when linking — local SQLite and server row
 
 #### RLS
 
-- All user-owned rows: `auth.uid() = user_id`.
+- All user-owned rows: `app_user_id = app.current_app_user_id()`.
 - Anonymous users use the `authenticated` role; JWT includes `is_anonymous` if policies must restrict billing, sharing, or quotas until linked.
-- Storage paths: `{user_id}/{pet_id}/…` — never device-local ids alone.
+- Storage paths: `{app_user_id}/{pet_id}/…` — never device-local ids alone.
 
 #### Legacy bridge: `anonymous_id_links`
 
 Still useful for Phase 1 → Phase 2 upgrades, not for everyday auth:
 
-- One row per legacy `anonymous_user_id` → `user_id` (Supabase).
+- One row per legacy `anonymous_user_id` → `app_user_id`.
 - Idempotent: repeated link calls return the same mapping.
 - New installs after Phase 2 may never write this table.
 
 Core rules:
 
-- Pet and event ownership always derive from **`auth.users.id`**.
+- Pet and event ownership always derive from **`app_user_id`**.
+- Current Supabase session subject only resolves the active app user through `user_identities`.
 - `link-anonymous-user` is idempotent and only needed for legacy id reconciliation (see API below).
 
 ### 2. Event sync
@@ -292,23 +333,23 @@ See **[AI job specification](#ai-job-specification)**.
 
 **Status:** Decided for MVP. Implement in `backend-core` + mobile session handling; revisit for Phase 2+ multi-device.
 
-| Scenario                                           | MVP behavior                                                                   | User-visible outcome                                                  |
-| -------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| **Fresh install (Phase 2+)**                       | `signInAnonymously()` only; do not create new `anon_*` SecureStore ids         | Works offline/local; sync when online                                 |
-| **Upgrade from Phase 1**                           | `signInAnonymously()` then one `link-anonymous-user` if legacy `anon_*` exists | Same server user; local SQLite unchanged                              |
-| **App reinstall / cleared app data**               | New `signInAnonymously()` → **new** `auth.users.id`                            | Prior cloud data stays on old user (orphaned). No auto-restore in MVP |
-| **Session refresh fails**                          | Supabase client retries refresh; if hard failure, new `signInAnonymously()`    | Same as reinstall — **document as known limitation**                  |
-| **Link Apple/Google/email on this device**         | `linkIdentity` / `updateUser`; **same `user.id`**                              | Data kept; JWT `is_anonymous` → false                                 |
-| **`linkIdentity` target already linked elsewhere** | Supabase error; do not switch session                                          | Calm error: identity already in use; stay on current session          |
-| **Sign in on second device (existing account)**    | **Not in MVP**                                                                 | Phase 2+: `signInWithOAuth` + optional merge UI                       |
-| **Anonymous user: sync + AI captions**             | **Allowed**                                                                    | No paywall or permanent-auth gate for free tier                       |
-| **Anonymous user: storage quotas**                 | Same limits as permanent unless RLS adds stricter `is_anonymous` rules later   | —                                                                     |
-| **Logout (if exposed in settings later)**          | Clears session; next launch new anonymous user                                 | Treat like reinstall for MVP                                          |
+| Scenario                                           | MVP behavior                                                                             | User-visible outcome                                               |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **Fresh install (Phase 2+)**                       | `signInAnonymously()` then `ensure-current-user`; do not create new `anon_*` ids         | Works offline/local; sync when online                              |
+| **Upgrade from Phase 1**                           | `signInAnonymously()` then one `link-anonymous-user` if legacy `anon_*` exists           | Same `app_user_id`; local SQLite unchanged                         |
+| **App reinstall / cleared app data (anonymous)**   | New `signInAnonymously()` → new Supabase subject → new `app_user_id` unless later linked | Prior anonymous cloud data stays on old app user; known limitation |
+| **Session refresh fails**                          | Supabase client retries refresh; if hard failure, new `signInAnonymously()`              | Same as reinstall for anonymous-only users                         |
+| **Link Apple/Google/email on this device**         | `linkIdentity` / `updateUser`; `user_identities` stays on same `app_user_id`             | Data kept; JWT `is_anonymous` → false                              |
+| **`linkIdentity` target already linked elsewhere** | Supabase error; do not switch session                                                    | Calm error: identity already in use; stay on current session       |
+| **Sign in on second device (existing account)**    | **Not in MVP**                                                                           | Phase 2+: `signInWithOAuth` + optional merge UI                    |
+| **Anonymous user: sync + AI captions**             | **Allowed**                                                                              | No paywall or permanent-auth gate for free tier                    |
+| **Anonymous user: storage quotas**                 | Same limits as permanent unless RLS adds stricter `is_anonymous` rules later             | —                                                                  |
+| **Logout (if exposed in settings later)**          | Clears session; next launch new anonymous user                                           | Treat like reinstall for MVP                                       |
 
 **Implementation notes:**
 
-- `link-anonymous-user` rejects mapping a legacy id already tied to a **different** `user_id` (409).
-- All Edge Functions use `auth.uid()`; never trust `user_id` from request body.
+- `link-anonymous-user` rejects mapping a legacy id already tied to a **different** `app_user_id` (409).
+- All Edge Functions use `auth.uid()` only to resolve the current `app_user_id`; never trust `app_user_id` from request body.
 - Mobile stores Supabase session in SecureStore; do not use Phase 1 `anon_*` as API identity after Phase 2.
 
 ---
@@ -343,17 +384,17 @@ upload_queue row (pending)
 ### Storage layout
 
 ```txt
-event-media/{user_id}/{pet_id}/{event_id}/{source_local_asset_id}/original.jpg
-event-media/{user_id}/{pet_id}/{event_id}/{source_local_asset_id}/thumb.jpg
+event-media/{app_user_id}/{pet_id}/{event_id}/{source_local_asset_id}/original.jpg
+event-media/{app_user_id}/{pet_id}/{event_id}/{source_local_asset_id}/thumb.jpg
 ```
 
 - Bucket: private `event-media` (name TBD in migration).
 - Signed URL **TTL: 15 minutes**.
-- `Content-Type` must be `image/jpeg` for PUT; server rejects mismatch on finalize if detectable.
+- `Content-Type` must be `image/jpeg` for PUT. Enforced by bucket `allowed_mime_types` (`image/jpeg` only) — wrong type returns **400** `invalid_mime_type` (see **B2.4.3a** `npm run test:supabase:upload`).
 
 ### `create-upload-urls` validation (`validateUploadRequest`)
 
-- JWT required; `pet_id` belongs to `auth.uid()`.
+- JWT required; `pet_id` belongs to `app.current_app_user_id()`.
 - `source_local_event_id` + `pet_id` present.
 - Each `source_local_asset_id` unique in request; count 1–5.
 - Optional: event row must not exist yet **or** caller owns existing event (for re-upload / retry).
@@ -373,7 +414,7 @@ event-media/{user_id}/{pet_id}/{event_id}/{source_local_asset_id}/thumb.jpg
 
 ### Idempotency
 
-- Unique constraint: `(user_id, source_local_event_id)` on `events`.
+- Unique constraint: `(app_user_id, source_local_event_id)` on `events`.
 - `sync-event` upserts by that key; repeated calls return same `event_id`.
 - `event_media` upsert by `(event_id, source_local_asset_id)`.
 
@@ -444,7 +485,7 @@ Persist on server as `events.user_edited_caption` / `events.user_edited_event_ty
 ### `get-event-updates` (polling)
 
 - **Input:** `cursor` opaque string encoding `updated_at` + `event_id` (or ISO timestamp + limit).
-- **Output:** events for `auth.uid()` with `updated_at > cursor`, ordered ASC, max **50** rows; `next_cursor`.
+- **Output:** events for the caller's resolved `app_user_id` with `updated_at > cursor`, ordered ASC, max **50** rows; `next_cursor`.
 - Include: `event_id`, `source_local_event_id`, mergeable fields, `sync_version`, `ai_job.status`.
 - Mobile polls: every **30 s** while app foreground and any local event has pending AI; else on pull-to-refresh / app resume.
 
@@ -483,7 +524,7 @@ pending → processing → done
 
 ### Worker (`process-ai-job`)
 
-- **Trigger:** Edge Function invoked by `sync-event` (fire-and-forget). **Planned (B2.5.7):** scheduled sweep every **2–5 min** + lease recovery (`processing` → `pending` when `leased_until` expired). Mobile poll remains UX-only.
+- **Trigger:** `sync-event` fire-and-forget (`max_jobs: 1`) + **pg_cron** every **3 min** (`npm run setup:ai-job-cron`, `sweep` + `max_jobs: 5`). Each invoke releases expired `processing` leases first. Mobile poll remains UX-only.
 - **Concurrency:** Process one job per invocation; use `UPDATE … WHERE status = 'pending' … RETURNING` lease pattern.
 - **Max attempts:** **3** (`attempt_count`).
 - **Backoff before retry:** 1 min → 5 min → 15 min (store `next_attempt_at`).
@@ -524,25 +565,45 @@ pending → processing → done
 
 These are MVP backend entities, not the final full product schema.
 
-### `profiles`
+### `app_users`
 
-Maps Supabase `auth.users.id` to app-level metadata (optional display name, preferences later).
+Canonical Tailo users, owned by the app rather than the auth vendor.
 
-| Column       | Notes                    |
-| ------------ | ------------------------ |
-| `user_id`    | PK, FK → `auth.users.id` |
-| `created_at` | First server touch       |
+| Column        | Notes              |
+| ------------- | ------------------ |
+| `app_user_id` | PK UUID            |
+| `created_at`  | First server touch |
 
-Auth provider details live in Supabase Auth (`is_anonymous`, identities) — do not duplicate in `profiles` for MVP.
+App-level preferences or profile metadata can hang off this row later, but ownership should already point here in MVP.
+
+### `user_identities`
+
+Maps external or platform-specific identities to `app_user_id`.
+
+| Column             | Notes                                                      |
+| ------------------ | ---------------------------------------------------------- |
+| `identity_id`      | PK UUID                                                    |
+| `app_user_id`      | FK → `app_users.app_user_id`                               |
+| `provider`         | `supabase_auth`, `email`, `apple`, `google`, `phone` later |
+| `provider_subject` | Stable provider id or normalized email/phone               |
+| `provider_email`   | Optional verified email snapshot                           |
+| `created_at`       | Audit/debug                                                |
+| `last_seen_at`     | Optional operational helper                                |
+
+Constraints:
+
+- unique `(provider, provider_subject)`
+- at most one `supabase_auth` mapping row per current Supabase auth subject
+- provider-linking always adds or updates identity rows under the same `app_user_id`
 
 ### `anonymous_id_links`
 
-**Legacy only:** Phase 1 SecureStore `anonymous_user_id` → Supabase `user_id` after first `signInAnonymously()`.
+**Legacy only:** Phase 1 SecureStore `anonymous_user_id` → Tailo `app_user_id` after first `signInAnonymously()`.
 
 | Column              | Notes                           |
 | ------------------- | ------------------------------- |
 | `anonymous_user_id` | Phase 1 `anon_*` string, unique |
-| `user_id`           | Supabase `auth.users.id`        |
+| `app_user_id`       | Tailo canonical user            |
 | `linked_at`         | Audit/debug                     |
 
 ### `pets`
@@ -552,7 +613,7 @@ One pet per MVP user in product UI, but schema should support more later.
 | Column                | Notes                                  |
 | --------------------- | -------------------------------------- |
 | `pet_id`              | UUID                                   |
-| `user_id`             | Owner                                  |
+| `app_user_id`         | Owner                                  |
 | `name`, `type`        | Dog/cat in MVP                         |
 | `gender`              | Optional                               |
 | `profile_media_id`    | Optional chosen image                  |
@@ -565,7 +626,7 @@ Canonical synced event rows.
 | Column                   | Notes                               |
 | ------------------------ | ----------------------------------- |
 | `event_id`               | UUID                                |
-| `user_id`, `pet_id`      | Ownership                           |
+| `app_user_id`, `pet_id`  | Ownership                           |
 | `source_local_event_id`  | Idempotent sync key from mobile     |
 | `timestamp`              | Event anchor time                   |
 | `source`                 | `camera_roll` or `in_app`           |
@@ -616,6 +677,22 @@ Tracks asynchronous enrichment work.
 
 Use a small set of backend functions.
 
+### `ensure-current-user`
+
+**When:** Immediately after bootstrap auth resolves a valid Supabase session.
+
+**Why:** Convert the current auth vendor subject into a durable Tailo `app_user_id`.
+
+Input:
+
+- caller authenticated via Supabase JWT (`auth.uid()`)
+
+Output:
+
+- canonical `app_user_id`
+- whether a new `app_users` row was created
+- whether a `user_identities(provider = 'supabase_auth')` row was created
+
 ### `link-anonymous-user`
 
 **When:** First launch after Phase 2 on a device that already has a Phase 1 `anonymous_user_id` in SecureStore.
@@ -629,7 +706,7 @@ Input:
 
 Output:
 
-- canonical `user_id` (same as JWT subject)
+- canonical `app_user_id`
 - whether `anonymous_id_links` row was newly created
 
 ### `upsert-pet`
@@ -757,7 +834,7 @@ This lets us swap Supabase adapters for another platform later.
 
 Full detail: [Sync specification](#sync-specification).
 
-1. Idempotency: `(user_id, source_local_event_id)`.
+1. Idempotency: `(app_user_id, source_local_event_id)`.
 2. User edits win over AI for caption and event type.
 3. AI fills only non-user-edited fields.
 4. Never accept full-library uploads.
@@ -781,9 +858,9 @@ Full detail: [AI job specification](#ai-job-specification). Result shape in `pac
 
 ## Security model
 
-- RLS on all user-owned tables (`auth.uid() = user_id`)
+- RLS on all user-owned tables (`app_user_id = app.current_app_user_id()`)
 - Optional policies using JWT `is_anonymous` (e.g. rate limits before account link)
-- Storage paths namespaced by `user_id` and `pet_id`
+- Storage paths namespaced by `app_user_id` and `pet_id`
 - Signed upload URLs with short expiry
 - No direct client access to privileged AI or admin flows
 - Edge Functions verify ownership before mutating rows
@@ -793,10 +870,10 @@ Full detail: [AI job specification](#ai-job-specification). Result shape in `pac
 
 ## MVP delivery order
 
-1. Supabase project: enable **Anonymous** auth; schema + RLS (`auth.uid()`)
+1. Supabase project: enable **Anonymous** auth; schema + RLS helper to resolve `app.current_app_user_id()`
 2. `packages/backend-core` scaffolding + shared zod contracts
 3. **Mobile:** Supabase client, `signInAnonymously()`, session persistence
-4. `link-anonymous-user` (legacy Phase 1 id only) + `upsert-pet`
+4. `ensure-current-user` + `link-anonymous-user` (legacy Phase 1 id only) + `upsert-pet`
 5. Signed upload function + storage bucket layout
 6. `sync-event` + `upload_queue` worker on mobile
 7. `ai_jobs` table + worker + `get-event-updates` (polling)
@@ -815,10 +892,20 @@ Full detail: [AI job specification](#ai-job-specification). Result shape in `pac
 | Multi-device account sign-in             | **Deferred** — see [Auth edge-case policy](#auth-edge-case-policy) | Phase 2+              |
 | Session loss → new anonymous user        | Accept orphan cloud data for MVP                                   | Account recovery flow |
 
+## Future — user edit moment (capabilities)
+
+**Status:** Planned (B2.13). MVP allows caption, type, and favorite edits with `user_edited_*` flags and partial poll/server merge protection. A full **moment actions matrix** (what users can do per moment state, and how device/cloud/AI interact) is not written yet — see [FUTURE_FEATURES.md](../FUTURE_FEATURES.md#10-user-edit-moment-capabilities) and MOBILE_TASKS **B2.13**.
+
 ## Change log
 
 | Date       | Change                                                                                                                                                                                                                                            |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-20 | Planned **B2.13** user edit moment: product actions matrix + hardened sync/AI rules for per-moment edits                                                                                                                                          |
+| 2026-05-20 | **B2.6** Backend hardening QA: `npm run test:supabase:qa`, `audit:supabase`, `STAGING_CHECKLIST.md`; `syncEventMerge` keeps user caption when `user_edited_caption` set; `aiJobFailure` retry policy in `@tailo/backend-core`                     |
+| 2026-05-20 | **B2.4.3a** Integration test: Storage signed PUT returns `415 invalid_mime_type` for non-`image/jpeg` `Content-Type` (`npm run test:supabase:upload`)                                                                                             |
+| 2026-05-20 | **B2.1.10** RLS smoke: `supabase/tests/rls_cross_user_smoke.sql` + `npm run test:supabase:rls` (JWT impersonation; all user-owned tables)                                                                                                         |
+| 2026-05-20 | **B2.5.7** AI sweep: `pg_cron` + `setup:ai-job-cron`; lease recovery; `process-ai-job` sweep mode (`max_jobs` cap 10)                                                                                                                             |
+| 2026-05-19 | Planned **B2.12** pet identity validation: embedding gallery from profile + validated events; reject wrong individual before caption                                                                                                              |
 | 2026-05-19 | Cloud pet validation in `process-ai-job` (`profilePetValid` / `visiblePetType`); `events.pet_validation_status`; mobile removes rejected moments on poll                                                                                          |
 | 2026-05-19 | Default Vertex caption model **gemini-2.5-flash** (`GCP_VERTEX_SETUP`, secrets script, `process-ai-job` fallback)                                                                                                                                 |
 | 2026-05-19 | Vertex model selection docs → [Gemini model versions](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/model-versions) (`GCP_VERTEX_SETUP`, `SETUP.md`)                                                                      |

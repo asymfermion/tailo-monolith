@@ -1,7 +1,7 @@
 import type { RemoteEventUpdate } from '@tailo/shared';
 import { resolveDisplayCaption } from '@tailo/ai';
 
-import type { CaptionSource } from '@/db/localEvents';
+import type { CaptionSource, EventSyncLockOwner } from '@/db/localEvents';
 
 export type LocalEventSyncSnapshot = {
   localEventId: string;
@@ -14,6 +14,7 @@ export type LocalEventSyncSnapshot = {
   userEditedEventType: boolean;
   pendingAi: boolean;
   remoteEventId: string;
+  syncLockOwner: EventSyncLockOwner | null;
 };
 
 export function mergeRemoteEventUpdate(

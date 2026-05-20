@@ -4,6 +4,7 @@ import type { LocalEventRow } from '@/db/localEvents';
 import type { UploadQueueRow } from '@/db/uploadQueue';
 import { getLocalAssetUploadSourcesByIds } from '@/db/localAssets';
 import { getLocalMediaScoresForEvent } from '@/db/localMediaScores';
+import { getTimelineGeneration } from '@/db/syncState';
 import type * as SQLite from 'expo-sqlite';
 
 export async function buildSyncEventPayload(
@@ -58,6 +59,7 @@ export async function buildSyncEventPayload(
   }
 
   const hasUserCaption = Boolean(localEvent.caption?.trim());
+  const clientTimelineGeneration = await getTimelineGeneration(database);
 
   return {
     source_local_event_id: localEvent.localEventId,
@@ -69,6 +71,7 @@ export async function buildSyncEventPayload(
     caption_source: hasUserCaption ? 'user' : 'placeholder',
     is_favorite: localEvent.isFavorite === 1,
     client_sync_version: localEvent.serverSyncVersion,
+    client_timeline_generation: clientTimelineGeneration,
     user_edited: {
       caption: localEvent.userEditedCaption === 1,
       event_type: localEvent.userEditedEventType === 1,

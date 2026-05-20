@@ -11,6 +11,7 @@ import {
 
 import { colors, spacing } from '@/constants/theme';
 import { t } from '@/i18n';
+import { ModalBackButton } from '@/navigation/components/ModalBackButton';
 import { useNavigation } from '@/navigation/NavigationContext';
 
 export function CaptureScreen() {
@@ -45,9 +46,7 @@ export function CaptureScreen() {
         ) : (
           <Text style={styles.message}>{t('capture.cameraDenied')}</Text>
         )}
-        <Pressable onPress={navigation.pop}>
-          <Text style={styles.backLink}>{t('common.back')}</Text>
-        </Pressable>
+        <ModalBackButton onPress={navigation.pop} />
       </View>
     );
   }

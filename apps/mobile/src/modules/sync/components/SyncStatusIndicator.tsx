@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing } from '@/constants/theme';
-import { t } from '@/i18n';
+import { t, useAppLocale } from '@/i18n';
 
 type SyncStatusIndicatorProps = {
   isSyncing: boolean;
@@ -12,6 +12,8 @@ export function SyncStatusIndicator({
   isSyncing,
   hasPendingMemories,
 }: SyncStatusIndicatorProps) {
+  useAppLocale();
+
   if (!isSyncing && !hasPendingMemories) {
     return null;
   }

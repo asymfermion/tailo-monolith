@@ -7,6 +7,7 @@ import { buildSyncEventPayload } from './buildSyncEventPayload';
 
 import { getLocalAssetUploadSourcesByIds } from '@/db/localAssets';
 import { getLocalMediaScoresForEvent } from '@/db/localMediaScores';
+import * as syncState from '@/db/syncState';
 
 jest.mock('@/db/localAssets', () => ({
   getLocalAssetUploadSourcesByIds: jest.fn(),
@@ -37,6 +38,7 @@ describe('buildSyncEventPayload', () => {
     userEditedCaption: 0,
     userEditedEventType: 0,
     pendingAi: 0,
+    syncLockOwner: null,
   };
 
   const uploadedItems: UploadQueueRow[] = [
@@ -55,6 +57,7 @@ describe('buildSyncEventPayload', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    jest.spyOn(syncState, 'getTimelineGeneration').mockResolvedValue(2);
     jest.mocked(getLocalAssetUploadSourcesByIds).mockResolvedValue([
       {
         localAssetId: 'asset-1',
@@ -91,6 +94,7 @@ describe('buildSyncEventPayload', () => {
       pet_id: 'pet-remote',
       caption_source: 'placeholder',
       user_edited: { caption: false, event_type: false },
+      client_timeline_generation: 2,
       media: [
         expect.objectContaining({
           source_local_asset_id: 'asset-1',

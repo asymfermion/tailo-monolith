@@ -1,6 +1,10 @@
 import { accountMessages } from '../messages/account';
 import { syncMessages } from '../messages/sync';
 
+export type TranslationTree = {
+  [key: string]: string | TranslationTree;
+};
+
 /** English UI copy — single source for user-facing strings. */
 export const en = {
   common: {
@@ -12,6 +16,11 @@ export const en = {
     choosePhotos: 'Choose Photos',
     saving: 'Saving...',
     yourPet: 'your pet',
+  },
+  startup: {
+    loading: 'Preparing your local timeline...',
+    errorTitle: 'Tailo needs a moment',
+    retry: 'Try again',
   },
   accessibility: {
     captureMoment: 'Capture a moment',
@@ -162,14 +171,63 @@ export const en = {
   },
   timeline: {
     defaultCaption: 'A small moment from today.',
+    moment: {
+      addFavorite: 'Add to favorites',
+      removeFavorite: 'Remove from favorites',
+      menu: 'Moment options',
+      edit: 'Edit moment',
+      delete: 'Delete moment',
+      deleteSoonTitle: 'Delete moment',
+      deleteSoonMessage: 'Deleting moments from the timeline is coming soon.',
+      share: 'Share moment',
+      shareSoonTitle: 'Share moment',
+      shareSoonMessage:
+        'Sharing a moment as an image to other apps is coming soon.',
+    },
+  },
+  navigation: {
+    tabs: {
+      Timeline: 'Home',
+      PetProfile: 'Pet',
+      Settings: 'Settings',
+    },
+    tabAccessibility: {
+      Timeline: 'Home',
+      PetProfile: 'Pet profile',
+      Settings: 'Settings',
+    },
+  },
+  settings: {
+    subtitle: 'Account, language, and how Tailo works on this device.',
+    sections: {
+      account: 'Account',
+      localization: 'Language',
+      preferences: 'App',
+    },
+    accountLabel: 'Save your memories',
+    accountDescription: 'Link an email to keep moments if you change devices.',
+    languageLabel: 'Language',
+    languages: {
+      english: 'English',
+      simplifiedChinese: '简体中文',
+    },
+    timelineScanLabel: 'Photo scan & timeline',
+    timelineScanDescription: 'Manage photo access, scans, and moments.',
+    petProfileLabel: 'Pet profile',
+    petProfileDescription: 'Name, photo, and pet details.',
   },
   petProfile: {
     label: 'Your pet',
     loading: 'Loading profile...',
     fallbackName: 'Your pet',
+    screenSubtitle: 'The pet Tailo is building memories for.',
+    genderLabel: '{{gender}}',
+    editHint:
+      'Name and profile photo are set during onboarding for now. Editing here is planned soon.',
     askTailo: 'Ask Tailo',
     askTailoBody:
       'Soon you will be able to ask quiet questions about your pet and their moments. Nothing leaves your device until you choose to save a memory.',
+    askTailoSoon: 'Coming soon on this tab.',
     nameWithType: '{{name}} · {{type}}',
   },
   eventDetail: {
@@ -199,6 +257,4 @@ export const en = {
     retake: 'Retake',
     addToTimeline: 'Add to timeline',
   },
-} as const;
-
-export type TranslationTree = typeof en;
+} as const satisfies TranslationTree;

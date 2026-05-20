@@ -68,7 +68,9 @@ export function mergeSyncEventPayload(
     existing?.userEditedEventType || request.user_edited?.event_type === true;
 
   const caption = userEditedCaption
-    ? request.caption
+    ? request.caption_source === 'user' || request.user_edited?.caption === true
+      ? request.caption
+      : (existing?.caption ?? request.caption)
     : existing?.userEditedCaption
       ? existing.caption
       : request.caption;

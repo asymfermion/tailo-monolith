@@ -1,22 +1,34 @@
 import { memo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MediaDetectionDebugBadge } from '@/components/MediaDetectionDebugBadge';
 import { colors, spacing } from '@/constants/theme';
 import { formatEventType, formatTimestamp } from '@/lib/formatMoment';
-import { t } from '@/i18n';
+import { t, useAppLocale } from '@/i18n';
 import type { TimelineEvent, TimelineEventMedia } from '@/types';
+
+import { MomentActionMenu } from './MomentActionMenu';
 
 type TimelineMomentCardProps = {
   event: TimelineEvent;
+  onDelete: (localEventId: string) => void;
+  onEdit: (localEventId: string) => void;
   onPress: (localEventId: string) => void;
+  onShare: (localEventId: string) => void;
+  onToggleFavorite: (localEventId: string, isFavorite: boolean) => void;
 };
 
 function TimelineMomentCardComponent({
   event,
+  onDelete,
+  onEdit,
   onPress,
+  onShare,
+  onToggleFavorite,
 }: TimelineMomentCardProps) {
+  useAppLocale();
   const primaryMedia =
     event.media.find((media) => media.isPrimary) ?? event.media[0];
   const secondaryMedia = event.media
@@ -24,45 +36,87 @@ function TimelineMomentCardComponent({
     .slice(0, 4);
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      style={styles.moment}
-      onPress={() => onPress(event.localEventId)}
-    >
-      <View style={styles.momentMetaRow}>
-        <View style={styles.momentMetaLeft}>
-          {event.isFavorite ? <Text style={styles.favoriteMark}>★</Text> : null}
+    <View style={styles.card}>
+      <View style={styles.headerRow}>
+        <Pressable
+          accessibilityRole="button"
+          style={styles.headerMain}
+          onPress={() => onPress(event.localEventId)}
+        >
           <Text style={styles.momentType}>
             {formatEventType(event.eventType)}
           </Text>
-        </View>
-        <Text style={styles.momentTime}>
-          {formatTimestamp(event.timestamp)}
-        </Text>
-      </View>
-      <Text style={styles.caption}>{event.caption}</Text>
+          <Text style={styles.momentTime}>
+            {formatTimestamp(event.timestamp)}
+          </Text>
+        </Pressable>
 
-      {primaryMedia ? (
-        <View style={styles.mediaGrid}>
-          <View style={styles.imageFrame}>
-            <Image
-              accessibilityLabel={t('accessibility.primaryMomentPhoto')}
-              contentFit="cover"
-              source={{ uri: primaryMedia.uri }}
-              style={styles.primaryImage}
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityLabel={
+              event.isFavorite
+                ? t('timeline.moment.removeFavorite')
+                : t('timeline.moment.addFavorite')
+            }
+            accessibilityRole="button"
+            hitSlop={8}
+            style={styles.iconButton}
+            onPress={() =>
+              onToggleFavorite(event.localEventId, !event.isFavorite)
+            }
+          >
+            <Ionicons
+              color={event.isFavorite ? colors.accent : colors.textMuted}
+              name={event.isFavorite ? 'star' : 'star-outline'}
+              size={24}
             />
-            <MediaDetectionDebugBadge media={primaryMedia} />
-          </View>
-          {secondaryMedia.length > 0 ? (
-            <View style={styles.secondaryGrid}>
-              {secondaryMedia.map((media) => (
-                <MomentImage key={media.localAssetId} media={media} />
-              ))}
-            </View>
-          ) : null}
+          </Pressable>
+          <Pressable
+            accessibilityLabel={t('timeline.moment.share')}
+            accessibilityRole="button"
+            hitSlop={8}
+            style={styles.iconButton}
+            onPress={() => onShare(event.localEventId)}
+          >
+            <Ionicons color={colors.textMuted} name="share-outline" size={22} />
+          </Pressable>
+          <MomentActionMenu
+            onDelete={() => onDelete(event.localEventId)}
+            onEdit={() => onEdit(event.localEventId)}
+          />
         </View>
-      ) : null}
-    </Pressable>
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => onPress(event.localEventId)}
+      >
+        {primaryMedia ? (
+          <View style={styles.mediaGrid}>
+            <View style={styles.imageFrame}>
+              <Image
+                accessibilityLabel={t('accessibility.primaryMomentPhoto')}
+                contentFit="cover"
+                source={{ uri: primaryMedia.uri }}
+                style={styles.primaryImage}
+              />
+              <MediaDetectionDebugBadge media={primaryMedia} />
+            </View>
+            {secondaryMedia.length > 0 ? (
+              <View style={styles.secondaryGrid}>
+                {secondaryMedia.map((media) => (
+                  <MomentImage key={media.localAssetId} media={media} />
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {event.caption ? (
+          <Text style={styles.caption}>{event.caption}</Text>
+        ) : null}
+      </Pressable>
+    </View>
   );
 }
 
@@ -78,6 +132,10 @@ function areTimelineMomentCardPropsEqual(
 ): boolean {
   return (
     previous.onPress === next.onPress &&
+    previous.onEdit === next.onEdit &&
+    previous.onDelete === next.onDelete &&
+    previous.onShare === next.onShare &&
+    previous.onToggleFavorite === next.onToggleFavorite &&
     previous.event.localEventId === next.event.localEventId &&
     previous.event.caption === next.event.caption &&
     previous.event.eventType === next.event.eventType &&
@@ -108,23 +166,29 @@ function MomentImage({ media }: { media: TimelineEventMedia }) {
 }
 
 const styles = StyleSheet.create({
-  moment: {
-    marginTop: spacing.xl,
+  card: {
+    gap: spacing.sm,
   },
-  momentMetaRow: {
-    alignItems: 'center',
+  headerRow: {
+    alignItems: 'flex-start',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
-  momentMetaLeft: {
+  headerMain: {
+    flex: 1,
+    gap: spacing.xs,
+    minWidth: 0,
+  },
+  headerActions: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.xs,
   },
-  favoriteMark: {
-    color: colors.accent,
-    fontSize: 14,
+  iconButton: {
+    alignItems: 'center',
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
   },
   momentType: {
     color: colors.accent,
@@ -137,14 +201,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   caption: {
-    marginTop: spacing.sm,
     color: colors.text,
-    fontSize: 20,
-    fontWeight: '600',
-    lineHeight: 27,
+    fontSize: 17,
+    fontWeight: '500',
+    lineHeight: 24,
+    marginTop: spacing.sm,
   },
   mediaGrid: {
-    marginTop: spacing.md,
     gap: spacing.sm,
   },
   imageFrame: {

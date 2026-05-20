@@ -264,9 +264,15 @@ From the repo root (uses `npx`, no global install required):
 npx supabase login
 npx supabase link --project-ref sgxtyxvithlmuuofkzlk
 npm run deploy:supabase           # db push + deploy all Edge Functions
+npm run test:supabase:rls -- --linked   # B2.1.10 RLS cross-user smoke (after link)
+npm run test:supabase:upload          # B2.4.3a signed PUT Content-Type (needs apps/mobile/.env.local)
+npm run test:supabase:qa              # B2.6 Edge Function hardening (optional SUPABASE_SERVICE_ROLE_KEY)
+npm run audit:supabase                # B2.6.3 dependency audit
 npx supabase functions serve      # local edge functions
 npx supabase start                # optional full local stack
 ```
+
+**RLS smoke (B2.1.10):** `supabase/tests/rls_cross_user_smoke.sql` seeds two test users, impersonates user B via JWT claims, and asserts B cannot read or write user A’s rows on `profiles`, `anonymous_id_links`, `pets`, `events`, `event_media`, and `ai_jobs`. The script runs in a transaction and rolls back (no leftover data). Requires `npx supabase link` or `DATABASE_URL` in `supabase/.env.local` (with `psql` on PATH).
 
 Scaffold lives in `supabase/` (`config.toml`, `migrations/`, `functions/`).
 

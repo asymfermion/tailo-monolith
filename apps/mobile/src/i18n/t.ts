@@ -1,6 +1,13 @@
+import { getAppLocale, getIntlLocale, type AppLocale } from './locale';
 import { en, type TranslationTree } from './locales/en';
+import { zhHans } from './locales/zhHans';
 
 type TranslationParams = Record<string, string | number>;
+
+const localeTrees: Record<AppLocale, TranslationTree> = {
+  en,
+  'zh-Hans': zhHans,
+};
 
 function getNestedValue(
   tree: TranslationTree,
@@ -38,7 +45,9 @@ function interpolate(template: string, params?: TranslationParams): string {
 
 /** Resolve a dot-path UI string for the active locale. */
 export function t(path: string, params?: TranslationParams): string {
-  const template = getNestedValue(en, path);
+  const locale = getAppLocale();
+  const template =
+    getNestedValue(localeTrees[locale], path) ?? getNestedValue(en, path);
 
   if (!template) {
     return path;
@@ -49,10 +58,14 @@ export function t(path: string, params?: TranslationParams): string {
 
 /** Locale-aware number formatting for counts in copy. */
 export function formatCount(value: number): string {
-  return value.toLocaleString();
+  return value.toLocaleString(getIntlLocale());
 }
 
 /** Empty string or `s` for simple English plural suffixes in templates. */
 export function pluralSuffix(count: number): string {
+  if (getAppLocale() !== 'en') {
+    return '';
+  }
+
   return count === 1 ? '' : 's';
 }

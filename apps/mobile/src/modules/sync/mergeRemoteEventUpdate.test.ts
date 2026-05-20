@@ -17,6 +17,7 @@ const baseLocal: LocalEventSyncSnapshot = {
   userEditedCaption: true,
   userEditedEventType: false,
   pendingAi: false,
+  syncLockOwner: null,
 };
 
 const baseRemote: RemoteEventUpdate = {

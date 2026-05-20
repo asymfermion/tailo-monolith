@@ -34,7 +34,10 @@ export type LocalEventRow = {
   userEditedCaption: number;
   userEditedEventType: number;
   pendingAi: number;
+  syncLockOwner: EventSyncLockOwner | null;
 };
+
+export type EventSyncLockOwner = 'user' | 'ai';
 
 const UPSERT_LOCAL_EVENT_SQL = `
   INSERT INTO local_events (
@@ -139,7 +142,8 @@ export async function getLocalEventById(
         caption_source AS captionSource,
         user_edited_caption AS userEditedCaption,
         user_edited_event_type AS userEditedEventType,
-        pending_ai AS pendingAi
+        pending_ai AS pendingAi,
+        sync_lock_owner AS syncLockOwner
       FROM local_events
       WHERE local_event_id = ?
     `,
@@ -151,6 +155,35 @@ export async function clearLocalEvents(
   db: SQLite.SQLiteDatabase,
 ): Promise<void> {
   await db.execAsync('DELETE FROM local_events;');
+}
+
+export async function listLocalEventsForWipe(
+  db: SQLite.SQLiteDatabase,
+): Promise<LocalEventRow[]> {
+  return db.getAllAsync<LocalEventRow>(
+    `
+      SELECT
+        local_event_id AS localEventId,
+        pet_id AS petId,
+        timestamp,
+        source,
+        event_type AS eventType,
+        caption,
+        caption_language AS captionLanguage,
+        confidence,
+        is_favorite AS isFavorite,
+        processing_state AS processingState,
+        selected_asset_ids AS selectedAssetIds,
+        remote_event_id AS remoteEventId,
+        server_sync_version AS serverSyncVersion,
+        caption_source AS captionSource,
+        user_edited_caption AS userEditedCaption,
+        user_edited_event_type AS userEditedEventType,
+        pending_ai AS pendingAi,
+        sync_lock_owner AS syncLockOwner
+      FROM local_events
+    `,
+  );
 }
 
 /** Removes a promoted timeline moment after cloud pet validation rejects it. */
@@ -257,6 +290,7 @@ export async function updateLocalEvent(
     return false;
   }
 
+  assignments.push("sync_lock_owner = 'user'");
   assignments.push('updated_at = CURRENT_TIMESTAMP');
   values.push(localEventId);
 

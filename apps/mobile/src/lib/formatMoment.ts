@@ -1,9 +1,9 @@
 import type { EventType } from '@tailo/shared';
 
-import { t } from '@/i18n';
+import { getIntlLocale, t } from '@/i18n';
 
 export function formatTimestamp(timestamp: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(getIntlLocale(), {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',

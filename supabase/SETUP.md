@@ -202,7 +202,7 @@ curl -s -X POST \
   -H "Content-Type: application/json"
 ```
 
-Full spec (merge rules, polling intervals, schema): [docs/architecture/phase-2-backend-mvp.md § Sync and AI loop](../docs/architecture/phase-2-backend-mvp.md#sync-and-ai-loop-end-to-end).
+Full spec (workflow diagrams, merge rules, polling): [docs/architecture/phase-2-backend-mvp.md § Data syncing workflow](../docs/architecture/phase-2-backend-mvp.md#data-syncing-workflow).
 
 ## Vertex AI (GCP) captions
 

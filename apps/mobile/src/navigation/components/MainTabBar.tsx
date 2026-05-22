@@ -2,8 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { t, useAppLocale } from '@/i18n';
+import {
+  useAppearance,
+  useThemedStyles,
+  type AppearanceContextValue,
+} from '@/lib/appearance';
 
 import type { MainTabId } from '../routes';
 import { TAB_BAR_HEIGHT, TAB_BAR_HORIZONTAL_MARGIN } from '../tabBarLayout';
@@ -50,9 +55,41 @@ const blurTint =
 
 const blurIntensity = Platform.OS === 'ios' ? 42 : 56;
 
+function createMainTabBarStyles({ colors }: AppearanceContextValue) {
+  return {
+    wrapper: {
+      position: 'absolute' as const,
+      left: TAB_BAR_HORIZONTAL_MARGIN,
+      right: TAB_BAR_HORIZONTAL_MARGIN,
+    },
+    bar: {
+      borderColor: colors.tabBarBorder,
+      borderRadius: TAB_BAR_HEIGHT / 2,
+      borderWidth: 1,
+      elevation: 8,
+      flexDirection: 'row' as const,
+      height: TAB_BAR_HEIGHT,
+      overflow: 'hidden' as const,
+      paddingHorizontal: spacing.sm,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+    },
+    tab: {
+      alignItems: 'center' as const,
+      flex: 1,
+      justifyContent: 'center' as const,
+      zIndex: 1,
+    },
+  };
+}
+
 export function MainTabBar({ activeTab, onSelectTab }: MainTabBarProps) {
   useAppLocale();
+  const { colors } = useAppearance();
   const bottomOffset = useTabBarBottomOffset();
+  const styles = useThemedStyles(createMainTabBarStyles);
 
   return (
     <View
@@ -97,31 +134,3 @@ export function MainTabBar({ activeTab, onSelectTab }: MainTabBarProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrapper: {
-    position: 'absolute',
-    left: TAB_BAR_HORIZONTAL_MARGIN,
-    right: TAB_BAR_HORIZONTAL_MARGIN,
-  },
-  bar: {
-    borderColor: colors.tabBarBorder,
-    borderRadius: TAB_BAR_HEIGHT / 2,
-    borderWidth: 1,
-    elevation: 8,
-    flexDirection: 'row',
-    height: TAB_BAR_HEIGHT,
-    overflow: 'hidden',
-    paddingHorizontal: spacing.sm,
-    shadowColor: '#1C1C1A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-  },
-  tab: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-});

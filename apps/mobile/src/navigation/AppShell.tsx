@@ -1,8 +1,13 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
+import {
+  useAppearance,
+  useThemedStyles,
+  type AppearanceContextValue,
+} from '@/lib/appearance';
 import { useSupabaseAuthAutoRefresh } from '@/lib/useSupabaseAuthAutoRefresh';
 import { useOnboardingSession } from '@/modules/auth';
 import { useBackgroundSync } from '@/modules/sync';
@@ -10,6 +15,42 @@ import { OnboardingScreen } from '@/screens/OnboardingScreen';
 
 import { ModalStackLayer } from './components/ModalStackLayer';
 import { NavigationProvider, useNavigation } from './NavigationContext';
+
+function createAppShellStyles({
+  colors,
+  getFontFamily,
+}: AppearanceContextValue) {
+  return {
+    root: {
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+    screen: {
+      flex: 1,
+    },
+    centered: {
+      alignItems: 'center' as const,
+      flex: 1,
+      justifyContent: 'center' as const,
+      paddingHorizontal: spacing.lg,
+    },
+    centeredText: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: spacing.md,
+      textAlign: 'center' as const,
+    },
+    errorTitle: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 22,
+      fontWeight: '600' as const,
+      textAlign: 'center' as const,
+    },
+  };
+}
 
 export function AppShell() {
   return (
@@ -26,6 +67,8 @@ function AppShellContent() {
   const onboardingSession = useOnboardingSession();
   const navigation = useNavigation();
   const activeModal = navigation.modalStack.at(-1);
+  const { statusBarStyle } = useAppearance();
+  const styles = useThemedStyles(createAppShellStyles);
 
   return (
     <View
@@ -37,7 +80,7 @@ function AppShellContent() {
         },
       ]}
     >
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <View style={styles.screen}>
         {onboardingSession.isLoading ? (
           <LoadingState />
@@ -61,6 +104,8 @@ function AppShellContent() {
 
 function LoadingState() {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppearance();
+  const styles = useThemedStyles(createAppShellStyles);
 
   return (
     <View style={[styles.centered, { paddingTop: insets.top }]}>
@@ -72,6 +117,7 @@ function LoadingState() {
 
 function ErrorState({ message }: { message: string }) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createAppShellStyles);
 
   return (
     <View style={[styles.centered, { paddingTop: insets.top }]}>
@@ -80,32 +126,3 @@ function ErrorState({ message }: { message: string }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  screen: {
-    flex: 1,
-  },
-  centered: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  centeredText: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: spacing.md,
-    textAlign: 'center',
-  },
-  errorTitle: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-});

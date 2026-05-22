@@ -1,13 +1,23 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { colors } from '@/constants/theme';
+import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 
 import { MainTabBar } from './components/MainTabBar';
 import { MainTabPager } from './components/MainTabPager';
 import { useNavigation } from './NavigationContext';
 
+function createMainTabShellStyles({ colors }: AppearanceContextValue) {
+  return {
+    shell: {
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+  };
+}
+
 export function MainTabShell() {
   const navigation = useNavigation();
+  const styles = useThemedStyles(createMainTabShellStyles);
 
   return (
     <View style={styles.shell}>
@@ -22,10 +32,3 @@ export function MainTabShell() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  shell: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-});

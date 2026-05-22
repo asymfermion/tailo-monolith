@@ -120,6 +120,7 @@ servePostFunction('sync-event', async (request, log) => {
     pet_validation_status: generationAdvanced
       ? 'pending'
       : (existingRow?.pet_validation_status ?? 'pending'),
+    deleted_at: generationAdvanced ? null : (existingRow?.deleted_at ?? null),
     updated_at: now,
   };
 

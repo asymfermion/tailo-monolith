@@ -5,6 +5,7 @@ import type { LocalEventRow } from '@/db/localEvents';
 export type RemoteEventApplyBlockReason =
   | 'tombstoned'
   | 'user_sync_lock'
+  | 'pending_outbound_sync'
   | null;
 
 export function getRemoteEventApplyBlockReason(input: {
@@ -18,6 +19,10 @@ export function getRemoteEventApplyBlockReason(input: {
 
   if (input.local.syncLockOwner === 'user') {
     return 'user_sync_lock';
+  }
+
+  if (input.local.pendingCloudSync === 1) {
+    return 'pending_outbound_sync';
   }
 
   return null;

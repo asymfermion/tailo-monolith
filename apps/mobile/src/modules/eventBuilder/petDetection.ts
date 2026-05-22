@@ -6,11 +6,11 @@ import {
   updateLocalAssetDetectionResults,
 } from '@/db/localAssets';
 
+import { isPetCandidateForProfile } from '@/modules/pets/matchesProfilePetType';
 import {
-  isPetCandidateForProfile,
   loadLocalPetProfile,
   type LocalPetType,
-} from '@/modules/pets';
+} from '@/modules/pets/petProfile';
 
 import {
   createPetDetector,

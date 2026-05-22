@@ -1,13 +1,12 @@
 import { useEffect, useRef } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Animated, Text, View } from 'react-native';
 
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
+import {
+  useAppearance,
+  useThemedStyles,
+  type AppearanceContextValue,
+} from '@/lib/appearance';
 
 import {
   computeOnboardingScanProgress,
@@ -22,9 +21,92 @@ type ScanProgressIndicatorProps = {
   photoAccess: PhotoAccessState;
 };
 
+function createScanProgressIndicatorStyles({
+  colors,
+  getFontFamily,
+}: AppearanceContextValue) {
+  return {
+    container: {
+      borderTopColor: colors.border,
+      borderTopWidth: 1,
+      gap: spacing.md,
+      paddingTop: spacing.md,
+    },
+    headerRow: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+    },
+    completeDot: {
+      backgroundColor: colors.accent,
+      borderRadius: 4,
+      height: 8,
+      width: 8,
+    },
+    headline: {
+      color: colors.text,
+      flex: 1,
+      fontFamily: getFontFamily('600'),
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    track: {
+      backgroundColor: colors.border,
+      borderRadius: 999,
+      height: 8,
+      overflow: 'hidden' as const,
+    },
+    fill: {
+      backgroundColor: colors.accent,
+      borderRadius: 999,
+      height: '100%' as const,
+    },
+    stepsRow: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+    },
+    step: {
+      alignItems: 'center' as const,
+      flex: 1,
+      gap: spacing.xs,
+    },
+    stepDot: {
+      backgroundColor: colors.border,
+      borderRadius: 4,
+      height: 8,
+      width: 8,
+    },
+    stepDotActive: {
+      backgroundColor: colors.accent,
+    },
+    stepDotComplete: {
+      backgroundColor: colors.accent,
+    },
+    stepLabel: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 11,
+      textAlign: 'center' as const,
+    },
+    stepLabelActive: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontWeight: '600' as const,
+    },
+    detail: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      lineHeight: 20,
+    },
+  };
+}
+
 export function ScanProgressIndicator({
   photoAccess,
 }: ScanProgressIndicatorProps) {
+  const { colors } = useAppearance();
+  const styles = useThemedStyles(createScanProgressIndicatorStyles);
   const progress = computeOnboardingScanProgress(photoAccess);
   const isActive = isOnboardingScanPipelineActive(photoAccess);
   const steps = getScanPipelineSteps(photoAccess);
@@ -94,75 +176,3 @@ export function ScanProgressIndicator({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    gap: spacing.md,
-    paddingTop: spacing.md,
-  },
-  headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  completeDot: {
-    backgroundColor: colors.accent,
-    borderRadius: 4,
-    height: 8,
-    width: 8,
-  },
-  headline: {
-    color: colors.text,
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  track: {
-    backgroundColor: colors.border,
-    borderRadius: 999,
-    height: 8,
-    overflow: 'hidden',
-  },
-  fill: {
-    backgroundColor: colors.accent,
-    borderRadius: 999,
-    height: '100%',
-  },
-  stepsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  step: {
-    alignItems: 'center',
-    flex: 1,
-    gap: spacing.xs,
-  },
-  stepDot: {
-    backgroundColor: colors.border,
-    borderRadius: 4,
-    height: 8,
-    width: 8,
-  },
-  stepDotActive: {
-    backgroundColor: colors.accent,
-  },
-  stepDotComplete: {
-    backgroundColor: colors.accent,
-  },
-  stepLabel: {
-    color: colors.textMuted,
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  stepLabelActive: {
-    color: colors.text,
-    fontWeight: '600',
-  },
-  detail: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-});

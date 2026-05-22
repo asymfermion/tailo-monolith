@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { getDatabase } from '@/db';
+import { logTailo } from '@/lib/tailoLogger';
 
 import { pollEventUpdates } from './pollEventUpdates';
+import { runPendingCloudSync } from './runPendingCloudSync';
 import { runUploadQueueWorker } from './uploadQueueWorker';
 
 export function useBackgroundSync(): void {
@@ -11,9 +13,12 @@ export function useBackgroundSync(): void {
     let appState: AppStateStatus = AppState.currentState;
 
     const runSyncPass = () => {
+      logTailo('Sync', 'Foreground cloud sync pass started');
       void getDatabase().then(async (database) => {
         await runUploadQueueWorker(database);
+        await runPendingCloudSync(database);
         await pollEventUpdates(database);
+        logTailo('Sync', 'Foreground cloud sync pass finished');
       });
     };
 

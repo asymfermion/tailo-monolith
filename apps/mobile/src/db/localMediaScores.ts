@@ -49,6 +49,31 @@ export async function getLocalMediaScoresForEvent(
   );
 }
 
+export async function setPrimaryAssetForEvent(
+  db: SQLite.SQLiteDatabase,
+  localEventId: string,
+  primaryAssetId: string,
+): Promise<void> {
+  await db.runAsync(
+    `
+      UPDATE local_media_scores
+      SET is_primary = 0
+      WHERE local_event_id = ?
+    `,
+    [localEventId],
+  );
+
+  await db.runAsync(
+    `
+      UPDATE local_media_scores
+      SET is_primary = 1
+      WHERE local_event_id = ?
+        AND local_asset_id = ?
+    `,
+    [localEventId, primaryAssetId],
+  );
+}
+
 export async function upsertLocalMediaScores(
   db: SQLite.SQLiteDatabase,
   scores: NewLocalMediaScore[],

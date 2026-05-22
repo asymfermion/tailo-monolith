@@ -52,6 +52,7 @@ export async function getTimelineEvents(
       selected_asset_ids AS selectedAssetIds
     FROM local_events
     WHERE processing_state = 'processed'
+      AND deleted_at IS NULL
       ${query.favoritesOnly ? 'AND is_favorite = 1' : ''}
       ${
         profilePetType
@@ -104,6 +105,7 @@ export async function getTimelineEventById(
     FROM local_events
     WHERE local_event_id = ?
       AND processing_state = 'processed'
+      AND deleted_at IS NULL
     LIMIT 1
   `,
     [localEventId],
@@ -197,16 +199,11 @@ async function getTimelineEventMedia(
   );
 
   return rows
-    .sort((left, right) => {
-      if (left.isPrimary !== right.isPrimary) {
-        return left.isPrimary ? -1 : 1;
-      }
-
-      return (
+    .sort(
+      (left, right) =>
         (orderByAssetId.get(left.localAssetId) ?? Number.MAX_SAFE_INTEGER) -
-        (orderByAssetId.get(right.localAssetId) ?? Number.MAX_SAFE_INTEGER)
-      );
-    })
+        (orderByAssetId.get(right.localAssetId) ?? Number.MAX_SAFE_INTEGER),
+    )
     .map((row) => ({
       localAssetId: row.localAssetId,
       uri: row.uri,

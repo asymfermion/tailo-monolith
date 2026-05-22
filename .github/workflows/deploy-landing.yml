@@ -1,0 +1,61 @@
+# Deploy the Tailo landing page from apps/landing only.
+#
+# Required GitHub repository secrets:
+#   VERCEL_TOKEN       — Vercel account/team token
+#   VERCEL_ORG_ID      — Vercel team/org id for brendanzj-6054s-projects
+#   VERCEL_PROJECT_ID  — Vercel project id for tailo-web
+
+name: Deploy Landing
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/landing/**'
+      - '.github/workflows/deploy-landing.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-landing-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npx prettier --check src/index.html src/styles.css package.json vercel.json
+        working-directory: apps/landing
+
+      - name: Build landing page
+        run: npm run build
+        working-directory: apps/landing
+
+      - name: Pull Vercel project settings
+        run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: apps/landing
+
+      - name: Build with Vercel
+        run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: apps/landing
+
+      - name: Deploy to Vercel
+        run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: apps/landing

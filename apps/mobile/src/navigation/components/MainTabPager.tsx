@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ScrollView,
-  StyleSheet,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
 
-import { colors } from '@/constants/theme';
+import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 import { PetProfileScreen } from '@/screens/PetProfileScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { TimelineScreen } from '@/screens/TimelineScreen';
@@ -20,12 +19,26 @@ type MainTabPagerProps = {
   onSelectTab: (tab: MainTabId) => void;
 };
 
+function createMainTabPagerStyles({ colors }: AppearanceContextValue) {
+  return {
+    pager: {
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+    page: {
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+  };
+}
+
 export function MainTabPager({ activeTab, onSelectTab }: MainTabPagerProps) {
   const scrollRef = useRef<ScrollView>(null);
   const [pageWidth, setPageWidth] = useState(0);
   const activeTabRef = useRef(activeTab);
   const didInitialScrollRef = useRef(false);
   const skipTabSyncRef = useRef(false);
+  const styles = useThemedStyles(createMainTabPagerStyles);
 
   activeTabRef.current = activeTab;
 
@@ -118,14 +131,3 @@ function renderMainTab(tab: MainTabId) {
       return <SettingsScreen />;
   }
 }
-
-const styles = StyleSheet.create({
-  pager: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  page: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-});

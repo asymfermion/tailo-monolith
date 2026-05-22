@@ -1,5 +1,6 @@
 import {
   hasIncompletePipelineWork,
+  shouldRunIncrementalScan,
   shouldStartInitialScan,
   type PipelineResumePlan,
 } from './pipelineResume';
@@ -9,6 +10,7 @@ describe('pipelineResume helpers', () => {
     phase: 'idle',
     shouldContinueRecentScan: false,
     scanAfter: null,
+    scanCreatedAfterMs: null,
     pendingDetectionCount: 0,
     scorableCandidateCount: 0,
     promotableCandidateCount: 0,
@@ -43,6 +45,31 @@ describe('pipelineResume helpers', () => {
       shouldStartInitialScan({
         ...basePlan,
         hasLocalAssets: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('runs an incremental scan when assets exist and the pipeline is idle', () => {
+    expect(
+      shouldRunIncrementalScan({
+        ...basePlan,
+        hasLocalAssets: true,
+      }),
+    ).toBe(true);
+    expect(shouldRunIncrementalScan(basePlan)).toBe(false);
+    expect(
+      shouldRunIncrementalScan({
+        ...basePlan,
+        hasLocalAssets: true,
+        pendingDetectionCount: 2,
+        promotableCandidateCount: 3,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRunIncrementalScan({
+        ...basePlan,
+        hasLocalAssets: true,
+        shouldContinueRecentScan: true,
       }),
     ).toBe(false);
   });

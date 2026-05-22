@@ -22,7 +22,9 @@ export function getTabScreenTopPadding(safeAreaTop: number): number {
 
 /** Total height of the fixed modal header (safe area + toolbar + bottom pad). */
 export function getModalHeaderHeight(safeAreaTop: number): number {
-  return getModalHeaderTopInset(safeAreaTop) + MODAL_TOOLBAR_HEIGHT + spacing.xs;
+  return (
+    getModalHeaderTopInset(safeAreaTop) + MODAL_TOOLBAR_HEIGHT + spacing.xs
+  );
 }
 
 /** Top of the edge-swipe zone — keep the modal toolbar tappable. */

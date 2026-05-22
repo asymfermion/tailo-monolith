@@ -67,6 +67,7 @@ const SELECT_UNPROCESSED_LOCAL_ASSETS_SQL = `
   FROM local_assets
   WHERE media_type = 'photo'
     AND processing_status = 'pending'
+    AND user_dismissed_at IS NULL
   ORDER BY created_at DESC
   LIMIT ?
 `;
@@ -101,6 +102,7 @@ const SELECT_LOCAL_PET_CANDIDATES_BASE_SQL = `
   WHERE is_pet_candidate = 1
     AND pet_confidence IS NOT NULL
     AND pet_confidence >= ?
+    AND user_dismissed_at IS NULL
 `;
 
 export async function upsertLocalAssets(
@@ -144,6 +146,7 @@ export async function countPendingLocalAssetsForDetection(
     FROM local_assets
     WHERE media_type = 'photo'
       AND processing_status = 'pending'
+      AND user_dismissed_at IS NULL
   `);
 
   return row?.count ?? 0;
@@ -179,7 +182,34 @@ const RESET_LOCAL_ASSETS_FOR_REDETECTION_SQL = `
     detection_debug_label = NULL,
     updated_at = CURRENT_TIMESTAMP
   WHERE media_type = 'photo'
+    AND user_dismissed_at IS NULL
 `;
+
+export async function dismissLocalAssetsForMoment(
+  db: SQLite.SQLiteDatabase,
+  localAssetIds: string[],
+  dismissedAt: string,
+): Promise<number> {
+  if (localAssetIds.length === 0) {
+    return 0;
+  }
+
+  const placeholders = localAssetIds.map(() => '?').join(', ');
+  const result = await db.runAsync(
+    `
+      UPDATE local_assets
+      SET
+        user_dismissed_at = ?,
+        is_pet_candidate = 0,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE local_asset_id IN (${placeholders})
+        AND user_dismissed_at IS NULL
+    `,
+    [dismissedAt, ...localAssetIds],
+  );
+
+  return result.changes;
+}
 
 export async function resetLocalAssetsForRedetection(
   db: SQLite.SQLiteDatabase,
@@ -328,7 +358,9 @@ export async function getLocalAssetDetectionInputsForPromotedEvents(
     INNER JOIN local_events AS events
       ON events.local_event_id = scores.local_event_id
     WHERE events.processing_state = 'processed'
+      AND events.deleted_at IS NULL
       AND assets.media_type = 'photo'
+      AND assets.user_dismissed_at IS NULL
   `);
 }
 

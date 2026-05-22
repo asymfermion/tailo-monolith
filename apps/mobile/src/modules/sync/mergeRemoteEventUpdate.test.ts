@@ -33,6 +33,7 @@ const baseRemote: RemoteEventUpdate = {
   user_edited_event_type: false,
   ai_job_status: 'done',
   pet_validation_status: 'valid',
+  deleted_at: null,
 };
 
 describe('mergeRemoteEventUpdate', () => {

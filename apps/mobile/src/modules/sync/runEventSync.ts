@@ -1,7 +1,11 @@
 import type * as SQLite from 'expo-sqlite';
 
-import { logDbInfo } from '@/db/dbLogger';
-import { getLocalEventById } from '@/db/localEvents';
+import { logTailo } from '@/lib/tailoLogger';
+import {
+  clearLocalEventPendingCloudSync,
+  getLocalEventById,
+} from '@/db/localEvents';
+import { releaseEventSyncLock } from '@/db/eventSyncLock';
 import { getDoneUploadQueueItemsForEvent } from '@/db/uploadQueue';
 import {
   getAuthSession,
@@ -34,7 +38,7 @@ export async function runEventSyncForLocalEvent(
 
   const localEvent = await getLocalEventById(database, localEventId);
 
-  if (!localEvent) {
+  if (!localEvent || localEvent.deletedAt) {
     return { status: 'skipped' };
   }
 
@@ -78,10 +82,14 @@ export async function runEventSyncForLocalEvent(
     ],
   );
 
-  logDbInfo('Event synced to server', {
+  await clearLocalEventPendingCloudSync(database, localEventId);
+  await releaseEventSyncLock(database, localEventId);
+
+  logTailo('Sync', 'Moment metadata synced to server', {
     localEventId,
     remoteEventId: result.response.event_id,
     serverSyncVersion: result.response.server_sync_version,
+    aiJobStatus: result.response.ai_job?.status ?? null,
   });
 
   return { status: 'synced' };

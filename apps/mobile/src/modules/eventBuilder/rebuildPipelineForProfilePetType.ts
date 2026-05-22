@@ -3,7 +3,7 @@ import { clearLocalEventPipeline } from '@/db/localEventCandidates';
 import { pruneLocalTimelineForProfilePetType } from '@/db/localEvents';
 import { reapplyPetCandidateFlagsForProfile } from '@/db/localAssets';
 import { setSyncStateValue, SYNC_STATE_KEYS } from '@/db/syncState';
-import type { LocalPetType } from '@/modules/pets';
+import type { LocalPetType } from '@/modules/pets/petProfile';
 
 import { selectBestEventImages } from './bestImageSelection';
 import { clusterLocalPetEvents } from './eventClustering';

@@ -15,9 +15,11 @@ describe('updateLocalEvent', () => {
       }),
     ).resolves.toBe(true);
 
+    const sql = String(runAsync.mock.calls[0]?.[0]);
+    expect(sql).toContain('pending_cloud_sync = 1');
     expect(runAsync).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE local_events SET'),
-      ['rest', 'Afternoon nap', 1, 'local-event-1'],
+      expect.arrayContaining(['rest', 'Afternoon nap', 1, 'local-event-1']),
     );
   });
 

@@ -26,7 +26,10 @@ export type ScanRecentPhotosOptions = {
   database: Awaited<ReturnType<typeof getDatabase>>;
   onProgress?: (progress: ScanProgress) => void | Promise<void>;
   pageSize?: number;
+  /** Used for first-time / full rescans when `createdAfterMs` is not set. */
   windowDays?: number;
+  /** When set, only assets created after this time are fetched (incremental). */
+  createdAfterMs?: number | null;
   startAfter?: string;
 };
 
@@ -57,9 +60,11 @@ export async function scanRecentPhotos({
   onProgress,
   pageSize = CAMERA_ROLL_PAGE_SIZE,
   windowDays = INITIAL_SCAN_WINDOW_DAYS,
+  createdAfterMs = null,
   startAfter,
 }: ScanRecentPhotosOptions): Promise<ScanProgress> {
-  const createdAfter = Date.now() - windowDays * 24 * 60 * 60 * 1000;
+  const createdAfter =
+    createdAfterMs ?? Date.now() - windowDays * 24 * 60 * 60 * 1000;
   let after: string | undefined = startAfter;
   let batchCount = 0;
   let scannedCount = 0;

@@ -7,7 +7,7 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 
-import { colors } from '@/constants/theme';
+import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 
 import type { ModalRoute } from '../routes';
 import {
@@ -25,9 +25,33 @@ type ModalStackLayerProps = {
 
 const FALLBACK_WIDTH = Dimensions.get('window').width;
 
+function createModalStackLayerStyles({ colors }: AppearanceContextValue) {
+  return {
+    stack: {
+      backgroundColor: colors.background,
+      flex: 1,
+      overflow: 'hidden' as const,
+    },
+    underlay: {
+      flex: 1,
+    },
+    modalLayer: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    modalCard: {
+      backgroundColor: colors.background,
+      flex: 1,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: -6, height: 0 },
+      shadowRadius: 14,
+    },
+  };
+}
+
 export function ModalStackLayer({ activeModal, onPop }: ModalStackLayerProps) {
   const dragX = useRef(new Animated.Value(0)).current;
   const [containerWidth, setContainerWidth] = useState(FALLBACK_WIDTH);
+  const styles = useThemedStyles(createModalStackLayerStyles);
 
   const modalKey = activeModal
     ? `${activeModal.name}:${JSON.stringify(activeModal.params ?? {})}`
@@ -73,7 +97,7 @@ export function ModalStackLayer({ activeModal, onPop }: ModalStackLayerProps) {
           <ModalSwipeBack
             containerWidth={containerWidth}
             dragX={dragX}
-            modalKey={modalKey}
+            modalKey={modalKey!}
             onBack={onPop}
           >
             <Animated.View
@@ -93,24 +117,3 @@ export function ModalStackLayer({ activeModal, onPop }: ModalStackLayerProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  stack: {
-    backgroundColor: colors.background,
-    flex: 1,
-    overflow: 'hidden',
-  },
-  underlay: {
-    flex: 1,
-  },
-  modalLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalCard: {
-    backgroundColor: colors.background,
-    flex: 1,
-    shadowColor: '#000000',
-    shadowOffset: { width: -6, height: 0 },
-    shadowRadius: 14,
-  },
-});

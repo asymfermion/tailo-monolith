@@ -1,7 +1,7 @@
 import type * as SQLite from 'expo-sqlite';
 import { UPLOAD_MAX_ASSETS_PER_EVENT } from '@tailo/shared';
 
-import { logDbInfo } from '@/db/dbLogger';
+import { logTailo } from '@/lib/tailoLogger';
 import { getLocalAssetUploadSourcesByIds } from '@/db/localAssets';
 import { getLocalEventById } from '@/db/localEvents';
 import {
@@ -22,7 +22,7 @@ import { createUploadUrls } from './createUploadUrls';
 import { groupUploadQueueByEvent } from './groupUploadQueueByEvent';
 import { prepareEventMediaUpload } from './prepareEventMediaUpload';
 import { canRetryUpload, getNextUploadAttemptAt } from './uploadRetry';
-import { runEventSyncForLocalEvent } from './runEventSync';
+import { runPendingCloudSyncForEvent } from './runPendingCloudSync';
 import { uploadToSignedUrl } from './uploadToSignedUrl';
 
 export type RunUploadQueueWorkerResult = {
@@ -46,6 +46,9 @@ export async function runUploadQueueWorker(
   database: SQLite.SQLiteDatabase,
 ): Promise<RunUploadQueueWorkerResult> {
   if (!isRemoteAuthConfigured()) {
+    logTailo('Upload', 'Cloud upload worker skipped', {
+      reason: 'remote_auth_unconfigured',
+    });
     return {
       processedBatches: 0,
       uploadedAssets: 0,
@@ -57,6 +60,9 @@ export async function runUploadQueueWorker(
   const session = await getAuthSession();
 
   if (!session) {
+    logTailo('Upload', 'Cloud upload worker skipped', {
+      reason: 'missing_session',
+    });
     return {
       processedBatches: 0,
       uploadedAssets: 0,
@@ -68,6 +74,9 @@ export async function runUploadQueueWorker(
   const petProfile = await loadLocalPetProfile();
 
   if (!petProfile?.remotePetId) {
+    logTailo('Upload', 'Cloud upload worker skipped', {
+      reason: 'missing_remote_pet',
+    });
     return {
       processedBatches: 0,
       uploadedAssets: 0,
@@ -90,6 +99,11 @@ export async function runUploadQueueWorker(
     };
   }
 
+  logTailo('Upload', 'Cloud upload worker started', {
+    pendingEventBatches: batches.length,
+    pendingQueueItems: pendingRows.length,
+  });
+
   let processedBatches = 0;
   let uploadedAssets = 0;
   let failedAssets = 0;
@@ -105,6 +119,14 @@ export async function runUploadQueueWorker(
     processedBatches += batchResult.processed ? 1 : 0;
     uploadedAssets += batchResult.uploadedAssets;
     failedAssets += batchResult.failedAssets;
+  }
+
+  if (processedBatches > 0 || failedAssets > 0) {
+    logTailo('Upload', 'Cloud upload worker finished', {
+      processedBatches,
+      uploadedAssets,
+      failedAssets,
+    });
   }
 
   return {
@@ -246,13 +268,33 @@ async function processUploadBatch(
       uploadedAssets += 1;
     }
 
-    logDbInfo('Upload batch completed', {
+    logTailo('Upload', 'Cloud media upload completed for moment', {
       localEventId,
       uploadedAssets,
       remoteEventId: urlResult.response.event_id,
+      note: 'Existing local moment — not a new on-device discovery',
     });
 
-    await runEventSyncForLocalEvent(database, localEventId);
+    try {
+      const syncResult = await runPendingCloudSyncForEvent(
+        database,
+        localEventId,
+      );
+
+      logTailo('Sync', 'Moment metadata sync finished', {
+        localEventId,
+        remoteEventId: urlResult.response.event_id,
+        status: syncResult.status,
+        message: syncResult.message,
+      });
+    } catch (syncError) {
+      logTailo('Sync', 'Moment metadata sync failed after media upload', {
+        localEventId,
+        remoteEventId: urlResult.response.event_id,
+        error:
+          syncError instanceof Error ? syncError.message : String(syncError),
+      });
+    }
 
     return {
       processed: true,
@@ -265,7 +307,12 @@ async function processUploadBatch(
 
     await failQueueItems(database, queueItems, message);
 
-    logDbInfo('Upload batch failed', { localEventId, message });
+    logTailo('Upload', 'Cloud media upload failed for moment', {
+      localEventId,
+      message,
+      localAssetIds: queueItems.map((item) => item.localAssetId),
+      note: 'Failed items stay in upload_queue and retry on next app open',
+    });
 
     return {
       processed: true,

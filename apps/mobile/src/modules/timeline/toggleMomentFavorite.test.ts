@@ -11,6 +11,12 @@ jest.mock('@/db/localEvents', () => ({
   updateLocalEvent: jest.fn(),
 }));
 
+jest.mock('./scheduleCloudSyncForMoment', () => ({
+  scheduleCloudSyncForMoment: jest.fn(),
+}));
+
+import { scheduleCloudSyncForMoment } from './scheduleCloudSyncForMoment';
+
 describe('toggleMomentFavorite', () => {
   it('updates favorite state in local storage', async () => {
     const database = { id: 'db' };
@@ -24,5 +30,6 @@ describe('toggleMomentFavorite', () => {
     expect(updateLocalEvent).toHaveBeenCalledWith(database, 'local-event-1', {
       isFavorite: true,
     });
+    expect(scheduleCloudSyncForMoment).toHaveBeenCalledWith('local-event-1');
   });
 });

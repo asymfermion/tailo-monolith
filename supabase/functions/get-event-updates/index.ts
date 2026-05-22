@@ -38,7 +38,7 @@ servePostFunction('get-event-updates', async (request, log) => {
   let query = adminClient
     .from('events')
     .select(
-      'event_id, source_local_event_id, event_type, caption, caption_source, is_favorite, sync_version, updated_at, user_edited_caption, user_edited_event_type, pet_validation_status',
+      'event_id, source_local_event_id, event_type, caption, caption_source, is_favorite, sync_version, updated_at, user_edited_caption, user_edited_event_type, pet_validation_status, deleted_at',
     )
     .eq('user_id', authResult.user.id)
     .order('updated_at', { ascending: true })
@@ -85,6 +85,7 @@ servePostFunction('get-event-updates', async (request, log) => {
     user_edited_event_type: row.user_edited_event_type,
     ai_job_status: jobsByEvent.get(row.event_id) ?? null,
     pet_validation_status: row.pet_validation_status ?? 'pending',
+    deleted_at: row.deleted_at ?? null,
   }));
 
   const last = events.at(-1);

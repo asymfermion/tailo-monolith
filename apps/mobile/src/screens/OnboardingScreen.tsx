@@ -1,17 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
+import {
+  useAppearance,
+  useThemedStyles,
+  type AppearanceContextValue,
+} from '@/lib/appearance';
 import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
 import {
   formatPetOptionPhotoCount,
@@ -55,6 +53,199 @@ type OnboardingScreenProps = {
   ) => Promise<void>;
 };
 
+function createOnboardingStyles({
+  colors,
+  getFontFamily,
+}: AppearanceContextValue) {
+  return {
+    screen: {
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+    container: {
+      flexGrow: 1,
+      backgroundColor: colors.background,
+      justifyContent: 'center' as const,
+      paddingHorizontal: spacing.lg,
+    },
+    logo: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 32,
+      fontWeight: '600' as const,
+      marginBottom: spacing.xl,
+    },
+    panel: {
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: spacing.xl,
+    },
+    eyebrow: {
+      color: colors.accent,
+      fontFamily: getFontFamily('700'),
+      fontSize: 12,
+      fontWeight: '700' as const,
+      textTransform: 'uppercase' as const,
+    },
+    title: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 29,
+      fontWeight: '600' as const,
+      lineHeight: 36,
+      marginTop: spacing.sm,
+    },
+    text: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 16,
+      lineHeight: 23,
+      marginTop: spacing.md,
+    },
+    panelBody: {
+      marginTop: spacing.lg,
+    },
+    input: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      color: colors.text,
+      fontFamily: getFontFamily('400'),
+      fontSize: 24,
+      paddingVertical: spacing.md,
+    },
+    primaryButton: {
+      alignItems: 'center' as const,
+      alignSelf: 'stretch' as const,
+      backgroundColor: colors.accent,
+      borderRadius: 8,
+      marginTop: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    disabledButton: {
+      opacity: 0.45,
+    },
+    primaryButtonText: {
+      color: colors.surface,
+      fontFamily: getFontFamily('600'),
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    quietButton: {
+      alignItems: 'center' as const,
+      alignSelf: 'stretch' as const,
+      marginTop: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    quietButtonText: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('600'),
+      fontSize: 15,
+      fontWeight: '600' as const,
+    },
+    optionRow: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: spacing.sm,
+    },
+    optionButton: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    selectedOption: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+    },
+    optionButtonText: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 15,
+      fontWeight: '600' as const,
+    },
+    selectedOptionText: {
+      color: colors.surface,
+    },
+    mutedText: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    profilePhotoLabel: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('600'),
+      fontSize: 13,
+      fontWeight: '600' as const,
+      marginTop: spacing.lg,
+      textTransform: 'uppercase' as const,
+    },
+    profilePhotoRow: {
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    profilePhotoOption: {
+      aspectRatio: 1,
+      backgroundColor: colors.border,
+      borderColor: colors.border,
+      borderRadius: 14,
+      borderWidth: 2,
+      flex: 1,
+      overflow: 'hidden' as const,
+    },
+    profilePhotoOptionSelected: {
+      borderColor: colors.accent,
+    },
+    profilePhotoOptionImage: {
+      height: '100%' as const,
+      width: '100%' as const,
+    },
+    petOptionList: {
+      gap: spacing.md,
+    },
+    petOptionCard: {
+      borderColor: colors.border,
+      borderRadius: 16,
+      borderWidth: 1,
+      flexDirection: 'row' as const,
+      overflow: 'hidden' as const,
+    },
+    selectedPetOption: {
+      borderColor: colors.accent,
+      borderWidth: 2,
+    },
+    petOptionImage: {
+      height: 88,
+      width: 88,
+    },
+    petOptionImagePlaceholder: {
+      backgroundColor: colors.border,
+      height: 88,
+      width: 88,
+    },
+    petOptionMeta: {
+      flex: 1,
+      justifyContent: 'center' as const,
+      paddingHorizontal: spacing.md,
+    },
+    petOptionLabel: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 20,
+      fontWeight: '600' as const,
+    },
+    petOptionCount: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      marginTop: spacing.xs,
+    },
+  };
+}
+
 export function OnboardingScreen({
   anonymousUserId,
   onboardingState,
@@ -62,6 +253,8 @@ export function OnboardingScreen({
   onStepChange,
 }: OnboardingScreenProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppearance();
+  const styles = useThemedStyles(createOnboardingStyles);
   const photoAccess = usePhotoAccess({ autoResumeOnMount: false });
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState<LocalPetType | null>(null);
@@ -500,6 +693,8 @@ type PanelProps = {
 };
 
 function Panel({ children, eyebrow, title, text }: PanelProps) {
+  const styles = useThemedStyles(createOnboardingStyles);
+
   return (
     <View style={styles.panel}>
       <Text style={styles.eyebrow}>{eyebrow}</Text>
@@ -519,6 +714,8 @@ function ProfilePhotoOption({
   suggestion: ProfilePhotoSuggestion;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createOnboardingStyles);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -547,6 +744,8 @@ function PrimaryButton({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createOnboardingStyles);
+
   return (
     <Pressable
       disabled={disabled}
@@ -565,6 +764,8 @@ function QuietButton({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createOnboardingStyles);
+
   return (
     <Pressable style={styles.quietButton} onPress={onPress}>
       <Text style={styles.quietButtonText}>{label}</Text>
@@ -573,6 +774,8 @@ function QuietButton({
 }
 
 function OptionRow({ children }: { children: ReactNode }) {
+  const styles = useThemedStyles(createOnboardingStyles);
+
   return <View style={styles.optionRow}>{children}</View>;
 }
 
@@ -585,6 +788,8 @@ function OptionButton({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createOnboardingStyles);
+
   return (
     <Pressable
       style={[styles.optionButton, isSelected ? styles.selectedOption : null]}
@@ -615,6 +820,8 @@ function PetOptionCard({
   previewUri: string | null;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createOnboardingStyles);
+
   return (
     <Pressable
       style={[
@@ -667,179 +874,3 @@ function getEffectiveStep(
 
   return storedStep;
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  container: {
-    flexGrow: 1,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  logo: {
-    color: colors.text,
-    fontSize: 32,
-    fontWeight: '600',
-    marginBottom: spacing.xl,
-  },
-  panel: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.xl,
-  },
-  eyebrow: {
-    color: colors.accent,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 29,
-    fontWeight: '600',
-    lineHeight: 36,
-    marginTop: spacing.sm,
-  },
-  text: {
-    color: colors.textMuted,
-    fontSize: 16,
-    lineHeight: 23,
-    marginTop: spacing.md,
-  },
-  panelBody: {
-    marginTop: spacing.lg,
-  },
-  input: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    color: colors.text,
-    fontSize: 24,
-    paddingVertical: spacing.md,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    backgroundColor: colors.accent,
-    borderRadius: 8,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  disabledButton: {
-    opacity: 0.45,
-  },
-  primaryButtonText: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  quietButton: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    marginTop: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  quietButtonText: {
-    color: colors.textMuted,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  optionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  optionButton: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  selectedOption: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  optionButtonText: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  selectedOptionText: {
-    color: colors.surface,
-  },
-  mutedText: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  profilePhotoLabel: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: spacing.lg,
-    textTransform: 'uppercase',
-  },
-  profilePhotoRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  profilePhotoOption: {
-    aspectRatio: 1,
-    backgroundColor: colors.border,
-    borderColor: colors.border,
-    borderRadius: 14,
-    borderWidth: 2,
-    flex: 1,
-    overflow: 'hidden',
-  },
-  profilePhotoOptionSelected: {
-    borderColor: colors.accent,
-  },
-  profilePhotoOptionImage: {
-    height: '100%',
-    width: '100%',
-  },
-  petOptionList: {
-    gap: spacing.md,
-  },
-  petOptionCard: {
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: 'row',
-    overflow: 'hidden',
-  },
-  selectedPetOption: {
-    borderColor: colors.accent,
-    borderWidth: 2,
-  },
-  petOptionImage: {
-    height: 88,
-    width: 88,
-  },
-  petOptionImagePlaceholder: {
-    backgroundColor: colors.border,
-    height: 88,
-    width: 88,
-  },
-  petOptionMeta: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  petOptionLabel: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  petOptionCount: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginTop: spacing.xs,
-  },
-});

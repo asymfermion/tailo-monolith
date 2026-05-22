@@ -17,6 +17,7 @@ export type PipelineResumePlan = {
   phase: PipelinePhase;
   shouldContinueRecentScan: boolean;
   scanAfter: string | null;
+  scanCreatedAfterMs: number | null;
   pendingDetectionCount: number;
   scorableCandidateCount: number;
   promotableCandidateCount: number;
@@ -44,6 +45,7 @@ export async function getPipelineResumePlan(
     phase,
     shouldContinueRecentScan,
     scanAfter: scanProgress.after,
+    scanCreatedAfterMs: scanProgress.createdAfterMs,
     pendingDetectionCount,
     scorableCandidateCount: scorableCandidates.length,
     promotableCandidateCount: promotableCandidates.length,
@@ -70,4 +72,17 @@ export function hasIncompletePipelineWork(plan: PipelineResumePlan): boolean {
 
 export function shouldStartInitialScan(plan: PipelineResumePlan): boolean {
   return !plan.hasLocalAssets && !hasIncompletePipelineWork(plan);
+}
+
+/**
+ * Run a delta scan on app open when the library already has ingested assets.
+ * Runs even when detect/cluster/promote backlog exists — `runLocalPipeline`
+ * handles both the scan and processing stages.
+ */
+export function shouldRunIncrementalScan(plan: PipelineResumePlan): boolean {
+  return (
+    plan.hasLocalAssets &&
+    !plan.shouldContinueRecentScan &&
+    plan.phase === 'idle'
+  );
 }

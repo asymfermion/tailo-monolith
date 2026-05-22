@@ -7,4 +7,5 @@ export * from './contracts/upsert-pet.ts';
 export * from './contracts/create-upload-urls.ts';
 export * from './contracts/sync-event.ts';
 export * from './contracts/get-event-updates.ts';
+export * from './contracts/delete-event.ts';
 export * from './contracts/ai-result.ts';

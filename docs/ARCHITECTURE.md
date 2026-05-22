@@ -2,13 +2,13 @@
 
 Living architecture docs for the monorepo. **Update these when implementing something new** — not only at phase end.
 
-| Document                                                                             | Scope                                              | Status      |
-| ------------------------------------------------------------------------------------ | -------------------------------------------------- | ----------- |
-| [architecture/phase-0-local-spike.md](./architecture/phase-0-local-spike.md)         | Local photo pipeline, SQLite spike (no backend)    | Complete    |
-| [architecture/phase-1-local-mvp.md](./architecture/phase-1-local-mvp.md)             | Identity, onboarding, promoted events, local MVP   | In progress |
-| [architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md)         | Backend MVP, sync, uploads, AI, portability        | Planned     |
-| [architecture/account-upgrade-ux.md](./architecture/account-upgrade-ux.md)           | Anonymous-to-email journey, reminders, settings UX | Planned     |
-| [architecture/encrypted-media-ai-plan.md](./architecture/encrypted-media-ai-plan.md) | Encrypted media at rest with decrypt-for-AI flow   | Planned     |
+| Document                                                                             | Scope                                                                                                                           | Status      |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| [architecture/phase-0-local-spike.md](./architecture/phase-0-local-spike.md)         | Local photo pipeline, SQLite spike (no backend)                                                                                 | Complete    |
+| [architecture/phase-1-local-mvp.md](./architecture/phase-1-local-mvp.md)             | Identity, onboarding, promoted events, local MVP                                                                                | In progress |
+| [architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md)         | Backend MVP, sync, uploads, AI, portability ([data sync workflow](./architecture/phase-2-backend-mvp.md#data-syncing-workflow)) | Planned     |
+| [architecture/account-upgrade-ux.md](./architecture/account-upgrade-ux.md)           | Anonymous-to-email journey, reminders, settings UX                                                                              | Planned     |
+| [architecture/encrypted-media-ai-plan.md](./architecture/encrypted-media-ai-plan.md) | Encrypted media at rest with decrypt-for-AI flow                                                                                | Planned     |
 
 **Related:** [MOBILE_TASKS.md](./MOBILE_TASKS.md) (mobile + backend checklist) · [DEVELOPER.md](./DEVELOPER.md) (setup) · [Tailo_Agent_Coding_Guidelines_v2.md](../Tailo_Agent_Coding_Guidelines_v2.md) (full product reference)
 

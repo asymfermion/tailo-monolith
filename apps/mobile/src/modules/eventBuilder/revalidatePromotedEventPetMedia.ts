@@ -5,7 +5,7 @@ import {
   type ReconcilePromotedEventMediaResult,
 } from '@/db/reconcilePromotedEventMedia';
 import { pruneLocalTimelineForProfilePetType } from '@/db/localEvents';
-import type { LocalPetType } from '@/modules/pets';
+import type { LocalPetType } from '@/modules/pets/petProfile';
 
 import {
   redetectLocalAssets,

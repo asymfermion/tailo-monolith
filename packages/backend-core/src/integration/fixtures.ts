@@ -14,4 +14,5 @@ export const USER_EDGE_FUNCTIONS = [
   'create-upload-urls',
   'sync-event',
   'get-event-updates',
+  'delete-event',
 ] as const;

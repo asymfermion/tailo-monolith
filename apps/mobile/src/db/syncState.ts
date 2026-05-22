@@ -5,6 +5,7 @@ export const SYNC_STATE_KEYS = {
   SCAN_MODE: 'scan.mode',
   SCAN_AFTER: 'scan.after',
   SCAN_HAS_NEXT: 'scan.has_next',
+  SCAN_CREATED_AFTER_MS: 'scan.created_after_ms',
   APP_INSTALL_ID: 'app.install_id',
   PROFILE_PET_FILTER_APPLIED: 'pipeline.profile_pet_filter_applied',
   EVENTS_CURSOR: 'sync.events_cursor',
@@ -68,12 +69,13 @@ export async function clearScanSyncState(
   await db.runAsync(
     `
       DELETE FROM sync_state
-      WHERE state_key IN (?, ?, ?)
+      WHERE state_key IN (?, ?, ?, ?)
     `,
     [
       SYNC_STATE_KEYS.SCAN_MODE,
       SYNC_STATE_KEYS.SCAN_AFTER,
       SYNC_STATE_KEYS.SCAN_HAS_NEXT,
+      SYNC_STATE_KEYS.SCAN_CREATED_AFTER_MS,
     ],
   );
 }
@@ -98,6 +100,7 @@ export async function saveScanProgress(
     mode: ScanMode;
     after?: string | null;
     hasNextPage: boolean;
+    createdAfterMs?: number | null;
   },
 ): Promise<void> {
   await setSyncStateValue(db, SYNC_STATE_KEYS.SCAN_MODE, progress.mode);
@@ -112,6 +115,18 @@ export async function saveScanProgress(
   } else {
     await db.runAsync(`DELETE FROM sync_state WHERE state_key = ?`, [
       SYNC_STATE_KEYS.SCAN_AFTER,
+    ]);
+  }
+
+  if (progress.createdAfterMs != null) {
+    await setSyncStateValue(
+      db,
+      SYNC_STATE_KEYS.SCAN_CREATED_AFTER_MS,
+      String(progress.createdAfterMs),
+    );
+  } else {
+    await db.runAsync(`DELETE FROM sync_state WHERE state_key = ?`, [
+      SYNC_STATE_KEYS.SCAN_CREATED_AFTER_MS,
     ]);
   }
 }
@@ -145,6 +160,7 @@ export async function getScanProgress(db: SQLite.SQLiteDatabase): Promise<{
   mode: ScanMode;
   after: string | null;
   hasNextPage: boolean;
+  createdAfterMs: number | null;
 }> {
   const modeValue = await getSyncStateValue(db, SYNC_STATE_KEYS.SCAN_MODE);
   const after = await getSyncStateValue(db, SYNC_STATE_KEYS.SCAN_AFTER);
@@ -152,11 +168,22 @@ export async function getScanProgress(db: SQLite.SQLiteDatabase): Promise<{
     db,
     SYNC_STATE_KEYS.SCAN_HAS_NEXT,
   );
+  const createdAfterRaw = await getSyncStateValue(
+    db,
+    SYNC_STATE_KEYS.SCAN_CREATED_AFTER_MS,
+  );
+  const createdAfterMs = createdAfterRaw
+    ? Number.parseInt(createdAfterRaw, 10)
+    : Number.NaN;
 
   return {
     mode: isScanMode(modeValue) ? modeValue : 'idle',
     after,
     hasNextPage: hasNextValue === '1',
+    createdAfterMs:
+      Number.isFinite(createdAfterMs) && createdAfterMs >= 0
+        ? createdAfterMs
+        : null,
   };
 }
 

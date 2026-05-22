@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet } from 'react-native';
 
-import { colors } from '@/constants/theme';
 import { t } from '@/i18n';
+import { useAppearance } from '@/lib/appearance';
 
 import { useModalDismiss } from './ModalDismissContext';
 
@@ -19,10 +19,11 @@ type ModalBackButtonProps = {
 
 export function ModalBackButton({
   align = 'center',
-  color = colors.text,
+  color,
   onPress,
   size = 28,
 }: ModalBackButtonProps) {
+  const { colors } = useAppearance();
   const dismiss = useModalDismiss(onPress);
   const isLeading = align === 'leading';
 
@@ -39,7 +40,7 @@ export function ModalBackButton({
       onPress={dismiss}
     >
       <Ionicons
-        color={color}
+        color={color ?? colors.text}
         name="chevron-back"
         size={size}
         style={isLeading ? styles.iconLeading : undefined}

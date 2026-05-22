@@ -1,6 +1,7 @@
 import type * as SQLite from 'expo-sqlite';
 
 import { logDbInfo } from '@/db/dbLogger';
+import { logTailo } from '@/lib/tailoLogger';
 import { enqueueUploadQueueItems } from '@/db/uploadQueue';
 import {
   inspectUploadQueueForeignKeys,
@@ -52,5 +53,15 @@ export async function enqueueEventMediaUploads(
     status: 'pending',
   }));
 
-  return enqueueUploadQueueItems(database, items);
+  const enqueued = await enqueueUploadQueueItems(database, items);
+
+  logTailo('Upload', 'Queued moment media for cloud upload', {
+    localEventId,
+    requestedAssetCount: uniqueAssetIds.length,
+    enqueuedItemCount: enqueued,
+    reason:
+      'Runs after local promotion; worker uploads when signed in with remote pet',
+  });
+
+  return enqueued;
 }

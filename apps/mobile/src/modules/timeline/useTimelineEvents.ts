@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getDatabase } from '@/db';
 import { t } from '@/i18n';
@@ -28,9 +28,13 @@ export function useTimelineEvents(
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
 
   const refresh = useCallback(async () => {
-    setIsLoading(true);
+    if (eventsRef.current.length === 0) {
+      setIsLoading(true);
+    }
     setErrorMessage(null);
 
     try {

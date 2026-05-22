@@ -14,7 +14,7 @@ import { loadLocalPetProfile } from '@/modules/pets/petProfile';
 import { createUploadUrls } from './createUploadUrls';
 import { prepareEventMediaUpload } from './prepareEventMediaUpload';
 import { runUploadQueueWorker } from './uploadQueueWorker';
-import { runEventSyncForLocalEvent } from './runEventSync';
+import { runPendingCloudSyncForEvent } from './runPendingCloudSync';
 import { uploadToSignedUrl } from './uploadToSignedUrl';
 
 jest.mock('@/modules/auth/authService', () => ({
@@ -38,8 +38,10 @@ jest.mock('./uploadToSignedUrl', () => ({
   uploadToSignedUrl: jest.fn(),
 }));
 
-jest.mock('./runEventSync', () => ({
-  runEventSyncForLocalEvent: jest.fn().mockResolvedValue({ status: 'synced' }),
+jest.mock('./runPendingCloudSync', () => ({
+  runPendingCloudSyncForEvent: jest
+    .fn()
+    .mockResolvedValue({ status: 'synced' }),
 }));
 
 jest.mock('@/db/uploadQueue', () => ({
@@ -63,6 +65,9 @@ describe('runUploadQueueWorker', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    jest
+      .mocked(runPendingCloudSyncForEvent)
+      .mockResolvedValue({ status: 'synced' });
     jest.mocked(resetStuckUploadingQueueItems).mockResolvedValue();
     jest.mocked(getPendingUploadQueueItems).mockResolvedValue([]);
     jest.mocked(isRemoteAuthConfigured).mockReturnValue(true);
@@ -183,6 +188,9 @@ describe('runUploadQueueWorker', () => {
       'user/pet/event/asset-1/original.jpg',
       'user/pet/event/asset-1/thumb.jpg',
     );
-    expect(runEventSyncForLocalEvent).toHaveBeenCalledWith(database, 'event-1');
+    expect(runPendingCloudSyncForEvent).toHaveBeenCalledWith(
+      database,
+      'event-1',
+    );
   });
 });

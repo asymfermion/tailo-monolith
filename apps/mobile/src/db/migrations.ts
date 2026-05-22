@@ -2,7 +2,7 @@ import type * as SQLite from 'expo-sqlite';
 
 import { logDbInfo, logSqlFailure } from './dbLogger';
 
-export const CURRENT_SCHEMA_VERSION = 7;
+export const CURRENT_SCHEMA_VERSION = 11;
 
 type Migration = {
   version: number;
@@ -264,6 +264,52 @@ const migrations: Migration[] = [
 
         INSERT OR IGNORE INTO sync_state (state_key, state_value)
         VALUES ('sync.timeline_generation', '0');
+      `);
+    },
+  },
+  {
+    version: 9,
+    name: 'pending cloud sync flag on local events',
+    up: async (db) => {
+      await db.execAsync(`
+        ALTER TABLE local_events
+          ADD COLUMN pending_cloud_sync INTEGER NOT NULL DEFAULT 0
+            CHECK (pending_cloud_sync IN (0, 1));
+      `);
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS local_events_pending_cloud_sync_idx
+          ON local_events (pending_cloud_sync, updated_at)
+          WHERE pending_cloud_sync = 1;
+      `);
+    },
+  },
+  {
+    version: 10,
+    name: 'soft delete timestamp on local events',
+    up: async (db) => {
+      await db.execAsync(`
+        ALTER TABLE local_events
+          ADD COLUMN deleted_at TEXT;
+      `);
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS local_events_active_timestamp_idx
+          ON local_events (timestamp DESC)
+          WHERE deleted_at IS NULL;
+      `);
+    },
+  },
+  {
+    version: 11,
+    name: 'dismissed assets excluded from auto detect',
+    up: async (db) => {
+      await db.execAsync(`
+        ALTER TABLE local_assets
+          ADD COLUMN user_dismissed_at TEXT;
+      `);
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS local_assets_active_photo_idx
+          ON local_assets (created_at DESC)
+          WHERE media_type = 'photo' AND user_dismissed_at IS NULL;
       `);
     },
   },

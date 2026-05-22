@@ -41,6 +41,21 @@ describe('syncState', () => {
       mode: 'recent',
       after: 'cursor-1',
       hasNextPage: true,
+      createdAfterMs: null,
+    });
+
+    await saveScanProgress(db, {
+      mode: 'recent',
+      after: 'cursor-1',
+      hasNextPage: true,
+      createdAfterMs: 1_700_000_000_000,
+    });
+
+    await expect(getScanProgress(db)).resolves.toEqual({
+      mode: 'recent',
+      after: 'cursor-1',
+      hasNextPage: true,
+      createdAfterMs: 1_700_000_000_000,
     });
 
     expect(values.get(SYNC_STATE_KEYS.SCAN_MODE)).toBe('recent');

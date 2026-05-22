@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
+import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 import { formatPetType } from '@/lib/formatMoment';
 import type { LocalPetProfile } from '@/modules/pets/petProfile';
 
@@ -12,11 +13,100 @@ type PetProfileHeaderProps = {
   isLoading: boolean;
 };
 
+function createPetProfileHeaderStyles({
+  colors,
+  getFontFamily,
+}: AppearanceContextValue) {
+  return {
+    container: {
+      marginBottom: spacing.md,
+    },
+    summaryRow: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      gap: spacing.md,
+    },
+    avatar: {
+      borderRadius: 28,
+      height: 56,
+      width: 56,
+      backgroundColor: colors.border,
+    },
+    avatarPlaceholder: {
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      borderRadius: 28,
+      height: 56,
+      width: 56,
+      backgroundColor: colors.border,
+    },
+    avatarPlaceholderText: {
+      color: colors.accent,
+      fontFamily: getFontFamily('600'),
+      fontSize: 22,
+      fontWeight: '600' as const,
+    },
+    summaryText: {
+      flex: 1,
+    },
+    summaryLabel: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('700'),
+      fontSize: 12,
+      fontWeight: '700' as const,
+      textTransform: 'uppercase' as const,
+    },
+    summaryTitle: {
+      marginTop: spacing.xs,
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 18,
+      fontWeight: '600' as const,
+    },
+    askTailoButton: {
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      backgroundColor: colors.surface,
+    },
+    askTailoButtonText: {
+      color: colors.accent,
+      fontFamily: getFontFamily('600'),
+      fontSize: 14,
+      fontWeight: '600' as const,
+    },
+    askTailoCard: {
+      marginTop: spacing.md,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: spacing.md,
+    },
+    askTailoTitle: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    askTailoText: {
+      marginTop: spacing.sm,
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      lineHeight: 20,
+    },
+  };
+}
+
 export function PetProfileHeader({
   profile,
   isLoading,
 }: PetProfileHeaderProps) {
   const [askTailoOpen, setAskTailoOpen] = useState(false);
+  const styles = useThemedStyles(createPetProfileHeaderStyles);
   const petLabel = profile
     ? t('petProfile.nameWithType', {
         name: profile.name,
@@ -73,80 +163,3 @@ export function PetProfileHeader({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: spacing.md,
-  },
-  summaryRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  avatar: {
-    borderRadius: 28,
-    height: 56,
-    width: 56,
-    backgroundColor: colors.border,
-  },
-  avatarPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 28,
-    height: 56,
-    width: 56,
-    backgroundColor: colors.border,
-  },
-  avatarPlaceholderText: {
-    color: colors.accent,
-    fontSize: 22,
-    fontWeight: '600',
-  },
-  summaryText: {
-    flex: 1,
-  },
-  summaryLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  summaryTitle: {
-    marginTop: spacing.xs,
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  askTailoButton: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  askTailoButtonText: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  askTailoCard: {
-    marginTop: spacing.md,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-  },
-  askTailoTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  askTailoText: {
-    marginTop: spacing.sm,
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-});

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import { getDatabase } from '@/db';
 import { t } from '@/i18n';
-import { formatDbError, logDbInfo } from '@/db/dbLogger';
+import { formatDbError } from '@/db/dbLogger';
+import { logTailo } from '@/lib/tailoLogger';
 import { redetectLocalPetPipeline } from '@/modules/eventBuilder/redetectPipeline';
 import type { BestImageSelectionProgress } from '@/modules/eventBuilder/bestImageSelection';
 import type { EventClusteringProgress } from '@/modules/eventBuilder/eventClustering';
@@ -13,9 +15,11 @@ import {
   type PhotoPermissionResult,
   type PhotoPermissionStatus,
 } from './permissions';
+import { resolveIncrementalScanCreatedAfterMs } from './incrementalScan';
 import {
   getPipelineResumePlan,
   hasIncompletePipelineWork,
+  shouldRunIncrementalScan,
   shouldStartInitialScan,
 } from './pipelineResume';
 import { resumeLocalPipeline, runLocalPipeline } from './runLocalPipeline';
@@ -81,6 +85,7 @@ export function usePhotoAccess(
   redetectPets: () => Promise<void>;
 } {
   const { autoResumeOnMount = true } = options;
+  const pipelineInFlightRef = useRef(false);
   const [state, setState] = useState<PhotoAccessState>({
     permissionStatus: 'checking',
     canAskAgain: true,
@@ -172,6 +177,11 @@ export function usePhotoAccess(
         database: Awaited<ReturnType<typeof getDatabase>>,
       ) => Promise<void>,
     ) => {
+      if (pipelineInFlightRef.current) {
+        return;
+      }
+
+      pipelineInFlightRef.current = true;
       setState((current) => ({
         ...current,
         errorMessage: null,
@@ -181,9 +191,12 @@ export function usePhotoAccess(
       try {
         const database = await getDatabase();
         await runner(database);
+        logTailo('Pipeline', 'Local pipeline run finished');
         finishPipelineRun();
       } catch (error) {
-        logDbInfo('Pipeline failed', { error: formatDbError(error) });
+        logTailo('Pipeline', 'Local pipeline run failed', {
+          error: formatDbError(error),
+        });
         setState((current) => ({
           ...current,
           isScanning: false,
@@ -196,6 +209,8 @@ export function usePhotoAccess(
               ? error.message
               : t('errors.couldNotScanMoments'),
         }));
+      } finally {
+        pipelineInFlightRef.current = false;
       }
     },
     [finishPipelineRun],
@@ -213,28 +228,92 @@ export function usePhotoAccess(
   }, [pipelineProgress, runPipeline]);
 
   const resumeIfNeeded = useCallback(async () => {
+    const permission = await checkPhotoLibraryPermission();
+    applyPermission(permission);
+
+    if (!canScanPhotos(permission.status)) {
+      return;
+    }
+
     await runPipeline(async (database) => {
       const plan = await getPipelineResumePlan(database);
 
-      if (hasIncompletePipelineWork(plan)) {
-        await resumeLocalPipeline({
+      logTailo('Pipeline', 'Evaluated resume plan', {
+        phase: plan.phase,
+        shouldContinueRecentScan: plan.shouldContinueRecentScan,
+        willRunIncrementalScan: shouldRunIncrementalScan(plan),
+        hasLocalAssets: plan.hasLocalAssets,
+        pendingDetectionCount: plan.pendingDetectionCount,
+        scorableCandidateCount: plan.scorableCandidateCount,
+        promotableCandidateCount: plan.promotableCandidateCount,
+        pendingCloudUploadCount: plan.pendingUploadCount,
+      });
+
+      if (plan.shouldContinueRecentScan) {
+        logTailo('Pipeline', 'Resuming interrupted photo scan', {
+          scanAfter: plan.scanAfter,
+          scanCreatedAfterMs: plan.scanCreatedAfterMs,
+        });
+        await runLocalPipeline({
           database,
-          plan,
+          includeRecentScan: true,
+          resumeRecentScanAfter: plan.scanAfter,
+          scanCreatedAfterMs: plan.scanCreatedAfterMs,
           progress: pipelineProgress,
         });
         return;
       }
 
       if (shouldStartInitialScan(plan)) {
+        logTailo('Pipeline', 'Starting initial photo scan (28-day window)');
         await runLocalPipeline({
           database,
           includeRecentScan: true,
           includeOlderScan: true,
           progress: pipelineProgress,
         });
+        return;
+      }
+
+      if (shouldRunIncrementalScan(plan)) {
+        const createdAfterMs =
+          await resolveIncrementalScanCreatedAfterMs(database);
+
+        logTailo('Scan', 'Starting incremental photo scan', {
+          createdAfterMs,
+          createdAfterIso:
+            createdAfterMs != null
+              ? new Date(createdAfterMs).toISOString()
+              : null,
+          scanMode:
+            createdAfterMs != null ? 'since_last_moment' : 'fallback_window',
+          promotableBacklog: plan.promotableCandidateCount,
+        });
+
+        await runLocalPipeline({
+          database,
+          includeRecentScan: true,
+          scanCreatedAfterMs: createdAfterMs,
+          progress: pipelineProgress,
+        });
+        return;
+      }
+
+      if (hasIncompletePipelineWork(plan)) {
+        logTailo('Pipeline', 'Resuming processing only (no new photo scan)', {
+          phase: plan.phase,
+          pendingDetectionCount: plan.pendingDetectionCount,
+          scorableCandidateCount: plan.scorableCandidateCount,
+          promotableCandidateCount: plan.promotableCandidateCount,
+        });
+        await resumeLocalPipeline({
+          database,
+          plan,
+          progress: pipelineProgress,
+        });
       }
     });
-  }, [pipelineProgress, runPipeline]);
+  }, [applyPermission, pipelineProgress, runPipeline]);
 
   const redetectPets = useCallback(async () => {
     await runPipeline(async (database) => {
@@ -294,6 +373,30 @@ export function usePhotoAccess(
       isMounted = false;
     };
   }, [applyPermission, autoResumeOnMount, resumeIfNeeded]);
+
+  useEffect(() => {
+    if (!autoResumeOnMount) {
+      return;
+    }
+
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState !== 'active') {
+        return;
+      }
+
+      logTailo('App', 'App became active — checking local pipeline');
+      void resumeIfNeeded();
+    };
+
+    const subscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange,
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, [autoResumeOnMount, resumeIfNeeded]);
 
   return useMemo(
     () => ({

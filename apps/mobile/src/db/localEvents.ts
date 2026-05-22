@@ -35,6 +35,8 @@ export type LocalEventRow = {
   userEditedEventType: number;
   pendingAi: number;
   syncLockOwner: EventSyncLockOwner | null;
+  pendingCloudSync: number;
+  deletedAt: string | null;
 };
 
 export type EventSyncLockOwner = 'user' | 'ai';
@@ -119,6 +121,21 @@ export async function getPromotableEventCandidates(
   `);
 }
 
+/** ISO timestamp of the newest promoted timeline moment, if any. */
+export async function getNewestPromotedEventTimestamp(
+  db: SQLite.SQLiteDatabase,
+): Promise<string | null> {
+  const row = await db.getFirstAsync<{ timestamp: string }>(`
+    SELECT timestamp
+    FROM local_events
+    WHERE processing_state = 'processed'
+    ORDER BY timestamp DESC
+    LIMIT 1
+  `);
+
+  return row?.timestamp ?? null;
+}
+
 export async function getLocalEventById(
   db: SQLite.SQLiteDatabase,
   localEventId: string,
@@ -143,8 +160,46 @@ export async function getLocalEventById(
         user_edited_caption AS userEditedCaption,
         user_edited_event_type AS userEditedEventType,
         pending_ai AS pendingAi,
-        sync_lock_owner AS syncLockOwner
+        sync_lock_owner AS syncLockOwner,
+        pending_cloud_sync AS pendingCloudSync,
+        deleted_at AS deletedAt
       FROM local_events
+      WHERE local_event_id = ?
+    `,
+    [localEventId],
+  );
+}
+
+export async function listLocalEventIdsPendingCloudSync(
+  db: SQLite.SQLiteDatabase,
+  limit = 50,
+): Promise<string[]> {
+  const rows = await db.getAllAsync<{ localEventId: string }>(
+    `
+      SELECT local_event_id AS localEventId
+      FROM local_events
+      WHERE pending_cloud_sync = 1
+        AND processing_state = 'processed'
+        AND deleted_at IS NULL
+      ORDER BY updated_at ASC
+      LIMIT ?
+    `,
+    [limit],
+  );
+
+  return rows.map((row) => row.localEventId);
+}
+
+export async function clearLocalEventPendingCloudSync(
+  db: SQLite.SQLiteDatabase,
+  localEventId: string,
+): Promise<void> {
+  await db.runAsync(
+    `
+      UPDATE local_events
+      SET
+        pending_cloud_sync = 0,
+        updated_at = CURRENT_TIMESTAMP
       WHERE local_event_id = ?
     `,
     [localEventId],
@@ -180,13 +235,37 @@ export async function listLocalEventsForWipe(
         user_edited_caption AS userEditedCaption,
         user_edited_event_type AS userEditedEventType,
         pending_ai AS pendingAi,
-        sync_lock_owner AS syncLockOwner
+        sync_lock_owner AS syncLockOwner,
+        pending_cloud_sync AS pendingCloudSync,
+        deleted_at AS deletedAt
       FROM local_events
+      WHERE deleted_at IS NULL
     `,
   );
 }
 
-/** Removes a promoted timeline moment after cloud pet validation rejects it. */
+/** Hides a moment from the timeline without removing local media (cloud reject or future user delete). */
+export async function markLocalEventDeleted(
+  db: SQLite.SQLiteDatabase,
+  localEventId: string,
+  deletedAt: string,
+): Promise<void> {
+  await db.runAsync(
+    `
+      UPDATE local_events
+      SET
+        deleted_at = ?,
+        pending_ai = 0,
+        pending_cloud_sync = 0,
+        sync_lock_owner = NULL,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE local_event_id = ?
+    `,
+    [deletedAt, localEventId],
+  );
+}
+
+/** Removes a promoted timeline moment and its scores (hard delete). */
 export async function deletePromotedLocalEvent(
   db: SQLite.SQLiteDatabase,
   localEventId: string,
@@ -290,6 +369,7 @@ export async function updateLocalEvent(
     return false;
   }
 
+  assignments.push('pending_cloud_sync = 1');
   assignments.push("sync_lock_owner = 'user'");
   assignments.push('updated_at = CURRENT_TIMESTAMP');
   values.push(localEventId);

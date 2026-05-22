@@ -318,8 +318,6 @@ The Expo app uses **React Native `StyleSheet`**, not CSS files. Do not add `.css
 3. **Reuse components** — prefer shared buttons, rows, and bands in `src/components/` over duplicating style definitions across screens.
 4. **Calm UI** — off-white backgrounds, muted text, one accent; generous spacing from `theme.ts`. Match existing screens (`HomeScreen`, `OnboardingScreen`).
 5. **Do not** introduce global style frameworks or theme providers without an explicit task — the project standard is `theme.ts` + `StyleSheet`.
-6. **Fit current devices** — screens must work on recent iPhones, iPads, and common Android phone sizes. Avoid clipped, overlapping, or off-screen UI; respect safe areas; prefer layouts that adapt cleanly to compact phone widths and wider tablet widths.
-7. **Treat responsiveness as required** — when building or changing screens, check text wrapping, scroll behavior, touch targets, and image sizing so the UI remains usable across small phones, large phones, and tablets.
 
 ### Example
 
@@ -338,6 +336,44 @@ const styles = StyleSheet.create({
   },
 });
 ```
+
+---
+
+## Responsive layout (mobile, required)
+
+Every screen and shared UI component must remain usable across **compact phones, large phones, and tablets** (portrait-first; landscape may stay locked unless a task says otherwise).
+
+### Layout rules
+
+1. **Flex-first** — use `flex: 1`, `flexGrow` / `flexShrink`, and `minWidth: 0` on rows so text and chips wrap instead of overflowing. Avoid fixed widths for main content; percentage widths only when necessary.
+2. **Safe areas** — use `react-native-safe-area-context` (`useSafeAreaInsets`, `getTabScreenTopPadding`, `getModalHeaderHeight` in `src/navigation/modalHeaderInset.ts`). Do not rely on a non-scrolling `paddingTop` on `AppShell` for tab content — put top inset on scrollable headers.
+3. **Scroll overflow** — long copy, forms, and lists belong in `ScrollView` / `FlatList` with bottom inset for the floating tab bar (`useTabBarContentInset`). Set list/scroll `backgroundColor` to `colors.background` so overscroll does not flash white.
+4. **Width-aware overlays** — menus and dialogs use helpers in [`apps/mobile/src/lib/responsive.ts`](./apps/mobile/src/lib/responsive.ts) (`useDialogMaxWidth`, `getContentWidth`), not hardcoded `maxWidth` literals.
+5. **Touch targets** — interactive controls should be at least **44×44pt** (`MIN_TOUCH_TARGET` in `responsive.ts`) unless nested in a larger pressable row.
+6. **Images** — prefer `width: '100%'` with `aspectRatio`; never assume a single phone width in px.
+7. **Tab / modal shell** — horizontal tab pager must size pages from `onLayout` width; modals use measured container width for swipe-back.
+
+### Text and accessibility
+
+- App startup calls `configureTextAccessibility()` in [`apps/mobile/App.tsx`](./apps/mobile/App.tsx) so `Text` / `TextInput` respect system font size with a capped multiplier (`MAX_FONT_SIZE_MULTIPLIER`).
+- Do not disable `allowFontScaling` on body copy. Titles may use `numberOfLines` / wrapping where needed.
+
+### Helpers (reuse, do not duplicate)
+
+| Helper                     | Use                                      |
+| -------------------------- | ---------------------------------------- |
+| `useDialogMaxWidth()`      | Action menus, centered sheets            |
+| `getTabScreenTopPadding()` | Tab screen scroll header top inset       |
+| `getModalHeaderHeight()`   | Modal scroll padding under fixed toolbar |
+| `MIN_TOUCH_TARGET`         | Buttons, icon hit areas                  |
+
+### Before finishing UI work
+
+- Check **narrow** (~320pt width) and **wide** (~768pt tablet) in the simulator or Expo preview.
+- Confirm header rows wrap, nothing clips under the status bar or tab bar, and pull-to-refresh does not show a white band.
+- Add or update unit tests for pure layout helpers in `responsive.test.ts`.
+
+`supportsTablet` is **true** in `app.json`; tablet layouts may remain phone-like until a dedicated tablet task, but must not clip or overlap.
 
 ---
 

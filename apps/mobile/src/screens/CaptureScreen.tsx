@@ -1,18 +1,109 @@
 import { useRef, useState } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import type { CameraView as CameraViewInstance } from 'expo-camera';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
+import {
+  useAppearance,
+  useThemedStyles,
+  type AppearanceContextValue,
+} from '@/lib/appearance';
 import { ModalBackButton } from '@/navigation/components/ModalBackButton';
 import { useNavigation } from '@/navigation/NavigationContext';
+
+function createCaptureScreenStyles({
+  colors,
+  getFontFamily,
+}: AppearanceContextValue) {
+  return {
+    container: {
+      flex: 1,
+      backgroundColor: '#000',
+    },
+    camera: {
+      flex: 1,
+    },
+    overlay: {
+      position: 'absolute' as const,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xl,
+      gap: spacing.md,
+    },
+    centered: {
+      alignItems: 'center' as const,
+      flex: 1,
+      justifyContent: 'center' as const,
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: colors.background,
+    },
+    title: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 22,
+      fontWeight: '600' as const,
+      textAlign: 'center' as const,
+    },
+    message: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+      textAlign: 'center' as const,
+    },
+    hint: {
+      color: '#FFFFFF',
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      textAlign: 'center' as const,
+    },
+    backLink: {
+      color: '#FFFFFF',
+      fontFamily: getFontFamily('600'),
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    primaryButton: {
+      borderRadius: 8,
+      backgroundColor: colors.accent,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    primaryButtonText: {
+      color: colors.surface,
+      fontFamily: getFontFamily('600'),
+      fontSize: 15,
+      fontWeight: '600' as const,
+    },
+    shutterButton: {
+      alignSelf: 'center' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      width: 76,
+      height: 76,
+      borderRadius: 38,
+      borderWidth: 4,
+      borderColor: '#FFFFFF',
+    },
+    shutterInner: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      backgroundColor: '#FFFFFF',
+    },
+    error: {
+      color: '#FFD5CC',
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      textAlign: 'center' as const,
+    },
+  };
+}
 
 export function CaptureScreen() {
   const navigation = useNavigation();
@@ -20,6 +111,8 @@ export function CaptureScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { colors } = useAppearance();
+  const styles = useThemedStyles(createCaptureScreenStyles);
 
   if (!permission) {
     return (
@@ -107,84 +200,3 @@ export function CaptureScreen() {
     }
   }
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  camera: {
-    flex: 1,
-  },
-  overlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-    gap: spacing.md,
-  },
-  centered: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  message: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  hint: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  backLink: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  primaryButton: {
-    borderRadius: 8,
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  primaryButtonText: {
-    color: colors.surface,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  shutterButton: {
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-  },
-  shutterInner: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#FFFFFF',
-  },
-  error: {
-    color: '#FFD5CC',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-});

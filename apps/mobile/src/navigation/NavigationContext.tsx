@@ -30,6 +30,9 @@ type NavigationContextValue = {
   canGoBack: boolean;
   captureCompletedNonce: number;
   completeCapture: () => void;
+  /** Bumped when moment data changes (reorder, edits) so the timeline reloads. */
+  timelineChangedNonce: number;
+  notifyTimelineChanged: () => void;
 };
 
 const NavigationContext = createContext<NavigationContextValue | null>(null);
@@ -42,6 +45,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     createEmptyModalStack,
   );
   const [captureCompletedNonce, setCaptureCompletedNonce] = useState(0);
+  const [timelineChangedNonce, setTimelineChangedNonce] = useState(0);
 
   const setActiveTab = useCallback((tab: MainTabId) => {
     setActiveTabState(tab);
@@ -79,6 +83,10 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     dispatchModal({ type: 'popAll' });
   }, []);
 
+  const notifyTimelineChanged = useCallback(() => {
+    setTimelineChangedNonce((value) => value + 1);
+  }, []);
+
   const value = useMemo(
     () => ({
       activeTab,
@@ -91,17 +99,21 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       canGoBack: modalStack.length > 0,
       captureCompletedNonce,
       completeCapture,
+      timelineChangedNonce,
+      notifyTimelineChanged,
     }),
     [
       activeTab,
       captureCompletedNonce,
       completeCapture,
       modalStack,
+      notifyTimelineChanged,
       openSettings,
       pop,
       popToRoot,
       push,
       setActiveTab,
+      timelineChangedNonce,
     ],
   );
 

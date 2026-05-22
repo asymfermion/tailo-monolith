@@ -1,4 +1,5 @@
 import type { getDatabase } from '@/db';
+import { logTailo } from '@/lib/tailoLogger';
 import { pruneLocalTimelineForProfilePetType } from '@/db/localEvents';
 import { reapplyPetCandidateFlagsForProfile } from '@/db/localAssets';
 import {
@@ -6,7 +7,7 @@ import {
   saveScanProgress,
   setPipelinePhase,
 } from '@/db/syncState';
-import { loadLocalPetProfile } from '@/modules/pets';
+import { loadLocalPetProfile } from '@/modules/pets/petProfile';
 import {
   promoteScoredCandidatesToLocalEvents,
   selectBestEventImages,
@@ -17,6 +18,7 @@ import {
   type PetDetectionProgress,
 } from '@/modules/eventBuilder';
 
+import { resolveIncrementalScanCreatedAfterMs } from './incrementalScan';
 import type { PipelineResumePlan } from './pipelineResume';
 import {
   scanOlderPhotos,
@@ -35,6 +37,8 @@ export type RunLocalPipelineOptions = {
   database: Awaited<ReturnType<typeof getDatabase>>;
   includeRecentScan?: boolean;
   resumeRecentScanAfter?: string | null;
+  /** When set, recent scan only ingests photos newer than this time. */
+  scanCreatedAfterMs?: number | null;
   includeOlderScan?: boolean;
   progress?: LocalPipelineProgress;
 };
@@ -43,6 +47,7 @@ export async function runLocalPipeline({
   database,
   includeRecentScan = false,
   resumeRecentScanAfter = null,
+  scanCreatedAfterMs = null,
   includeOlderScan = false,
   progress,
 }: RunLocalPipelineOptions): Promise<void> {
@@ -52,10 +57,12 @@ export async function runLocalPipeline({
       mode: 'recent',
       after: resumeRecentScanAfter,
       hasNextPage: true,
+      createdAfterMs: scanCreatedAfterMs,
     });
 
     const scanResult = await scanRecentPhotos({
       database,
+      createdAfterMs: scanCreatedAfterMs,
       startAfter: resumeRecentScanAfter ?? undefined,
       onProgress: async (scanProgress) => {
         progress?.onScanProgress?.(scanProgress);
@@ -63,8 +70,18 @@ export async function runLocalPipeline({
           mode: 'recent',
           after: scanProgress.endCursor ?? null,
           hasNextPage: scanProgress.hasNextPage,
+          createdAfterMs: scanCreatedAfterMs,
         });
       },
+    });
+
+    logTailo('Scan', 'Photo library scan phase finished', {
+      scannedCount: scanResult.scannedCount,
+      persistedCount: scanResult.persistedCount,
+      batchCount: scanResult.batchCount,
+      hasNextPage: scanResult.hasNextPage,
+      scanMode: scanCreatedAfterMs != null ? 'incremental' : 'initial_window',
+      createdAfterMs: scanCreatedAfterMs,
     });
 
     if (!scanResult.hasNextPage) {
@@ -93,6 +110,7 @@ export async function resumeLocalPipeline({
       database,
       includeRecentScan: true,
       resumeRecentScanAfter: plan.scanAfter,
+      scanCreatedAfterMs: plan.scanCreatedAfterMs,
       progress,
     });
     return;
@@ -142,25 +160,55 @@ async function runPipelineProcessingStages(
   progress?: LocalPipelineProgress,
 ): Promise<void> {
   await setPipelinePhase(database, 'detect');
-  await processPendingPetCandidates({
+  const detection = await processPendingPetCandidates({
     database,
     onProgress: progress?.onDetectingProgress,
   });
 
+  if (detection.processedCount > 0) {
+    logTailo('Detect', 'Pet detection pass finished', {
+      processedCount: detection.processedCount,
+      petCandidateCount: detection.petCandidateCount,
+    });
+  }
+
   await setPipelinePhase(database, 'cluster');
-  await clusterLocalPetEvents({
+  const clustering = await clusterLocalPetEvents({
     database,
     onProgress: progress?.onClusteringProgress,
   });
 
+  if (clustering.eventCandidateCount > 0) {
+    logTailo('Cluster', 'Event clustering pass finished', {
+      petCandidateCount: clustering.petCandidateCount,
+      eventCandidateCount: clustering.eventCandidateCount,
+      persistedCount: clustering.persistedCount,
+    });
+  }
+
   await setPipelinePhase(database, 'select');
-  await selectBestEventImages({
+  const selection = await selectBestEventImages({
     database,
     onProgress: progress?.onSelectingProgress,
   });
 
+  if (selection.scoredAssetCount > 0) {
+    logTailo('Pipeline', 'Best-image selection pass finished', {
+      eventCount: selection.eventCount,
+      scoredAssetCount: selection.scoredAssetCount,
+      selectedAssetCount: selection.selectedAssetCount,
+    });
+  }
+
   await setPipelinePhase(database, 'promote');
-  await promoteScoredCandidatesToLocalEvents({ database });
+  const promotion = await promoteScoredCandidatesToLocalEvents({ database });
+
+  if (promotion.promotedCount > 0) {
+    logTailo('Promote', 'New timeline moments promoted locally', {
+      promotedCount: promotion.promotedCount,
+      candidateCount: promotion.candidateCount,
+    });
+  }
 
   await setPipelinePhase(database, 'idle');
 }

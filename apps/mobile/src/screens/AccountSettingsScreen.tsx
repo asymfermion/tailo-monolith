@@ -2,15 +2,19 @@ import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
+import {
+  useAppearance,
+  useThemedStyles,
+  type AppearanceContextValue,
+} from '@/lib/appearance';
 import { ModalBackButton } from '@/navigation/components/ModalBackButton';
 import { getModalHeaderTopInset } from '@/navigation/modalHeaderInset';
 import {
@@ -24,6 +28,100 @@ import { useNavigation } from '@/navigation/NavigationContext';
 
 type FormStep = 'email' | 'code' | 'done';
 
+function createAccountSettingsScreenStyles({
+  colors,
+  getFontFamily,
+}: AppearanceContextValue) {
+  return {
+    screen: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+    },
+    centered: {
+      alignItems: 'center' as const,
+      flex: 1,
+      justifyContent: 'center' as const,
+    },
+    content: {
+      flex: 1,
+      paddingTop: spacing.lg,
+    },
+    title: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 24,
+      fontWeight: '600' as const,
+    },
+    body: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: spacing.sm,
+    },
+    fieldLabel: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 14,
+      fontWeight: '600' as const,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    codeHint: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: spacing.sm,
+    },
+    input: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      color: colors.text,
+      fontFamily: getFontFamily('400'),
+      fontSize: 16,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+    },
+    primaryButton: {
+      alignItems: 'center' as const,
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      marginTop: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    primaryButtonDisabled: {
+      opacity: 0.6,
+    },
+    primaryButtonText: {
+      color: colors.surface,
+      fontFamily: getFontFamily('600'),
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    secondaryAction: {
+      alignItems: 'center' as const,
+      marginTop: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    secondaryActionText: {
+      color: colors.accent,
+      fontFamily: getFontFamily('600'),
+      fontSize: 15,
+      fontWeight: '600' as const,
+    },
+    errorText: {
+      color: colors.destructive,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      lineHeight: 20,
+      marginTop: spacing.md,
+    },
+  };
+}
+
 export function AccountSettingsScreen() {
   const navigation = useNavigation();
   const account = useAuthAccountStatus();
@@ -32,6 +130,8 @@ export function AccountSettingsScreen() {
   const [code, setCode] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { colors } = useAppearance();
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
 
   const isLinked =
     !account.isAnonymous && account.emailConfirmed && Boolean(account.email);
@@ -203,6 +303,7 @@ function AccountLayout({
   onBack: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
 
   return (
     <View
@@ -226,6 +327,8 @@ function PrimaryButton({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createAccountSettingsScreenStyles);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -237,84 +340,3 @@ function PrimaryButton({
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  centered: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-  },
-  content: {
-    flex: 1,
-    paddingTop: spacing.lg,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  body: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: spacing.sm,
-  },
-  fieldLabel: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  codeHint: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    color: colors.text,
-    fontSize: 16,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    marginTop: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryAction: {
-    alignItems: 'center',
-    marginTop: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  secondaryActionText: {
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  errorText: {
-    color: '#9B4D4D',
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: spacing.md,
-  },
-});

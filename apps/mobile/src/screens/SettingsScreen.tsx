@@ -1,13 +1,23 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { Ionicons } from '@expo/vector-icons';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, type ReactNode } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, spacing } from '@/constants/theme';
+import { getFontFamilyForStyle } from '@/constants/typography';
+import { spacing, type AppTheme } from '@/constants/theme';
 import { setAppLocale, t, useAppLocale } from '@/i18n';
+import {
+  APP_FONT_STYLES,
+  setAppFontStyle,
+  useAppFontStyle,
+  type AppFontStyle,
+} from '@/lib/appFontStyle';
+import { setAppTheme, useAppTheme } from '@/lib/appTheme';
+import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
 import { useNavigation } from '@/navigation/NavigationContext';
 import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
+
+import { SettingsOptionPicker } from './settings/SettingsOptionPicker';
 
 type SettingsRowProps = {
   description?: string;
@@ -15,19 +25,152 @@ type SettingsRowProps = {
   onPress?: () => void;
 };
 
+const FONT_STYLE_LABEL_KEYS: Record<AppFontStyle, string> = {
+  system: 'settings.fontStyles.system',
+  serif: 'settings.fontStyles.serif',
+  rounded: 'settings.fontStyles.rounded',
+  modern: 'settings.fontStyles.modern',
+  elegant: 'settings.fontStyles.elegant',
+};
+
+function createSettingsStyles({
+  colors,
+  getFontFamily,
+}: AppearanceContextValue) {
+  return {
+    screen: {
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+    content: {
+      paddingHorizontal: spacing.lg,
+    },
+    title: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 28,
+      fontWeight: '600' as const,
+    },
+    subtitle: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: spacing.xs,
+    },
+    section: {
+      marginTop: spacing.lg,
+    },
+    sectionTitle: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('700'),
+      fontSize: 12,
+      fontWeight: '700' as const,
+      letterSpacing: 0.6,
+      marginBottom: spacing.sm,
+      textTransform: 'uppercase' as const,
+    },
+    sectionCard: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      overflow: 'hidden' as const,
+    },
+    row: {
+      alignItems: 'center' as const,
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: 'row' as const,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+    },
+    rowPressed: {
+      backgroundColor: colors.background,
+    },
+    rowInner: {
+      flex: 1,
+    },
+    rowLabel: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+    rowDescription: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      lineHeight: 20,
+      marginTop: spacing.xs,
+    },
+    chevron: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 22,
+      lineHeight: 22,
+      marginLeft: spacing.sm,
+    },
+  };
+}
+
+type SettingsStyles = ReturnType<typeof createSettingsStyles>;
+
 export function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const tabBarContentInset = useTabBarContentInset();
   const locale = useAppLocale();
-  const [isLanguageListOpen, setIsLanguageListOpen] = useState(false);
-  const selectedLanguageLabel = useMemo(
-    () =>
-      locale === 'zh-Hans'
-        ? t('settings.languages.simplifiedChinese')
-        : t('settings.languages.english'),
+  const theme = useAppTheme();
+  const fontStyle = useAppFontStyle();
+  const styles = useThemedStyles(createSettingsStyles);
+
+  const languageOptions = useMemo(
+    () => [
+      { value: 'en' as const, label: t('settings.languages.english') },
+      {
+        value: 'zh-Hans' as const,
+        label: t('settings.languages.simplifiedChinese'),
+      },
+    ],
     [locale],
   );
+
+  const themeOptions = useMemo(
+    () => [
+      { value: 'light' as AppTheme, label: t('settings.themes.light') },
+      { value: 'dark' as AppTheme, label: t('settings.themes.dark') },
+    ],
+    [locale, theme],
+  );
+
+  const fontStyleOptions = useMemo(
+    () =>
+      APP_FONT_STYLES.map((value) => ({
+        value,
+        label: t(FONT_STYLE_LABEL_KEYS[value]),
+        labelStyle: {
+          fontFamily: getFontFamilyForStyle(value, '600'),
+          fontSize: 16,
+          fontWeight: '600' as const,
+        },
+      })),
+    [locale],
+  );
+
+  const selectedFontLabelStyle = useMemo(
+    () => ({
+      fontFamily: getFontFamilyForStyle(fontStyle, '600'),
+      fontSize: 16,
+      fontWeight: '600' as const,
+    }),
+    [fontStyle],
+  );
+
+  const selectedLanguageLabel =
+    locale === 'zh-Hans'
+      ? t('settings.languages.simplifiedChinese')
+      : t('settings.languages.english');
 
   return (
     <ScrollView
@@ -44,51 +187,73 @@ export function SettingsScreen() {
       <Text style={styles.title}>{t('navigation.tabs.Settings')}</Text>
       <Text style={styles.subtitle}>{t('settings.subtitle')}</Text>
 
-      <SettingsSection title={t('settings.sections.account')}>
+      <SettingsSection styles={styles} title={t('settings.sections.account')}>
         <SettingsRow
           description={t('settings.accountDescription')}
           label={t('settings.accountLabel')}
+          styles={styles}
           onPress={() => navigation.push('AccountSettings')}
         />
       </SettingsSection>
 
-      <SettingsSection title={t('settings.sections.localization')}>
-        <LanguageDropdown
-          isOpen={isLanguageListOpen}
+      <SettingsSection
+        styles={styles}
+        title={t('settings.sections.localization')}
+      >
+        <SettingsOptionPicker
+          accessibilityLabel={t('settings.languageLabel')}
+          options={languageOptions}
           selectedLabel={selectedLanguageLabel}
-          onToggle={() => setIsLanguageListOpen((value) => !value)}
+          selectedValue={locale}
+          onSelect={(value) => {
+            void setAppLocale(value);
+          }}
         />
-        {isLanguageListOpen ? (
-          <>
-            <LanguageOption
-              isSelected={locale === 'en'}
-              label={t('settings.languages.english')}
-              onPress={() => {
-                void setAppLocale('en');
-                setIsLanguageListOpen(false);
-              }}
-            />
-            <LanguageOption
-              isSelected={locale === 'zh-Hans'}
-              label={t('settings.languages.simplifiedChinese')}
-              onPress={() => {
-                void setAppLocale('zh-Hans');
-                setIsLanguageListOpen(false);
-              }}
-            />
-          </>
-        ) : null}
       </SettingsSection>
 
-      <SettingsSection title={t('settings.sections.preferences')}>
+      <SettingsSection styles={styles} title={t('settings.sections.theme')}>
+        <SettingsOptionPicker
+          accessibilityLabel={t('settings.themeLabel')}
+          options={themeOptions}
+          selectedLabel={
+            theme === 'dark'
+              ? t('settings.themes.dark')
+              : t('settings.themes.light')
+          }
+          selectedValue={theme}
+          onSelect={(value) => {
+            void setAppTheme(value);
+          }}
+        />
+      </SettingsSection>
+
+      <SettingsSection styles={styles} title={t('settings.sections.fontStyle')}>
+        <SettingsOptionPicker
+          accessibilityLabel={t('settings.fontStyleLabel')}
+          options={fontStyleOptions}
+          selectedLabel={t(FONT_STYLE_LABEL_KEYS[fontStyle])}
+          selectedLabelStyle={selectedFontLabelStyle}
+          selectedValue={fontStyle}
+          onSelect={(value) => {
+            void setAppFontStyle(value);
+          }}
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        styles={styles}
+        title={t('settings.sections.preferences')}
+      >
         <SettingsRow
           description={t('settings.timelineScanDescription')}
           label={t('settings.timelineScanLabel')}
+          styles={styles}
           onPress={() => navigation.setActiveTab('Timeline')}
         />
         <SettingsRow
           description={t('settings.petProfileDescription')}
           label={t('settings.petProfileLabel')}
+          styles={styles}
           onPress={() => navigation.setActiveTab('PetProfile')}
         />
       </SettingsSection>
@@ -96,66 +261,13 @@ export function SettingsScreen() {
   );
 }
 
-function LanguageDropdown({
-  isOpen,
-  onToggle,
-  selectedLabel,
-}: {
-  isOpen: boolean;
-  onToggle: () => void;
-  selectedLabel: string;
-}) {
-  return (
-    <Pressable
-      accessibilityLabel={t('settings.languageLabel')}
-      accessibilityRole="button"
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-      onPress={onToggle}
-    >
-      <Text style={[styles.rowLabel, styles.languageSelection]}>
-        {selectedLabel}
-      </Text>
-      <View style={styles.chevronWrap}>
-        <Ionicons
-          color={colors.textMuted}
-          name={isOpen ? 'chevron-up' : 'chevron-down'}
-          size={20}
-        />
-      </View>
-    </Pressable>
-  );
-}
-
-function LanguageOption({
-  isSelected,
-  label,
-  onPress,
-}: {
-  isSelected: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.languageOptionRow,
-        pressed && styles.rowPressed,
-        isSelected && styles.rowSelected,
-      ]}
-      onPress={onPress}
-    >
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.languageCheck}>{isSelected ? '✓' : ''}</Text>
-    </Pressable>
-  );
-}
-
 function SettingsSection({
   children,
+  styles,
   title,
 }: {
   children: ReactNode;
+  styles: SettingsStyles;
   title: string;
 }) {
   return (
@@ -166,7 +278,14 @@ function SettingsSection({
   );
 }
 
-function SettingsRow({ description, label, onPress }: SettingsRowProps) {
+function SettingsRow({
+  description,
+  label,
+  onPress,
+  styles,
+}: SettingsRowProps & {
+  styles: SettingsStyles;
+}) {
   const content = (
     <View style={styles.rowInner}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -191,102 +310,3 @@ function SettingsRow({ description, label, onPress }: SettingsRowProps) {
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    paddingHorizontal: spacing.lg,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '600',
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: spacing.xs,
-  },
-  section: {
-    marginTop: spacing.lg,
-  },
-  sectionTitle: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-  },
-  sectionCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  row: {
-    alignItems: 'center',
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  rowPressed: {
-    backgroundColor: colors.background,
-  },
-  rowSelected: {
-    backgroundColor: colors.background,
-  },
-  languageOptionRow: {
-    alignItems: 'center',
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  rowInner: {
-    flex: 1,
-  },
-  rowLabel: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  languageSelection: {
-    flex: 1,
-  },
-  rowDescription: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: spacing.xs,
-  },
-  chevron: {
-    color: colors.textMuted,
-    fontSize: 22,
-    lineHeight: 22,
-    marginLeft: spacing.sm,
-  },
-  chevronWrap: {
-    alignItems: 'center',
-    height: 24,
-    justifyContent: 'center',
-    marginLeft: spacing.sm,
-    width: 24,
-  },
-  languageCheck: {
-    color: colors.accent,
-    fontSize: 20,
-    fontWeight: '700',
-    marginLeft: spacing.sm,
-    minWidth: 16,
-    textAlign: 'center',
-  },
-});

@@ -1,4 +1,5 @@
 import type { getDatabase } from '@/db';
+import { logTailo } from '@/lib/tailoLogger';
 import { clearLocalEventTombstone } from '@/db/localEventTombstones';
 import {
   getPromotableEventCandidates,
@@ -65,13 +66,20 @@ export async function promoteScoredCandidatesToLocalEvents({
   );
 
   for (const event of events) {
-    await enqueueEventMediaUploads(
+    const queuedCount = await enqueueEventMediaUploads(
       database,
       event.localEventId,
       event.selectedAssetIds,
     );
+
+    logTailo('Promote', 'Moment queued for cloud sync', {
+      localEventId: event.localEventId,
+      timestamp: event.timestamp,
+      queuedAssetCount: queuedCount,
+    });
   }
 
+  logTailo('Upload', 'Starting cloud upload worker after promotion');
   void runUploadQueueWorker(database);
 
   onProgress?.({

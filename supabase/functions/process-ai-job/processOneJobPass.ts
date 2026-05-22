@@ -212,6 +212,7 @@ export async function processOneJobPass(
       .from('events')
       .update({
         pet_validation_status: 'rejected',
+        deleted_at: nowIso,
         caption: null,
         caption_source: 'placeholder',
         sync_version: (event.sync_version ?? 0) + 1,

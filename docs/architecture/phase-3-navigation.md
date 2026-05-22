@@ -39,10 +39,18 @@ Implementation: `modalStack` reducer + `ModalShell` in `NavigationContext`.
 - `push('EventDetail', …)` / `pop()` / `popToRoot()` for modals
 - `openSettings({ section: 'account' })` — switches to Settings tab and optionally opens account modal
 
+## Responsive layout
+
+- Tab screens: top safe-area padding on scroll content (`getTabScreenTopPadding`), not on `AppShell`.
+- Modals: fixed overlay toolbar + `getModalHeaderHeight` scroll padding (`EventDetailScreen`).
+- Shared helpers: `apps/mobile/src/lib/responsive.ts`; global text scaling via `configureTextAccessibility()` in `App.tsx`.
+- See **AGENTS.md → Responsive layout (mobile, required)** for agent rules.
+
 ## Change log
 
 | Date       | Change                                                                                    |
 | ---------- | ----------------------------------------------------------------------------------------- |
+| 2026-05-20 | Responsive layout helpers, safe-area on scroll headers, `supportsTablet`, AGENTS.md rules |
 | 2026-05-20 | Replace single `Home` stack with tab shell + modal stack; `HomeScreen` → `TimelineScreen` |
 | 2026-05-19 | Floating icon tab bar (home / paw / settings); Timeline labeled Home in copy & a11y       |
 | 2026-05-19 | Tab bar overlays content; scroll padding only (no shell bottom reserved band)             |

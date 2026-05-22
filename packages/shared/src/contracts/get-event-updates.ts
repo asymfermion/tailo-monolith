@@ -23,7 +23,13 @@ export type RemoteEventUpdate = {
   user_edited_event_type: boolean;
   ai_job_status: RemoteAiJobStatus;
   pet_validation_status: PetValidationStatus;
+  /** ISO timestamp when the event was soft-deleted (cloud reject or future user delete). */
+  deleted_at: string | null;
 };
+
+export function isRemoteEventSoftDeleted(remote: RemoteEventUpdate): boolean {
+  return remote.deleted_at !== null;
+}
 
 export type GetEventUpdatesRequest = {
   cursor?: string | null;
@@ -91,12 +97,17 @@ export function isGetEventUpdatesResponse(
 
     const eventType = Reflect.get(event, 'event_type');
 
+    const deletedAt = Reflect.get(event, 'deleted_at');
+
     return (
       typeof Reflect.get(event, 'event_id') === 'string' &&
       typeof Reflect.get(event, 'source_local_event_id') === 'string' &&
       typeof eventType === 'string' &&
       EVENT_TYPES.includes(eventType as EventType) &&
-      typeof Reflect.get(event, 'sync_version') === 'number'
+      typeof Reflect.get(event, 'sync_version') === 'number' &&
+      (deletedAt === null ||
+        deletedAt === undefined ||
+        typeof deletedAt === 'string')
     );
   });
 }

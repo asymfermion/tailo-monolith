@@ -1,12 +1,17 @@
 import { memo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { MediaDetectionDebugBadge } from '@/components/MediaDetectionDebugBadge';
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { formatEventType, formatTimestamp } from '@/lib/formatMoment';
 import { t, useAppLocale } from '@/i18n';
+import {
+  useAppearance,
+  useThemedStyles,
+  type AppearanceContextValue,
+} from '@/lib/appearance';
 import type { TimelineEvent, TimelineEventMedia } from '@/types';
 
 import { MomentActionMenu } from './MomentActionMenu';
@@ -16,24 +21,104 @@ type TimelineMomentCardProps = {
   onDelete: (localEventId: string) => void;
   onEdit: (localEventId: string) => void;
   onPress: (localEventId: string) => void;
+  onPressPhoto: (event: TimelineEvent, photoIndex: number) => void;
   onShare: (localEventId: string) => void;
   onToggleFavorite: (localEventId: string, isFavorite: boolean) => void;
 };
+
+function createTimelineMomentCardStyles({
+  colors,
+  getFontFamily,
+}: AppearanceContextValue) {
+  return {
+    card: {
+      gap: spacing.sm,
+    },
+    headerRow: {
+      alignItems: 'flex-start' as const,
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+    },
+    headerMain: {
+      flex: 1,
+      gap: spacing.xs,
+      minWidth: 0,
+    },
+    headerActions: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      gap: spacing.xs,
+    },
+    iconButton: {
+      alignItems: 'center' as const,
+      height: 40,
+      justifyContent: 'center' as const,
+      width: 40,
+    },
+    momentType: {
+      color: colors.accent,
+      fontFamily: getFontFamily('700'),
+      fontSize: 13,
+      fontWeight: '700' as const,
+      textTransform: 'uppercase' as const,
+    },
+    momentTime: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 13,
+    },
+    caption: {
+      color: colors.text,
+      fontFamily: getFontFamily('500'),
+      fontSize: 17,
+      fontWeight: '500' as const,
+      lineHeight: 24,
+      marginTop: spacing.sm,
+    },
+    mediaGrid: {
+      gap: spacing.sm,
+    },
+    imageFrame: {
+      flex: 1,
+      minWidth: 0,
+      position: 'relative' as const,
+    },
+    primaryImage: {
+      aspectRatio: 1.16,
+      width: '100%' as const,
+      overflow: 'hidden' as const,
+      borderRadius: 14,
+      backgroundColor: colors.border,
+    },
+    secondaryGrid: {
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+    },
+    secondaryImage: {
+      aspectRatio: 1,
+      flex: 1,
+      minWidth: 0,
+      overflow: 'hidden' as const,
+      borderRadius: 10,
+      backgroundColor: colors.border,
+    },
+  };
+}
 
 function TimelineMomentCardComponent({
   event,
   onDelete,
   onEdit,
   onPress,
+  onPressPhoto,
   onShare,
   onToggleFavorite,
 }: TimelineMomentCardProps) {
   useAppLocale();
-  const primaryMedia =
-    event.media.find((media) => media.isPrimary) ?? event.media[0];
-  const secondaryMedia = event.media
-    .filter((media) => media.localAssetId !== primaryMedia?.localAssetId)
-    .slice(0, 4);
+  const { colors } = useAppearance();
+  const styles = useThemedStyles(createTimelineMomentCardStyles);
+  const primaryMedia = event.media[0];
+  const secondaryMedia = event.media.slice(1, 5);
 
   return (
     <View style={styles.card}>
@@ -78,7 +163,11 @@ function TimelineMomentCardComponent({
             style={styles.iconButton}
             onPress={() => onShare(event.localEventId)}
           >
-            <Ionicons color={colors.textMuted} name="share-outline" size={22} />
+            <Ionicons
+              color={colors.textMuted}
+              name="paper-plane-outline"
+              size={22}
+            />
           </Pressable>
           <MomentActionMenu
             onDelete={() => onDelete(event.localEventId)}
@@ -87,35 +176,44 @@ function TimelineMomentCardComponent({
         </View>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => onPress(event.localEventId)}
-      >
-        {primaryMedia ? (
-          <View style={styles.mediaGrid}>
+      {primaryMedia ? (
+        <View style={styles.mediaGrid}>
+          <Pressable
+            accessibilityLabel={t('accessibility.primaryMomentPhoto')}
+            accessibilityRole="button"
+            onPress={() => onPressPhoto(event, 0)}
+          >
             <View style={styles.imageFrame}>
               <Image
-                accessibilityLabel={t('accessibility.primaryMomentPhoto')}
                 contentFit="cover"
                 source={{ uri: primaryMedia.uri }}
                 style={styles.primaryImage}
               />
               <MediaDetectionDebugBadge media={primaryMedia} />
             </View>
-            {secondaryMedia.length > 0 ? (
-              <View style={styles.secondaryGrid}>
-                {secondaryMedia.map((media) => (
-                  <MomentImage key={media.localAssetId} media={media} />
-                ))}
-              </View>
-            ) : null}
-          </View>
-        ) : null}
+          </Pressable>
+          {secondaryMedia.length > 0 ? (
+            <View style={styles.secondaryGrid}>
+              {secondaryMedia.map((media, index) => (
+                <MomentImage
+                  key={media.localAssetId}
+                  media={media}
+                  onPress={() => onPressPhoto(event, index + 1)}
+                />
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
-        {event.caption ? (
+      {event.caption ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onPress(event.localEventId)}
+        >
           <Text style={styles.caption}>{event.caption}</Text>
-        ) : null}
-      </Pressable>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -132,6 +230,7 @@ function areTimelineMomentCardPropsEqual(
 ): boolean {
   return (
     previous.onPress === next.onPress &&
+    previous.onPressPhoto === next.onPressPhoto &&
     previous.onEdit === next.onEdit &&
     previous.onDelete === next.onDelete &&
     previous.onShare === next.onShare &&
@@ -151,87 +250,28 @@ export const TimelineMomentCard = memo(
   areTimelineMomentCardPropsEqual,
 );
 
-function MomentImage({ media }: { media: TimelineEventMedia }) {
+function MomentImage({
+  media,
+  onPress,
+}: {
+  media: TimelineEventMedia;
+  onPress: () => void;
+}) {
+  const styles = useThemedStyles(createTimelineMomentCardStyles);
+
   return (
-    <View style={styles.imageFrame}>
+    <Pressable
+      accessibilityLabel={t('accessibility.momentPhoto')}
+      accessibilityRole="button"
+      style={styles.imageFrame}
+      onPress={onPress}
+    >
       <Image
-        accessibilityLabel={t('accessibility.momentPhoto')}
         contentFit="cover"
         source={{ uri: media.uri }}
         style={styles.secondaryImage}
       />
       <MediaDetectionDebugBadge compact media={media} />
-    </View>
+    </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    gap: spacing.sm,
-  },
-  headerRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  headerMain: {
-    flex: 1,
-    gap: spacing.xs,
-    minWidth: 0,
-  },
-  headerActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  iconButton: {
-    alignItems: 'center',
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  momentType: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  momentTime: {
-    color: colors.textMuted,
-    fontSize: 13,
-  },
-  caption: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '500',
-    lineHeight: 24,
-    marginTop: spacing.sm,
-  },
-  mediaGrid: {
-    gap: spacing.sm,
-  },
-  imageFrame: {
-    flex: 1,
-    minWidth: 0,
-    position: 'relative',
-  },
-  primaryImage: {
-    aspectRatio: 1.16,
-    width: '100%',
-    overflow: 'hidden',
-    borderRadius: 14,
-    backgroundColor: colors.border,
-  },
-  secondaryGrid: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  secondaryImage: {
-    aspectRatio: 1,
-    flex: 1,
-    minWidth: 0,
-    overflow: 'hidden',
-    borderRadius: 10,
-    backgroundColor: colors.border,
-  },
-});

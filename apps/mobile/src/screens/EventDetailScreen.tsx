@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { EVENT_TYPES } from '@tailo/shared';
-import { Image } from 'expo-image';
 import {
   ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MediaDetectionDebugBadge } from '@/components/MediaDetectionDebugBadge';
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
+import {
+  useAppearance,
+  useThemedStyles,
+  type AppearanceContextValue,
+} from '@/lib/appearance';
 import { formatEventType, formatTimestamp } from '@/lib/formatMoment';
 import { ModalBackButton } from '@/navigation/components/ModalBackButton';
 import {
@@ -25,14 +27,152 @@ import {
 } from '@/navigation/modalHeaderInset';
 import { useNavigation } from '@/navigation/NavigationContext';
 import { MomentActionMenu } from '@/modules/timeline/components/MomentActionMenu';
+import { MomentMediaReorderGallery } from '@/modules/timeline/components/MomentMediaReorderGallery';
+import { deleteMoment } from '@/modules/timeline/deleteMoment';
 import { useEventDetail } from '@/modules/timeline/useEventDetail';
-import type { TimelineEventMedia } from '@/types';
-
 const EDITABLE_EVENT_TYPES = EVENT_TYPES.filter((type) => type !== 'unknown');
 
 type EventDetailScreenProps = {
   localEventId: string;
 };
+
+function createEventDetailScreenStyles({
+  colors,
+  getFontFamily,
+}: AppearanceContextValue) {
+  return {
+    screen: {
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+    fixedHeader: {
+      backgroundColor: colors.background,
+      left: 0,
+      paddingBottom: spacing.xs,
+      paddingHorizontal: spacing.lg,
+      position: 'absolute' as const,
+      right: 0,
+      top: 0,
+      zIndex: 10,
+    },
+    scroll: {
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingBottom: spacing.xl,
+      paddingHorizontal: spacing.lg,
+    },
+    centered: {
+      alignItems: 'center' as const,
+      flex: 1,
+      justifyContent: 'center' as const,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: colors.background,
+    },
+    centeredText: {
+      marginTop: spacing.md,
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+      textAlign: 'center' as const,
+    },
+    errorTitle: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 22,
+      fontWeight: '600' as const,
+      textAlign: 'center' as const,
+    },
+    toolbar: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+    },
+    toolbarActions: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      gap: spacing.xs,
+    },
+    iconButton: {
+      alignItems: 'center' as const,
+      height: 36,
+      justifyContent: 'center' as const,
+      width: 36,
+    },
+    timestamp: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+    },
+    sectionLabel: {
+      marginTop: spacing.lg,
+      color: colors.textMuted,
+      fontFamily: getFontFamily('700'),
+      fontSize: 12,
+      fontWeight: '700' as const,
+      textTransform: 'uppercase' as const,
+    },
+    typeRow: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    typeChip: {
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      backgroundColor: colors.surface,
+    },
+    typeChipSelected: {
+      borderColor: colors.accent,
+      backgroundColor: colors.accent,
+    },
+    typeChipText: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 14,
+      fontWeight: '600' as const,
+    },
+    typeChipTextSelected: {
+      color: colors.surface,
+    },
+    captionInput: {
+      marginTop: spacing.sm,
+      minHeight: 112,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      backgroundColor: colors.surface,
+      color: colors.text,
+      fontFamily: getFontFamily('400'),
+      fontSize: 17,
+      lineHeight: 24,
+      textAlignVertical: 'top' as const,
+    },
+    captionHint: {
+      marginTop: spacing.sm,
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    errorText: {
+      marginTop: spacing.md,
+      color: colors.destructive,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      lineHeight: 20,
+    },
+  };
+}
 
 export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
   const navigation = useNavigation();
@@ -40,6 +180,8 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
   const headerHeight = getModalHeaderHeight(insets.top);
   const detail = useEventDetail(localEventId);
   const [captionDraft, setCaptionDraft] = useState('');
+  const { colors } = useAppearance();
+  const styles = useThemedStyles(createEventDetailScreenStyles);
 
   useEffect(() => {
     setCaptionDraft(detail.event?.caption ?? '');
@@ -53,13 +195,35 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
     );
   }, []);
 
-  // TODO: delete-moment — remove from local DB, pop detail, refresh timeline, and sync deletion when account is linked.
   const handleDeleteMoment = useCallback(() => {
     Alert.alert(
-      t('timeline.moment.deleteSoonTitle'),
-      t('timeline.moment.deleteSoonMessage'),
+      t('timeline.moment.deleteConfirmTitle'),
+      t('timeline.moment.deleteConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('timeline.moment.delete'),
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const result = await deleteMoment(localEventId);
+
+              if (result.ok) {
+                navigation.notifyTimelineChanged();
+                navigation.pop();
+                return;
+              }
+
+              Alert.alert(
+                t('timeline.moment.deleteFailedTitle'),
+                result.errorMessage || t('timeline.moment.deleteFailedMessage'),
+              );
+            })();
+          },
+        },
+      ],
     );
-  }, []);
+  }, [localEventId, navigation]);
 
   if (detail.isLoading) {
     return (
@@ -85,13 +249,6 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
   }
 
   const { event } = detail;
-  const orderedMedia = [...event.media].sort((left, right) => {
-    if (left.isPrimary !== right.isPrimary) {
-      return left.isPrimary ? -1 : 1;
-    }
-
-    return 0;
-  });
 
   return (
     <View style={styles.screen}>
@@ -105,15 +262,13 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
       >
         <Text style={styles.timestamp}>{formatTimestamp(event.timestamp)}</Text>
 
-        <View style={styles.gallery}>
-          {orderedMedia.map((media, index) => (
-            <GalleryImage
-              key={media.localAssetId}
-              isHero={index === 0}
-              media={media}
-            />
-          ))}
-        </View>
+        <MomentMediaReorderGallery
+          isSaving={detail.isSaving}
+          media={event.media}
+          onMove={(localAssetId, direction) =>
+            void detail.moveMedia(localAssetId, direction)
+          }
+        />
 
         <Text style={styles.sectionLabel}>{t('eventDetail.typeSection')}</Text>
         <View style={styles.typeRow}>
@@ -215,6 +370,9 @@ function EventDetailToolbar({
   onToggleFavorite,
   topInset,
 }: EventDetailToolbarProps) {
+  const { colors } = useAppearance();
+  const styles = useThemedStyles(createEventDetailScreenStyles);
+
   return (
     <View style={[styles.fixedHeader, { paddingTop: topInset }]}>
       <View style={styles.toolbar}>
@@ -246,7 +404,11 @@ function EventDetailToolbar({
             style={styles.iconButton}
             onPress={onShare}
           >
-            <Ionicons color={colors.textMuted} name="share-outline" size={22} />
+            <Ionicons
+              color={colors.textMuted}
+              name="paper-plane-outline"
+              size={22}
+            />
           </Pressable>
           <MomentActionMenu showEdit={false} onDelete={onDelete} />
         </View>
@@ -254,173 +416,3 @@ function EventDetailToolbar({
     </View>
   );
 }
-
-function GalleryImage({
-  isHero,
-  media,
-}: {
-  isHero: boolean;
-  media: TimelineEventMedia;
-}) {
-  return (
-    <View style={styles.galleryImageFrame}>
-      <Image
-        accessibilityLabel={
-          isHero
-            ? t('accessibility.primaryMomentPhoto')
-            : t('accessibility.momentPhoto')
-        }
-        contentFit="cover"
-        source={{ uri: media.uri }}
-        style={isHero ? styles.heroImage : styles.galleryImage}
-      />
-      <MediaDetectionDebugBadge media={media} />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  fixedHeader: {
-    backgroundColor: colors.background,
-    left: 0,
-    paddingBottom: spacing.xs,
-    paddingHorizontal: spacing.lg,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    zIndex: 10,
-  },
-  scroll: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.lg,
-  },
-  centered: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  centeredText: {
-    marginTop: spacing.md,
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  errorTitle: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  toolbar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  toolbarActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  iconButton: {
-    alignItems: 'center',
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  timestamp: {
-    color: colors.textMuted,
-    fontSize: 15,
-  },
-  gallery: {
-    marginTop: spacing.lg,
-    gap: spacing.sm,
-  },
-  galleryImageFrame: {
-    position: 'relative',
-  },
-  heroImage: {
-    aspectRatio: 0.92,
-    width: '100%',
-    overflow: 'hidden',
-    borderRadius: 16,
-    backgroundColor: colors.border,
-  },
-  galleryImage: {
-    aspectRatio: 1.2,
-    width: '100%',
-    overflow: 'hidden',
-    borderRadius: 12,
-    backgroundColor: colors.border,
-  },
-  sectionLabel: {
-    marginTop: spacing.lg,
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  typeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  typeChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  typeChipSelected: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accent,
-  },
-  typeChipText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  typeChipTextSelected: {
-    color: colors.surface,
-  },
-  captionInput: {
-    marginTop: spacing.sm,
-    minHeight: 112,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    color: colors.text,
-    fontSize: 17,
-    lineHeight: 24,
-    textAlignVertical: 'top',
-  },
-  captionHint: {
-    marginTop: spacing.sm,
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  errorText: {
-    marginTop: spacing.md,
-    color: '#8A3A2B',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-});

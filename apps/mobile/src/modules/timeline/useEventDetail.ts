@@ -5,7 +5,11 @@ import { t } from '@/i18n';
 import { updateLocalEvent, type LocalEventUpdate } from '@/db/localEvents';
 import { getTimelineEventById } from '@/db/timelineEvents';
 import { loadLocalPetProfile } from '@/modules/pets';
+import { useNavigation } from '@/navigation/NavigationContext';
 import type { TimelineEvent } from '@/types';
+
+import { moveAssetIdInOrder, reorderMomentMedia } from './reorderMomentMedia';
+import { scheduleCloudSyncForMoment } from './scheduleCloudSyncForMoment';
 
 export type EventDetailState = {
   event: TimelineEvent | null;
@@ -14,9 +18,14 @@ export type EventDetailState = {
   errorMessage: string | null;
   refresh: () => Promise<void>;
   saveUpdate: (update: LocalEventUpdate) => Promise<boolean>;
+  moveMedia: (
+    localAssetId: string,
+    direction: 'up' | 'down',
+  ) => Promise<boolean>;
 };
 
 export function useEventDetail(localEventId: string): EventDetailState {
+  const navigation = useNavigation();
   const [event, setEvent] = useState<TimelineEvent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -87,6 +96,8 @@ export function useEventDetail(localEventId: string): EventDetailState {
         }
 
         await loadEvent({ showLoading: false });
+        scheduleCloudSyncForMoment(localEventId);
+        navigation.notifyTimelineChanged();
         return true;
       } catch (error) {
         setErrorMessage(
@@ -99,7 +110,50 @@ export function useEventDetail(localEventId: string): EventDetailState {
         setIsSaving(false);
       }
     },
-    [localEventId, loadEvent],
+    [localEventId, loadEvent, navigation],
+  );
+
+  const moveMedia = useCallback(
+    async (localAssetId: string, direction: 'up' | 'down') => {
+      if (!event || event.media.length < 2) {
+        return false;
+      }
+
+      const currentIds = event.media.map((item) => item.localAssetId);
+      const fromIndex = currentIds.indexOf(localAssetId);
+      const nextIds = moveAssetIdInOrder(currentIds, fromIndex, direction);
+
+      if (!nextIds) {
+        return false;
+      }
+
+      setIsSaving(true);
+      setErrorMessage(null);
+
+      try {
+        const database = await getDatabase();
+        const saved = await reorderMomentMedia(database, localEventId, nextIds);
+
+        if (!saved) {
+          setErrorMessage(t('errors.couldNotSaveChanges'));
+          return false;
+        }
+
+        await loadEvent({ showLoading: false });
+        navigation.notifyTimelineChanged();
+        return true;
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : t('errors.couldNotSaveChanges'),
+        );
+        return false;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [event, localEventId, loadEvent, navigation],
   );
 
   useEffect(() => {
@@ -113,5 +167,6 @@ export function useEventDetail(localEventId: string): EventDetailState {
     errorMessage,
     refresh,
     saveUpdate,
+    moveMedia,
   };
 }

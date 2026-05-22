@@ -20,6 +20,7 @@ const remote: RemoteEventUpdate = {
   user_edited_event_type: false,
   ai_job_status: 'done',
   pet_validation_status: 'valid',
+  deleted_at: null,
 };
 
 const local: LocalEventRow = {
@@ -41,6 +42,8 @@ const local: LocalEventRow = {
   userEditedEventType: 0,
   pendingAi: 0,
   syncLockOwner: null,
+  pendingCloudSync: 0,
+  deletedAt: null,
 };
 
 describe('shouldApplyRemoteEventUpdate', () => {
@@ -69,6 +72,16 @@ describe('shouldApplyRemoteEventUpdate', () => {
         remote,
       }),
     ).toBe(false);
+  });
+
+  it('blocks while local edits are waiting to sync', () => {
+    expect(
+      getRemoteEventApplyBlockReason({
+        isTombstoned: false,
+        local: { ...local, pendingCloudSync: 1 },
+        remote,
+      }),
+    ).toBe('pending_outbound_sync');
   });
 
   it('allows remote merge when not tombstoned and unlocked', () => {

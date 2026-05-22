@@ -1,14 +1,116 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
+import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
 import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
 import { formatPetType } from '@/lib/formatMoment';
 import { useLocalPetProfile } from '@/modules/pets/useLocalPetProfile';
+
+function createPetProfileScreenStyles({
+  colors,
+  getFontFamily,
+}: AppearanceContextValue) {
+  return {
+    screen: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      paddingHorizontal: spacing.lg,
+    },
+    title: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 28,
+      fontWeight: '600' as const,
+    },
+    subtitle: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: spacing.xs,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 16,
+      borderWidth: 1,
+      marginTop: spacing.lg,
+      padding: spacing.lg,
+    },
+    avatar: {
+      alignSelf: 'center' as const,
+      backgroundColor: colors.border,
+      borderRadius: 48,
+      height: 96,
+      width: 96,
+    },
+    avatarPlaceholder: {
+      alignItems: 'center' as const,
+      alignSelf: 'center' as const,
+      backgroundColor: colors.border,
+      borderRadius: 48,
+      height: 96,
+      justifyContent: 'center' as const,
+      width: 96,
+    },
+    avatarPlaceholderText: {
+      color: colors.accent,
+      fontFamily: getFontFamily('600'),
+      fontSize: 36,
+      fontWeight: '600' as const,
+    },
+    petName: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 22,
+      fontWeight: '600' as const,
+      marginTop: spacing.md,
+      textAlign: 'center' as const,
+    },
+    meta: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      marginTop: spacing.sm,
+      textAlign: 'center' as const,
+      textTransform: 'capitalize' as const,
+    },
+    sectionTitle: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 17,
+      fontWeight: '600' as const,
+    },
+    body: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: spacing.sm,
+    },
+    comingSoon: {
+      color: colors.accent,
+      fontFamily: getFontFamily('600'),
+      fontSize: 14,
+      fontWeight: '600' as const,
+      marginTop: spacing.md,
+    },
+    hint: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      lineHeight: 20,
+      marginTop: spacing.lg,
+    },
+  };
+}
 
 export function PetProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -16,6 +118,7 @@ export function PetProfileScreen() {
   const petProfile = useLocalPetProfile();
   const [askTailoOpen, setAskTailoOpen] = useState(false);
   const profile = petProfile.profile;
+  const styles = useThemedStyles(createPetProfileScreenStyles);
 
   const petLabel = profile
     ? t('petProfile.nameWithType', {
@@ -85,90 +188,3 @@ export function PetProfileScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    paddingHorizontal: spacing.lg,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '600',
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: spacing.xs,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginTop: spacing.lg,
-    padding: spacing.lg,
-  },
-  avatar: {
-    alignSelf: 'center',
-    backgroundColor: colors.border,
-    borderRadius: 48,
-    height: 96,
-    width: 96,
-  },
-  avatarPlaceholder: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: colors.border,
-    borderRadius: 48,
-    height: 96,
-    justifyContent: 'center',
-    width: 96,
-  },
-  avatarPlaceholderText: {
-    color: colors.accent,
-    fontSize: 36,
-    fontWeight: '600',
-  },
-  petName: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '600',
-    marginTop: spacing.md,
-    textAlign: 'center',
-  },
-  meta: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-    textTransform: 'capitalize',
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  body: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: spacing.sm,
-  },
-  comingSoon: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: spacing.md,
-  },
-  hint: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: spacing.lg,
-  },
-});

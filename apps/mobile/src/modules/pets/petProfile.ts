@@ -3,10 +3,7 @@ import {
   type SecureStorage,
 } from '@/modules/auth/secureStorage';
 import { getDatabase } from '@/db';
-import { rebuildPipelineForProfilePetType } from '@/modules/eventBuilder/rebuildPipelineForProfilePetType';
-
 import { LOCAL_PET_PROFILE_KEY } from './keys';
-import { syncRemotePetProfileIfNeeded } from './remotePetSync';
 
 export type LocalPetType = 'dog' | 'cat';
 export type LocalPetGender = 'female' | 'male' | 'unknown';
@@ -73,6 +70,8 @@ export async function saveSelectedPetType(
   await storage.setItemAsync(LOCAL_PET_PROFILE_KEY, JSON.stringify(profile));
 
   const database = await getDatabase();
+  const { rebuildPipelineForProfilePetType } =
+    require('@/modules/eventBuilder/rebuildPipelineForProfilePetType') as typeof import('@/modules/eventBuilder/rebuildPipelineForProfilePetType');
   await rebuildPipelineForProfilePetType(database, type);
 
   return profile;
@@ -104,10 +103,14 @@ export async function saveLocalPetProfile(
 
   if (shouldRebuildPipeline) {
     const database = await getDatabase();
+    const { rebuildPipelineForProfilePetType } =
+      require('@/modules/eventBuilder/rebuildPipelineForProfilePetType') as typeof import('@/modules/eventBuilder/rebuildPipelineForProfilePetType');
     await rebuildPipelineForProfilePetType(database, input.type);
   }
 
   if (profile.name.trim()) {
+    const { syncRemotePetProfileIfNeeded } =
+      require('./remotePetSync') as typeof import('./remotePetSync');
     void syncRemotePetProfileIfNeeded();
   }
 

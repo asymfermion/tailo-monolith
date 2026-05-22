@@ -22,6 +22,7 @@ export async function hasPendingAiEvents(
     SELECT COUNT(*) AS count
     FROM local_events
     WHERE pending_ai = 1
+      AND deleted_at IS NULL
   `);
 
   return (row?.count ?? 0) > 0;

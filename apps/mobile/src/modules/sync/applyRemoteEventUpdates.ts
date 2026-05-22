@@ -1,7 +1,10 @@
 import type * as SQLite from 'expo-sqlite';
-import type { RemoteEventUpdate } from '@tailo/shared';
+import {
+  isRemoteEventSoftDeleted,
+  type RemoteEventUpdate,
+} from '@tailo/shared';
 
-import { deletePromotedLocalEvent, getLocalEventById } from '@/db/localEvents';
+import { getLocalEventById, markLocalEventDeleted } from '@/db/localEvents';
 import { isLocalEventTombstoned } from '@/db/localEventTombstones';
 import { acquireEventSyncLock } from '@/db/eventSyncLock';
 
@@ -51,6 +54,20 @@ export async function applyRemoteEventUpdates(
       remote.source_local_event_id,
     );
 
+    if (isRemoteEventSoftDeleted(remote)) {
+      if (isTombstoned || local.deletedAt) {
+        continue;
+      }
+
+      await markLocalEventDeleted(
+        database,
+        local.localEventId,
+        remote.deleted_at!,
+      );
+      applied += 1;
+      continue;
+    }
+
     if (
       !shouldApplyRemoteEventUpdate({
         isTombstoned,
@@ -62,8 +79,6 @@ export async function applyRemoteEventUpdates(
     }
 
     if (remote.pet_validation_status === 'rejected') {
-      await deletePromotedLocalEvent(database, local.localEventId);
-      applied += 1;
       continue;
     }
 

@@ -79,61 +79,223 @@ If we later move to another platform, we replace handlers and adapters, not doma
 
 ---
 
-## High-level backend flow
+## Data syncing workflow
 
-```txt
-Phone builds local events
-  → upload_queue selects event media only
-  → request signed upload target
-  → upload image + thumbnail
-  → sync event payload
-  → backend upserts event + media rows
-  → backend creates ai_job
-  → AI worker generates caption / event type
-  → backend stores result
-  → phone polls get-event-updates and merges into local timeline
+The phone remains usable if the cloud is unavailable. Sync catches up on **foreground resume**, **app launch**, and (while waiting for AI) a **30 s poll**. There is **no push/WebSocket** in MVP — inbound changes are **pull-only** via `get-event-updates`.
+
+The mobile app **never** calls the AI provider directly. It uploads selected media, syncs metadata, then polls for server-enriched rows.
+
+### Overview
+
+```mermaid
+flowchart TB
+  subgraph local [On device]
+    pipeline[Scan · detect · cluster · promote]
+    sqlite[(SQLite: local_events · upload_queue · sync_state)]
+    pipeline --> sqlite
+  end
+
+  subgraph out [Phone → cloud]
+    upload[create-upload-urls + Storage PUT]
+    syncE[sync-event]
+    sqlite --> upload --> syncE
+  end
+
+  subgraph server [Supabase]
+    pg[(events · event_media · ai_jobs)]
+    ai[process-ai-job]
+    syncE --> pg
+    pg --> ai
+    ai -->|valid| pg
+    ai -->|rejected| pg
+  end
+
+  subgraph in [Cloud → phone]
+    poll[get-event-updates]
+    merge[applyRemoteEventUpdates]
+    pg --> poll
+    poll -->|non-rejected only| merge
+    merge --> sqlite
+  end
 ```
 
-The phone remains usable if the cloud is unavailable. Sync catches up later.
+| Direction    | Entry points (mobile)                                                                                               | Edge Functions / storage                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **Outbound** | `upload_queue` worker, `runPendingCloudSync`, `scheduleCloudSyncForMoment` (edits), `deleteMoment` → `delete-event` | `create-upload-urls`, Storage, `sync-event`, `delete-event` |
+| **Inbound**  | `useEventUpdatesPoll`, `useBackgroundSync` (after upload + pending sync), timeline mount / app `active`             | `get-event-updates`                                         |
+| **Async AI** | (server-only; phone observes via poll)                                                                              | `process-ai-job` (+ pg_cron sweep)                          |
 
-### Sync and AI loop (end-to-end)
+Persistent cursor: `sync_state.events_cursor` (opaque `updated_at` + `event_id`).
 
-After upload + `sync-event`, rows appear in Supabase **`events`** and **`event_media`**. Caption enrichment is **async**: an **`ai_jobs`** row is queued, a worker updates **`events`**, and the phone **polls** (no push/WebSocket in MVP).
+---
+
+### Device → cloud (outbound)
+
+Only **promoted moments** and **selected assets** leave the device — never the full camera roll.
+
+```mermaid
+flowchart TD
+  start([Moment on timeline]) --> auth{Remote auth + remotePetId?}
+  auth -->|no| skip([Skip cloud sync])
+  auth -->|yes| path{What changed?}
+
+  path -->|New / updated media| queue[upload_queue: compress + enqueue]
+  queue --> urls[create-upload-urls]
+  urls --> put[PUT image + thumbnail to Storage]
+  put --> doneQ[upload_queue status = done]
+  doneQ --> sync[sync-event payload]
+
+  path -->|Favorite / caption / type edit| flag[local_events.pending_cloud_sync = 1]
+  flag --> pending[runPendingCloudSync / scheduleCloudSyncForMoment]
+  pending --> sync
+
+  sync --> upsert[Upsert events + event_media]
+  upsert --> job{Enqueue ai_jobs?}
+  job -->|yes| pendingAi[Return pending AI]
+  job -->|no| doneOut([remote_event_id + server_sync_version])
+  pendingAi --> fire[Fire-and-forget process-ai-job]
+  fire --> doneOut
+
+  sync --> lock[May set sync_lock_owner = user during edit]
+```
+
+**`sync-event` prerequisites (mobile):** completed `upload_queue` rows for the moment (metadata payload includes storage paths). Edits without new media still need prior upload completion for that event.
+
+**After successful `sync-event`:** clear `pending_cloud_sync`, release user sync lock, store `remote_event_id` and `server_sync_version`.
+
+**Foreground pass order** (`useBackgroundSync`): `runUploadQueueWorker` → `runPendingCloudSync` → `pollEventUpdates`.
+
+---
+
+### Cloud processing (AI + validation)
+
+Caption enrichment is **async** after `sync-event`. Canonical caption/type live on **`events`**, not in `ai_jobs.result_json` alone.
+
+```mermaid
+flowchart TD
+  job([ai_jobs pending]) --> lease[Lease → processing]
+  lease --> read[Read primary image from Storage]
+  read --> model[Vertex / stub caption + validation JSON]
+  model --> valid{isCloudPetValidationPassing?}
+
+  valid -->|yes| apply[applyAiResultToEvent]
+  apply --> ok[pet_validation_status = valid · bump sync_version]
+  ok --> done[ai_jobs → done]
+
+  valid -->|no| reject[pet_validation_status = rejected]
+  reject --> soft[pet_validation_status = rejected · deleted_at = now]
+  soft --> del[Delete all event_media for event]
+  del --> doneR[ai_jobs → done · no caption applied]
+
+  done --> pollIn[Eligible for get-event-updates]
+  doneR --> pollDel[get-event-updates returns deleted_at]
+  pollDel --> hide[Mobile sets local deleted_at · hidden from timeline]
+```
+
+---
+
+### Cloud → device (inbound poll + merge)
+
+```mermaid
+flowchart TD
+  trig([Poll trigger]) --> gate{Auth + session?}
+  gate -->|no| stop([Skip])
+  gate -->|yes| cursor[Read sync.events_cursor]
+  cursor --> api[get-event-updates POST cursor]
+  api --> loop{For each RemoteEventUpdate}
+
+  loop --> delRow{deleted_at set?}
+  delRow -->|yes| softDel[markLocalEventDeleted · hide from timeline]
+  delRow -->|no| tomb{Tombstoned or pending_cloud_sync?}
+
+  softDel --> refresh
+  tomb -->|yes| skipRow[Skip row]
+  tomb -->|no| lock{sync_lock_owner = user?}
+  lock -->|yes| skipRow
+  lock -->|no| merge[mergeRemoteEventUpdate]
+  merge --> changed{Fields changed?}
+  changed -->|yes| write[UPDATE local_events · release ai lock]
+  changed -->|no| skipRow
+  write --> refresh[Timeline refresh nonce]
+  skipRow --> loop
+```
+
+**Poll triggers**
+
+| When                          | Code                                                  |
+| ----------------------------- | ----------------------------------------------------- |
+| Timeline mount                | `useEventUpdatesPoll` → immediate `pollOnce`          |
+| App → `active`                | `useEventUpdatesPoll` + `useBackgroundSync` full pass |
+| Foreground + any `pending_ai` | `useEventUpdatesPoll` interval **30 s**               |
+| After merge                   | `onApplied` → timeline `refreshKey` bump              |
+
+Pull-to-refresh today reloads **SQLite only**; it does not call `get-event-updates` (resume/mount poll covers inbound sync).
+
+**`get-event-updates`:** events for `auth.uid()` with `updated_at > cursor`, ordered ASC, max **50**; includes `deleted_at` and `ai_job_status`.
+
+**Merge rules** (`mergeRemoteEventUpdate` / `applyRemoteEventUpdates`):
+
+- Match on `source_local_event_id`.
+- Do not overwrite caption/type when local `user_edited_*` is set.
+- Favorites: apply server value when `remote.sync_version >= local.server_sync_version`.
+- Only `UPDATE` when merged fields differ (avoids poll ↔ refresh loops).
+- **Soft-deleted (`deleted_at`):** applied even during user lock / `pending_cloud_sync`; sets local `deleted_at`, clears pending flags; moment hidden from timeline (local media kept for future user delete UX).
+- **Tombstones:** skip rows after Redetect / wipe so stale cloud rows cannot return.
+- **`pending_cloud_sync`:** skip inbound merge until outbound `sync-event` completes.
+- **Lock:** `sync_lock_owner = user` blocks merge; AI merge uses `sync_lock_owner IS NULL OR 'ai'`.
+
+**Display:** `getTimelineEvents` + `resolveDisplayCaption` (`@tailo/ai`) until AI caption arrives.
+
+---
+
+### End-to-end sequence
 
 ```mermaid
 sequenceDiagram
   participant App as Mobile app
+  participant Q as upload_queue
   participant Upload as create-upload-urls + Storage
   participant Sync as sync-event
   participant AI as process-ai-job
-  participant DB as Postgres events / ai_jobs
+  participant DB as Postgres
   participant Poll as get-event-updates
 
-  App->>Upload: Upload photos for a moment
-  App->>Sync: Event payload + storage paths
+  Note over App: Outbound
+  App->>Q: Enqueue moment media
+  Q->>Upload: Signed URLs + PUT
+  Q->>Sync: buildSyncEventPayload
   Sync->>DB: Upsert events + event_media
-  Sync->>DB: Insert ai_jobs (pending)
-  Sync-->>App: event_id, pending AI
-  Sync->>AI: Fire-and-forget (service role)
-  AI->>DB: Read image, run caption model
-  AI->>DB: Update events.caption / event_type
-  AI->>DB: ai_jobs → done
-  App->>Poll: Poll with cursor (while pending_ai)
-  Poll->>DB: Events updated since cursor
-  Poll-->>App: caption, type, ai_job_status
-  App->>App: Merge into SQLite, refresh timeline
-```
+  Sync->>DB: Insert ai_jobs pending
+  Sync-->>App: event_id · pending_ai
+  Sync->>AI: Fire-and-forget
 
-The mobile app **never** calls the AI provider directly. It uploads, syncs, then polls for richer server rows.
+  Note over AI,DB: Async enrichment
+  AI->>DB: Caption + pet validation on primary
+  alt validation valid
+    AI->>DB: caption · event_type · pet_validation_status valid
+  else validation rejected
+    AI->>DB: rejected · deleted_at · delete event_media
+  end
+  AI->>DB: ai_jobs done
+
+  Note over App,Poll: Inbound (poll only)
+  App->>Poll: cursor from sync_state
+  Poll->>DB: updated events incl. deleted_at
+  Poll-->>App: RemoteEventUpdate batch
+  App->>App: applyRemoteEventUpdates → soft-delete or merge
+  App->>App: Refresh timeline
+```
 
 #### Stage reference
 
-| Stage         | Supabase                                                                                          | Mobile (`local_events`)                                                  |
-| ------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Upload + sync | `events`, `event_media` rows; optional `ai_jobs.pending`                                          | `remote_event_id`, `server_sync_version`; `pending_ai = 1` if job queued |
-| AI running    | `ai_jobs.processing` (leased)                                                                     | Poll every **30 s** while foreground + any `pending_ai`                  |
-| AI done       | `events.caption` / `event_type` / `caption_source` updated; `sync_version` bumped; `ai_jobs.done` | Next poll merges; timeline card updates                                  |
-| AI failed     | `ai_jobs.failed`, `last_error` set                                                                | Placeholder caption remains; check Edge Function logs                    |
+| Stage         | Supabase                                                            | Mobile (`local_events`)                                                  |
+| ------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Upload + sync | `events`, `event_media`; optional `ai_jobs.pending`                 | `remote_event_id`, `server_sync_version`; `pending_ai = 1` if job queued |
+| Edit sync     | Same `sync-event` upsert; respects `user_edited_*`                  | `pending_cloud_sync = 1` until sync succeeds                             |
+| AI running    | `ai_jobs.processing` (leased)                                       | Poll every **30 s** while foreground + any `pending_ai`                  |
+| AI valid      | Caption/type/`pet_validation_status = valid`; `sync_version` bumped | Next poll merges; card updates                                           |
+| AI rejected   | `rejected` + `deleted_at`; cloud `event_media` deleted              | Poll sets local `deleted_at` — **hidden**, media kept on device          |
+| AI failed     | `ai_jobs.failed`, `last_error`                                      | Placeholder caption; check Edge logs                                     |
 
 #### Server: when `ai_jobs` is created
 
@@ -151,9 +313,9 @@ On success, `sync-event` returns `{ event_id, server_sync_version, ai_job?: { st
 1. Claim a `pending` job (lease, max **3** attempts, backoff 1 → 5 → 15 min).
 2. Read primary image from Storage (signed URL).
 3. Run provider: **`AI_PROVIDER=stub`** (default) or **`vertex`** (GCP — [supabase/GCP_VERTEX_SETUP.md](../../supabase/GCP_VERTEX_SETUP.md); default **`GCP_VERTEX_MODEL=gemini-2.5-flash`**, see [model versions](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/model-versions) to change). Model returns caption JSON **and** cloud pet validation (`profilePetValid`, `visiblePetType`, `petValidationConfidence`).
-4. If validation fails for the profile pet → **event-level** rejection: `pet_validation_status = rejected`, delete **all** `event_media` for the event, bump `sync_version` (no caption applied). Validation input is the **primary** image only. Image-level drop is [future](../FUTURE_FEATURES.md#6-image-level-cloud-pet-validation) (B2.10.x).
-5. If valid → `applyAiResultToEvent` (confidence threshold, respect `user_edited_*` flags), `pet_validation_status = valid`, **`UPDATE events`** caption/type.
-6. **`UPDATE ai_jobs`** → `done` (or `failed` / retry). Mobile poll drops rejected events from the local timeline.
+4. If validation fails → **soft delete**: `pet_validation_status = rejected`, **`deleted_at = now()`**, delete **all** `event_media`, bump `sync_version` (no caption). Primary image only; image-level drop is [future](../FUTURE_FEATURES.md#6-image-level-cloud-pet-validation) (B2.10.x).
+5. If valid → `applyAiResultToEvent`, `pet_validation_status = valid`, **`UPDATE events`** caption/type.
+6. **`UPDATE ai_jobs`** → `done` (or `failed` / retry). Poll returns `deleted_at` so devices hide synced moments without hard-deleting local rows.
 
 Canonical AI text lives on **`events`**, not in the job row.
 
@@ -192,35 +354,6 @@ flowchart LR
 **API shape (extend `AiCaptionResult`):** `samePetIndividual`, `identityConfidence`, `identityMethod: "embedding" | "llm" | "species_only"`.
 
 **Privacy:** Only referenced thumbnails already uploaded for this pet; never send the camera roll.
-
-#### Mobile: sync back to the app
-
-| Trigger                 | Code                                         |
-| ----------------------- | -------------------------------------------- |
-| Home mount / app resume | `useEventUpdatesPoll`, `useBackgroundSync`   |
-| While any `pending_ai`  | Poll every **30 s** (foreground)             |
-| After merge             | `applyRemoteEventUpdates` → timeline refresh |
-
-**`get-event-updates`:** returns events for the current `app_user_id` resolved from `auth.uid()`, with `updated_at` after stored cursor (`sync.events_cursor`); includes `ai_job_status` and `pet_validation_status` per event.
-
-**Merge rules** (`mergeRemoteEventUpdate` / `applyRemoteEventUpdates`):
-
-- Match on `source_local_event_id`.
-- Do not overwrite caption/type the user edited locally.
-- Only SQLite `UPDATE` when merged fields differ (avoids poll ↔ refresh loops).
-- **User wipe (Redetect pets):** tombstones prior `source_local_event_id`s so poll cannot merge stale cloud rows; `client_timeline_generation` on `sync-event` resets server validation when the user rebuilds the timeline.
-- **Per-event lock:** `local_events.sync_lock_owner = user` blocks AI poll overwrites while the user is editing; remote merge uses `ai` lock + `WHERE sync_lock_owner IS NULL OR sync_lock_owner = 'ai'`.
-
-**Display:** `getTimelineEvents` uses `resolveDisplayCaption` (`@tailo/ai`) for calm placeholder copy until AI returns.
-
-#### Direction of sync
-
-| Direction     | Mechanism                                                                      |
-| ------------- | ------------------------------------------------------------------------------ |
-| Phone → cloud | `upload_queue` → `create-upload-urls` → Storage PUT → `sync-event`             |
-| Cloud → phone | **`get-event-updates` poll only** (captions, types, favorites, `sync_version`) |
-
-Pushing user edits from device back to server is limited in MVP; server AI must not stomp user-edited fields.
 
 #### Debug in Supabase SQL
 
@@ -486,8 +619,8 @@ Persist on server as `events.user_edited_caption` / `events.user_edited_event_ty
 
 - **Input:** `cursor` opaque string encoding `updated_at` + `event_id` (or ISO timestamp + limit).
 - **Output:** events for the caller's resolved `app_user_id` with `updated_at > cursor`, ordered ASC, max **50** rows; `next_cursor`.
-- Include: `event_id`, `source_local_event_id`, mergeable fields, `sync_version`, `ai_job.status`.
-- Mobile polls: every **30 s** while app foreground and any local event has pending AI; else on pull-to-refresh / app resume.
+- Include: mergeable fields, `sync_version`, `ai_job.status`, `pet_validation_status`, **`deleted_at`** (set when cloud rejects or future user delete).
+- Mobile polls: see [Cloud → device (inbound poll + merge)](#cloud--device-inbound-poll--merge) (mount, app resume, **30 s** while any `pending_ai`). Pull-to-refresh reloads SQLite only.
 
 ### Mobile merge (client rules)
 
@@ -900,13 +1033,17 @@ Full detail: [AI job specification](#ai-job-specification). Result shape in `pac
 
 | Date       | Change                                                                                                                                                                                                                                            |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-20 | **B2.11 User delete:** `delete-event` Edge Function + mobile `deleteMoment`; `user_dismissed_at` on assets; poll propagates `deleted_at` to other devices                                                                                         |
+| 2026-05-20 | **Soft delete:** `events.deleted_at` on cloud reject; poll returns `deleted_at`; mobile `local_events.deleted_at` hides moment (media kept)                                                                                                       |
+| 2026-05-20 | **Data syncing workflow** docs: overview + outbound/inbound/AI flowcharts, updated sequence diagram, stage table (`pending_cloud_sync`, soft delete on reject)                                                                                    |
 | 2026-05-20 | Planned **B2.13** user edit moment: product actions matrix + hardened sync/AI rules for per-moment edits                                                                                                                                          |
 | 2026-05-20 | **B2.6** Backend hardening QA: `npm run test:supabase:qa`, `audit:supabase`, `STAGING_CHECKLIST.md`; `syncEventMerge` keeps user caption when `user_edited_caption` set; `aiJobFailure` retry policy in `@tailo/backend-core`                     |
 | 2026-05-20 | **B2.4.3a** Integration test: Storage signed PUT returns `415 invalid_mime_type` for non-`image/jpeg` `Content-Type` (`npm run test:supabase:upload`)                                                                                             |
 | 2026-05-20 | **B2.1.10** RLS smoke: `supabase/tests/rls_cross_user_smoke.sql` + `npm run test:supabase:rls` (JWT impersonation; all user-owned tables)                                                                                                         |
 | 2026-05-20 | **B2.5.7** AI sweep: `pg_cron` + `setup:ai-job-cron`; lease recovery; `process-ai-job` sweep mode (`max_jobs` cap 10)                                                                                                                             |
 | 2026-05-19 | Planned **B2.12** pet identity validation: embedding gallery from profile + validated events; reject wrong individual before caption                                                                                                              |
-| 2026-05-19 | Cloud pet validation in `process-ai-job` (`profilePetValid` / `visiblePetType`); `events.pet_validation_status`; mobile removes rejected moments on poll                                                                                          |
+| 2026-05-19 | `get-event-updates` excludes `pet_validation_status = rejected`; mobile no longer deletes local moments on cloud pull                                                                                                                             |
+| 2026-05-19 | Cloud pet validation in `process-ai-job` (`profilePetValid` / `visiblePetType`); `events.pet_validation_status`; server rejects event + deletes cloud media                                                                                       |
 | 2026-05-19 | Default Vertex caption model **gemini-2.5-flash** (`GCP_VERTEX_SETUP`, secrets script, `process-ai-job` fallback)                                                                                                                                 |
 | 2026-05-19 | Vertex model selection docs → [Gemini model versions](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/model-versions) (`GCP_VERTEX_SETUP`, `SETUP.md`)                                                                      |
 | 2026-05-19 | Edge Functions structured JSON logging; `process-ai-job` `verify_jwt=false` + service invoke `apikey`; fix gateway 401 before handler                                                                                                             |

@@ -198,6 +198,15 @@ export async function resetStuckUploadingQueueItems(
   `);
 }
 
+export async function cancelUploadQueueForEvent(
+  db: SQLite.SQLiteDatabase,
+  localEventId: string,
+): Promise<void> {
+  await db.runAsync(`DELETE FROM upload_queue WHERE local_event_id = ?`, [
+    localEventId,
+  ]);
+}
+
 export async function clearUploadQueue(
   db: SQLite.SQLiteDatabase,
 ): Promise<void> {

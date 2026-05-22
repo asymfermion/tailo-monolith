@@ -237,11 +237,29 @@ No Supabase or network required for this phase.
 
 iOS Simulator can add sample photos via **Photos** or drag images into the simulator. Limited-access flows should be tested on a physical device when possible.
 
+### Debug logs (`[Tailo]`)
+
+Structured dev logs use the `[Tailo]` prefix with an area tag. Filter Metro / Xcode console on **`[Tailo]`** (SQL-only messages still use **`[Tailo DB]`**).
+
+| Tag          | Meaning                                                                       |
+| ------------ | ----------------------------------------------------------------------------- |
+| `[Scan]`     | Photo library ingest (initial 28-day window vs incremental since last moment) |
+| `[Pipeline]` | Local scan → detect → cluster → select → promote orchestration                |
+| `[Detect]`   | On-device pet detection batches                                               |
+| `[Cluster]`  | Grouping pet candidates into event candidates                                 |
+| `[Promote]`  | **New timeline moments** promoted to `local_events`                           |
+| `[Upload]`   | Cloud **media** upload (R2 signed URLs) — existing moments, not new discovery |
+| `[Sync]`     | Cloud **metadata** sync + AI poll (`sync-event`, `get-event-updates`)         |
+| `[App]`      | App lifecycle (startup, foreground)                                           |
+
+**New local moments** → look for `[Promote] New timeline moments promoted locally`.  
+**Cloud backlog** → `[Upload] Cloud media upload completed for moment` (includes `note: not a new on-device discovery`).
+
 ---
 
 ## Backend (Phase 2)
 
-Task plan: **[MOBILE_TASKS.md](./MOBILE_TASKS.md#phase-2--mobile--backend-integration)** (Phase 2 section). Architecture: **[architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md)** (includes [sync + AI loop diagram](./architecture/phase-2-backend-mvp.md#sync-and-ai-loop-end-to-end)).
+Task plan: **[MOBILE_TASKS.md](./MOBILE_TASKS.md#phase-2--mobile--backend-integration)** (Phase 2 section). Architecture: **[architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md)** ([data syncing workflow](./architecture/phase-2-backend-mvp.md#data-syncing-workflow) — overview, outbound/inbound flowcharts, sequence diagram).
 
 Dev project details: **[supabase/SETUP.md](../supabase/SETUP.md)** (ref `sgxtyxvithlmuuofkzlk`). Operator view of upload → AI → poll back: **[How AI captions return to the app](../supabase/SETUP.md#how-ai-captions-return-to-the-app)**.
 
@@ -290,3 +308,22 @@ Do not duplicate types across mobile and backend — use `@tailo/shared`.
 ### CI deploy (main branch)
 
 Merges to `main` auto-deploy Supabase when backend paths change. Configure GitHub secrets `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` — see [supabase/SETUP.md](../supabase/SETUP.md#cicd-github-actions).
+
+## Landing page deploy
+
+The public landing page lives in `apps/landing` and is linked to the Vercel project `tailo-web`. Deploy it from the landing app directory only; do not deploy the monorepo root.
+
+Local production deploy:
+
+```bash
+npm run deploy:landing
+```
+
+The script verifies `apps/landing/vercel.json`, builds the static site, and runs `vercel deploy --prod` from `apps/landing`. If the local Vercel link is missing, run:
+
+```bash
+cd apps/landing
+npx vercel link --yes --scope brendanzj-6054s-projects --project tailo-web
+```
+
+Merges to `main` auto-deploy the landing page when `apps/landing/**` changes. Configure GitHub repository secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`.

@@ -288,7 +288,7 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [ ] **B2.10.2** Event stays on timeline when ≥1 asset passes; reassign `is_primary`
 - [ ] **B2.10.3** Mobile merge: prune `selected_asset_ids` / scores per asset instead of `deletePromotedLocalEvent` on event-level `rejected`
 
-**Current behavior (event-level):** Vertex sees the primary image only; if validation fails → delete all server media for the event, `pet_validation_status = rejected`, phone removes the whole local moment. See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#6-image-level-cloud-pet-validation).
+**Current behavior (event-level):** Vertex sees the primary image only; if validation fails → server `rejected` + `deleted_at`, cloud media deleted; poll sets local `deleted_at` (hidden from timeline, media kept). See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#6-image-level-cloud-pet-validation).
 
 ### 2.12 Future — pet identity validation (cloud, same individual)
 
@@ -315,16 +315,16 @@ Today: `profilePetValid` + `visiblePetType` only — **same breed, wrong pet** c
 
 **Out of scope:** Device-side re-identification; sending full timeline or all event_media to Vertex per job.
 
-### 2.11 Future — user delete moment (local + cloud)
+### 2.11 User delete moment (local + cloud)
 
-Today there is **no** user-facing delete. Local-only removes (`deletePromotedLocalEvent`, Redetect wipe) do **not** delete Supabase `events` / Storage. See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#8-user-delete-moment).
+Soft-delete: `events.deleted_at` + poll sync to other devices; local `local_events.deleted_at` hides timeline row (media kept). See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#8-user-delete-moment).
 
-- [ ] **B2.11.1** Timeline UI: delete moment (confirm); acquire `sync_lock_owner = user` before delete
-- [ ] **B2.11.2** Local: remove `local_events` + scores; **tombstone** `source_local_event_id`; cancel pending upload queue rows for that event
-- [ ] **B2.11.3** Cloud: Edge Function `delete-event` — delete `event_media`, Storage objects, and `events` row (RLS: owner only); mobile calls after local delete
-- [ ] **B2.11.4** **Do not re-detect dismissed photos:** mark each asset in the deleted moment as excluded from passive scan/clustering (e.g. `local_assets.user_dismissed_at` or `excluded_from_auto_detect`); pipeline skips them on scan/redetect/rebuild
-- [ ] **B2.11.5** Re-inclusion only via **manual pick** (e.g. in-app capture flow or explicit “add photos” picker that clears exclusion for chosen assets)
-- [ ] **B2.11.6** Tests: delete removes cloud row; excluded assets stay out of next `runLocalPipeline` / Redetect until manually selected
+- [x] **B2.11.1** Timeline + detail UI: delete moment (confirm); `sync_lock_owner = user` before delete
+- [x] **B2.11.2** Local: `markLocalEventDeleted`, tombstone `source_local_event_id`, cancel `upload_queue` for event
+- [x] **B2.11.3** Cloud: Edge Function `delete-event` — soft-delete `events`, remove `event_media` + Storage; mobile `deleteMoment` → `delete-event`
+- [x] **B2.11.4** `local_assets.user_dismissed_at`; pipeline queries skip dismissed assets on scan/cluster/redetect
+- [ ] **B2.11.5** Re-inclusion only via **manual pick** (clear `user_dismissed_at` for chosen assets)
+- [x] **B2.11.6** Tests: `deleteMoment.test.ts`, `delete-event` contract tests
 
 ### 2.13 Future — user edit moment (capabilities & sync)
 
@@ -341,6 +341,7 @@ Today: caption, event type, and favorite can be edited locally; `user_edited_*` 
 | **Poll merge**           | Full matrix: local `user_edited_*` × remote `caption_source` × `ai_job_status`              |
 | **Rejected / pending**   | Can user edit a moment while `pet_validation_status = pending`? After `rejected`?           |
 
+- [x] **B2.13.0** Reorder photos in a moment (event detail): `selected_asset_ids` + cover/`is_primary`; sync via `pending_cloud_sync`
 - [ ] **B2.13.1** Product spec: **moment actions matrix** (view, edit caption, edit type, favorite, delete, change photos, dismiss from auto-detect) — allowed / hidden / disabled per moment state
 - [ ] **B2.13.2** Document merge rules in [phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md#sync-specification) and implement any gaps in `syncEventMerge` + `mergeRemoteEventUpdate`
 - [ ] **B2.13.3** `sync_lock_owner`: acquire on edit start, release on save/cancel; prevent stuck locks blocking AI forever
@@ -404,7 +405,7 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - [ ] **3.2.1** Timeline visual polish (typography, spacing, image aspect ratios)
 - [ ] **3.2.2** Event detail polish (transitions, edit affordances)
 - [ ] **3.2.3** Floating `+` for capture (per layout guidelines)
-- [ ] **3.2.4** Pull-to-refresh / incremental rescan behavior
+- [x] **3.2.4** Incremental rescan on app open/foreground (delta scan after newest moment); pull-to-refresh still reloads DB only
 - [ ] **3.2.5** Polish `Save your memories` home reminder and linked-success confirmation states
 - [ ] **3.2.6** Add historical-scan upsell UX when anonymous users hit the recent-image cap (calm framing: fuller story, older memories)
 - [ ] **3.2.7** AI caption localisation: translate AI-generated captions for the current app language on device, but never translate user-authored or user-edited captions; if a user edits an AI caption, flip the source to `user` and stop automatic translation for that caption

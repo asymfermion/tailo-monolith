@@ -39,6 +39,8 @@ describe('buildSyncEventPayload', () => {
     userEditedEventType: 0,
     pendingAi: 0,
     syncLockOwner: null,
+    pendingCloudSync: 0,
+    deletedAt: null,
   };
 
   const uploadedItems: UploadQueueRow[] = [

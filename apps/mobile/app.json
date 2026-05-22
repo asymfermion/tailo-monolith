@@ -14,7 +14,7 @@
       "backgroundColor": "#F7F5F2"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.tailo.app",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Tailo scans your recent photos to find pet moments for your timeline.",
@@ -58,7 +58,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-font"
     ],
     "experiments": {
       "tsconfigPaths": true,

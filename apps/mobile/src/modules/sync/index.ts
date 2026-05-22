@@ -5,8 +5,14 @@ export {
   type RunUploadQueueWorkerResult,
 } from './uploadQueueWorker';
 export { runEventSyncForLocalEvent } from './runEventSync';
+export {
+  runPendingCloudSync,
+  runPendingCloudSyncForEvent,
+  type RunPendingCloudSyncResult,
+} from './runPendingCloudSync';
 export { pollEventUpdates, hasPendingAiEvents } from './pollEventUpdates';
 export { useEventUpdatesPoll } from './useEventUpdatesPoll';
 export { SyncStatusIndicator } from './components/SyncStatusIndicator';
 export { useSyncStatus } from './useSyncStatus';
 export { useBackgroundSync } from './useBackgroundSync';
+export { deleteEvent } from './deleteEvent';

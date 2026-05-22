@@ -239,24 +239,6 @@ export function SettingsScreen() {
           }}
         />
       </SettingsSection>
-
-      <SettingsSection
-        styles={styles}
-        title={t('settings.sections.preferences')}
-      >
-        <SettingsRow
-          description={t('settings.timelineScanDescription')}
-          label={t('settings.timelineScanLabel')}
-          styles={styles}
-          onPress={() => navigation.setActiveTab('Timeline')}
-        />
-        <SettingsRow
-          description={t('settings.petProfileDescription')}
-          label={t('settings.petProfileLabel')}
-          styles={styles}
-          onPress={() => navigation.setActiveTab('PetProfile')}
-        />
-      </SettingsSection>
     </ScrollView>
   );
 }

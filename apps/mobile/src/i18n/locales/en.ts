@@ -173,6 +173,7 @@ export const en = {
     emptyDefault: 'Tailo will keep looking quietly.',
   },
   timeline: {
+    scrollToTop: 'Back to top of timeline',
     defaultCaption: 'A small moment from today.',
     moment: {
       addFavorite: 'Add to favorites',

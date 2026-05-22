@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, Text, View } from 'react-native';
 
-import { MediaDetectionDebugBadge } from '@/components/MediaDetectionDebugBadge';
 import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
 import {
@@ -122,7 +121,6 @@ export function MomentMediaReorderGallery({
                 source={{ uri: item.uri }}
                 style={styles.thumb}
               />
-              <MediaDetectionDebugBadge media={item} />
               {isCover ? (
                 <View style={styles.coverBadge}>
                   <Text style={styles.coverBadgeText}>

@@ -2,20 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Pressable,
   RefreshControl,
   Text,
   View,
   type ListRenderItem,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { spacing } from '@/constants/theme';
 import {
-  formatCount,
-  getHomeStatusTitle,
-  getPhotoPermissionStatusLabel,
-  getPhotoPermissionStatusMessage,
   getTimelineEmptyMessage,
   getTimelineEmptyTitle,
   t,
@@ -37,10 +34,8 @@ import {
   useSyncStatus,
 } from '@/modules/sync';
 import { CaptureFab } from '@/modules/timeline/components/CaptureFab';
-import {
-  TimelineFilterDropdown,
-  type TimelineListFilter,
-} from '@/modules/timeline/components/TimelineFilterDropdown';
+import { TimelineTopBar } from '@/modules/timeline/components/TimelineTopBar';
+import type { TimelineListFilter } from '@/modules/timeline/components/TimelineFilterDropdown';
 import { MomentPhotoViewer } from '@/modules/timeline/components/MomentPhotoViewer';
 import { TimelineMomentCard } from '@/modules/timeline/components/TimelineMomentCard';
 import { TimelineMomentSeparator } from '@/modules/timeline/components/TimelineMomentSeparator';
@@ -78,107 +73,7 @@ function createTimelineScreenStyles({
     },
     header: {
       paddingBottom: spacing.md,
-    },
-    headerIntro: {
-      alignItems: 'flex-start' as const,
-      flexDirection: 'row' as const,
-      gap: spacing.md,
-      justifyContent: 'space-between' as const,
-    },
-    headerTitleBlock: {
-      flex: 1,
-      minWidth: 0,
-    },
-    title: {
-      fontSize: 30,
-      fontFamily: getFontFamily('600'),
-      fontWeight: '600' as const,
-      color: colors.text,
-    },
-    subtitle: {
-      marginTop: spacing.xs,
-      fontFamily: getFontFamily('400'),
-      fontSize: 16,
-      lineHeight: 23,
-      color: colors.textMuted,
-    },
-    statusBand: {
-      marginTop: spacing.md,
-      marginBottom: spacing.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 18,
-      backgroundColor: colors.surface,
-      padding: spacing.md,
-    },
-    statusLabel: {
-      color: colors.accent,
-      fontFamily: getFontFamily('700'),
-      fontSize: 12,
-      fontWeight: '700' as const,
-      textTransform: 'uppercase' as const,
-    },
-    statusTitle: {
-      marginTop: spacing.sm,
-      color: colors.text,
-      fontFamily: getFontFamily('600'),
-      fontSize: 19,
-      fontWeight: '600' as const,
-      lineHeight: 25,
-    },
-    statusText: {
-      marginTop: spacing.sm,
-      color: colors.textMuted,
-      fontFamily: getFontFamily('400'),
-      fontSize: 14,
-      lineHeight: 20,
-    },
-    primaryButton: {
-      alignItems: 'center' as const,
-      alignSelf: 'flex-start' as const,
-      marginTop: spacing.md,
-      borderRadius: 8,
-      backgroundColor: colors.accent,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
-    },
-    primaryButtonText: {
-      color: colors.surface,
-      fontFamily: getFontFamily('600'),
-      fontSize: 15,
-      fontWeight: '600' as const,
-    },
-    progressBlock: {
-      marginTop: spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      paddingTop: spacing.md,
-    },
-    progressValue: {
-      color: colors.text,
-      fontFamily: getFontFamily('600'),
-      fontSize: 15,
-      fontWeight: '600' as const,
-    },
-    progressHint: {
-      marginTop: spacing.xs,
-      color: colors.textMuted,
-      fontFamily: getFontFamily('400'),
-      fontSize: 13,
-    },
-    progressSubhint: {
-      marginTop: spacing.xs,
-      color: colors.textMuted,
-      fontFamily: getFontFamily('400'),
-      fontSize: 12,
-      lineHeight: 17,
-    },
-    error: {
-      marginTop: spacing.md,
-      color: colors.destructive,
-      fontFamily: getFontFamily('400'),
-      fontSize: 14,
-      lineHeight: 20,
+      paddingTop: spacing.sm,
     },
     emptyState: {
       alignItems: 'center' as const,
@@ -227,6 +122,8 @@ export function TimelineScreen() {
     photoAccess.isClusteringEvents ||
     photoAccess.isSelectingImages;
   const wasPipelineActiveRef = useRef(isPipelineActive);
+  const listRef = useRef<FlatList<TimelineEvent>>(null);
+  const [timelineScrollY, setTimelineScrollY] = useState(0);
   const timelineRefreshKey =
     navigation.captureCompletedNonce +
     navigation.timelineChangedNonce +
@@ -243,6 +140,22 @@ export function TimelineScreen() {
 
     wasPipelineActiveRef.current = isPipelineActive;
   }, [isPipelineActive]);
+
+  useEffect(() => {
+    listRef.current?.scrollToOffset({ animated: true, offset: 0 });
+    setTimelineScrollY(0);
+  }, [navigation.timelineScrollToTopNonce]);
+
+  const handleTimelineScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      setTimelineScrollY(event.nativeEvent.contentOffset.y);
+    },
+    [],
+  );
+
+  const handleScrollToTop = useCallback(() => {
+    navigation.scrollTimelineToTop();
+  }, [navigation]);
 
   const handleRemoteEventUpdatesApplied = useCallback(() => {
     setTimelineRefreshNonce((value) => value + 1);
@@ -352,7 +265,7 @@ export function TimelineScreen() {
       <RefreshControl
         colors={[colors.accent]}
         progressBackgroundColor={colors.background}
-        progressViewOffset={topPadding}
+        progressViewOffset={0}
         refreshing={timeline.isLoading && !isPipelineActive}
         tintColor={colors.accent}
         onRefresh={timeline.refresh}
@@ -364,43 +277,30 @@ export function TimelineScreen() {
       isPipelineActive,
       timeline.isLoading,
       timeline.refresh,
-      topPadding,
     ],
   );
 
   const listHeader = useMemo(
     () => (
       <TimelineHeader
-        topPadding={topPadding}
-        canAskAgain={photoAccess.canAskAgain}
-        errorMessage={photoAccess.errorMessage ?? timeline.errorMessage}
-        isPipelineActive={isPipelineActive}
-        onRequestAccess={photoAccess.requestAccess}
-        onTimelineFilterChange={setTimelineFilter}
-        timelineFilter={timelineFilter}
-        photoAccess={photoAccess}
-        timelineEventCount={timeline.events.length}
-        timelineIsLoading={timeline.isLoading}
         syncHasPendingMemories={syncStatus.hasPendingMemories}
         syncIsActive={syncStatus.isSyncing}
       />
     ),
-    [
-      timelineFilter,
-      isPipelineActive,
-      photoAccess,
-      topPadding,
-      syncStatus.hasPendingMemories,
-      syncStatus.isSyncing,
-      timeline.errorMessage,
-      timeline.events.length,
-      timeline.isLoading,
-    ],
+    [syncStatus.hasPendingMemories, syncStatus.isSyncing],
   );
 
   return (
     <View style={styles.screen}>
+      <TimelineTopBar
+        scrollOffsetY={timelineScrollY}
+        topPadding={topPadding}
+        timelineFilter={timelineFilter}
+        onScrollToTop={handleScrollToTop}
+        onTimelineFilterChange={setTimelineFilter}
+      />
       <FlatList
+        ref={listRef}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: tabBarContentInset },
@@ -430,8 +330,10 @@ export function TimelineScreen() {
         ListHeaderComponentStyle={styles.listHeaderContainer}
         refreshControl={refreshControl}
         renderItem={renderItem}
+        scrollEventThrottle={16}
         style={styles.list}
         updateCellsBatchingPeriod={50}
+        onScroll={handleTimelineScroll}
       />
       <CaptureFab onPress={() => navigation.push('Capture')} />
       {photoViewer ? (
@@ -447,187 +349,25 @@ export function TimelineScreen() {
 }
 
 type TimelineHeaderProps = {
-  topPadding: number;
-  canAskAgain: boolean;
-  errorMessage: string | null;
-  timelineFilter: TimelineListFilter;
-  isPipelineActive: boolean;
-  onRequestAccess: () => Promise<void>;
-  onTimelineFilterChange: (value: TimelineListFilter) => void;
-  photoAccess: ReturnType<typeof usePhotoAccess>;
-  timelineEventCount: number;
-  timelineIsLoading: boolean;
   syncHasPendingMemories: boolean;
   syncIsActive: boolean;
 };
 
 function TimelineHeader({
-  topPadding,
-  canAskAgain,
-  errorMessage,
-  timelineFilter,
-  isPipelineActive,
-  onRequestAccess,
-  onTimelineFilterChange,
-  photoAccess,
-  timelineEventCount,
-  timelineIsLoading,
   syncHasPendingMemories,
   syncIsActive,
 }: TimelineHeaderProps) {
   const styles = useThemedStyles(createTimelineScreenStyles);
 
   return (
-    <View style={[styles.header, { paddingTop: topPadding }]}>
-      <View style={styles.headerIntro}>
-        <View style={styles.headerTitleBlock}>
-          <Text style={styles.title}>{t('common.appName')}</Text>
-          <Text style={styles.subtitle}>{t('home.momentsSubtitle')}</Text>
-        </View>
-
-        <TimelineFilterDropdown
-          value={timelineFilter}
-          onChange={onTimelineFilterChange}
-        />
-      </View>
-
+    <View style={styles.header}>
       <SyncStatusIndicator
         hasPendingMemories={syncHasPendingMemories}
         isSyncing={syncIsActive}
       />
-
-      <View style={styles.statusBand}>
-        <Text style={styles.statusLabel}>
-          {getPhotoPermissionStatusLabel(photoAccess.permissionStatus)}
-        </Text>
-        <Text style={styles.statusTitle}>
-          {getHomeStatusTitle({
-            favoritesOnly: timelineFilter === 'favorites',
-            permissionStatus: photoAccess.permissionStatus,
-            isScanning: photoAccess.isScanning,
-            isDetectingPets: photoAccess.isDetectingPets,
-            isClusteringEvents: photoAccess.isClusteringEvents,
-            isSelectingImages: photoAccess.isSelectingImages,
-            scannedCount: photoAccess.progress.scannedCount,
-            processedCount: photoAccess.petDetectionProgress.processedCount,
-            petCandidateCount:
-              photoAccess.petDetectionProgress.petCandidateCount,
-            eventCandidateCount:
-              photoAccess.eventClusteringProgress.eventCandidateCount,
-            selectedAssetCount:
-              photoAccess.bestImageSelectionProgress.selectedAssetCount,
-            timelineEventCount,
-            timelineIsLoading,
-          })}
-        </Text>
-        <Text style={styles.statusText}>
-          {getPhotoPermissionStatusMessage(
-            photoAccess.permissionStatus,
-            canAskAgain,
-          )}
-        </Text>
-
-        {photoAccess.permissionStatus === 'undetermined' ? (
-          <PrimaryButton
-            label={t('common.choosePhotos')}
-            onPress={onRequestAccess}
-          />
-        ) : null}
-
-        {photoAccess.permissionStatus === 'denied' && canAskAgain ? (
-          <PrimaryButton
-            label={t('common.choosePhotos')}
-            onPress={onRequestAccess}
-          />
-        ) : null}
-
-        {isPipelineActive ? (
-          <PipelineProgress photoAccess={photoAccess} />
-        ) : null}
-
-        {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-      </View>
-
       <SaveMemoriesLink />
     </View>
   );
-}
-
-function PipelineProgress({
-  photoAccess,
-}: {
-  photoAccess: ReturnType<typeof usePhotoAccess>;
-}) {
-  const styles = useThemedStyles(createTimelineScreenStyles);
-
-  if (photoAccess.isScanning) {
-    return (
-      <ProgressLine
-        label={t('home.progressRecentPhotosChecked', {
-          count: formatCount(photoAccess.progress.scannedCount),
-        })}
-        value={t('home.progressBatch', {
-          batch: Math.max(photoAccess.progress.batchCount, 1),
-        })}
-      />
-    );
-  }
-
-  if (photoAccess.isDetectingPets) {
-    const { processedCount, totalCount, petCandidateCount } =
-      photoAccess.petDetectionProgress;
-    const progressValue =
-      totalCount > 0
-        ? t('home.progressPhotosOfTotal', {
-            processed: formatCount(processedCount),
-            total: formatCount(totalCount),
-          })
-        : t('home.progressPhotosChecked', {
-            count: formatCount(processedCount),
-          });
-    const candidateHint =
-      petCandidateCount > 0
-        ? t('home.progressPossiblePetMoments', {
-            count: formatCount(petCandidateCount),
-          })
-        : t('home.progressLargeLibraryHint');
-
-    return (
-      <ProgressLine
-        label={t('home.progressFindingPetMoments')}
-        value={progressValue}
-        hint={candidateHint}
-      />
-    );
-  }
-
-  if (photoAccess.isClusteringEvents) {
-    return (
-      <ProgressLine
-        label={t('home.progressBuildingTimeline')}
-        value={t('home.progressMomentsPrepared', {
-          count: formatCount(
-            photoAccess.eventClusteringProgress.eventCandidateCount,
-          ),
-        })}
-      />
-    );
-  }
-
-  if (photoAccess.isSelectingImages) {
-    return (
-      <ProgressLine
-        label={t('home.progressChoosingPhotos')}
-        value={t('home.progressPhotosSelected', {
-          count: formatCount(
-            photoAccess.bestImageSelectionProgress.selectedAssetCount,
-          ),
-        })}
-      />
-    );
-  }
-
-  return null;
 }
 
 type TimelineEmptyStateProps = {
@@ -676,38 +416,3 @@ function TimelineEmptyState({
     </View>
   );
 }
-
-function PrimaryButton({ label, onPress }: ButtonProps) {
-  const styles = useThemedStyles(createTimelineScreenStyles);
-
-  return (
-    <Pressable style={styles.primaryButton} onPress={onPress}>
-      <Text style={styles.primaryButtonText}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function ProgressLine({
-  hint,
-  label,
-  value,
-}: {
-  hint?: string;
-  label: string;
-  value: string;
-}) {
-  const styles = useThemedStyles(createTimelineScreenStyles);
-
-  return (
-    <View style={styles.progressBlock}>
-      <Text style={styles.progressValue}>{label}</Text>
-      <Text style={styles.progressHint}>{value}</Text>
-      {hint ? <Text style={styles.progressSubhint}>{hint}</Text> : null}
-    </View>
-  );
-}
-
-type ButtonProps = {
-  label: string;
-  onPress: () => void;
-};

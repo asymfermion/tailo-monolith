@@ -164,6 +164,7 @@ export const zhHans: TranslationTree = {
     emptyDefault: 'Tailo 会继续安静地寻找。',
   },
   timeline: {
+    scrollToTop: '回到时间线顶部',
     defaultCaption: '今天的一个小瞬间。',
     moment: {
       addFavorite: '加入收藏',

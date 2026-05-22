@@ -52,12 +52,7 @@ export function DismissibleDropdownMenu({
   }
 
   return (
-    <Modal
-      transparent
-      animationType="none"
-      visible
-      onRequestClose={onDismiss}
-    >
+    <Modal transparent animationType="none" visible onRequestClose={onDismiss}>
       <View style={styles.overlay}>
         <Pressable
           accessibilityRole="button"

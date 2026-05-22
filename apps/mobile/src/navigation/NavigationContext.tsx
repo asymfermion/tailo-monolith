@@ -33,6 +33,9 @@ type NavigationContextValue = {
   /** Bumped when moment data changes (reorder, edits) so the timeline reloads. */
   timelineChangedNonce: number;
   notifyTimelineChanged: () => void;
+  /** Bumped when the home tab requests scroll-to-top on an already-visible timeline. */
+  timelineScrollToTopNonce: number;
+  scrollTimelineToTop: () => void;
 };
 
 const NavigationContext = createContext<NavigationContextValue | null>(null);
@@ -46,6 +49,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   );
   const [captureCompletedNonce, setCaptureCompletedNonce] = useState(0);
   const [timelineChangedNonce, setTimelineChangedNonce] = useState(0);
+  const [timelineScrollToTopNonce, setTimelineScrollToTopNonce] = useState(0);
 
   const setActiveTab = useCallback((tab: MainTabId) => {
     setActiveTabState(tab);
@@ -87,6 +91,10 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     setTimelineChangedNonce((value) => value + 1);
   }, []);
 
+  const scrollTimelineToTop = useCallback(() => {
+    setTimelineScrollToTopNonce((value) => value + 1);
+  }, []);
+
   const value = useMemo(
     () => ({
       activeTab,
@@ -101,6 +109,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       completeCapture,
       timelineChangedNonce,
       notifyTimelineChanged,
+      timelineScrollToTopNonce,
+      scrollTimelineToTop,
     }),
     [
       activeTab,
@@ -112,8 +122,10 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       pop,
       popToRoot,
       push,
+      scrollTimelineToTop,
       setActiveTab,
       timelineChangedNonce,
+      timelineScrollToTopNonce,
     ],
   );
 

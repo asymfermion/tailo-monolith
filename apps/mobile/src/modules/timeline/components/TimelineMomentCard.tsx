@@ -3,7 +3,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, Text, View } from 'react-native';
 
-import { MediaDetectionDebugBadge } from '@/components/MediaDetectionDebugBadge';
 import { spacing } from '@/constants/theme';
 import { formatEventType, formatTimestamp } from '@/lib/formatMoment';
 import { t, useAppLocale } from '@/i18n';
@@ -189,7 +188,6 @@ function TimelineMomentCardComponent({
                 source={{ uri: primaryMedia.uri }}
                 style={styles.primaryImage}
               />
-              <MediaDetectionDebugBadge media={primaryMedia} />
             </View>
           </Pressable>
           {secondaryMedia.length > 0 ? (
@@ -271,7 +269,6 @@ function MomentImage({
         source={{ uri: media.uri }}
         style={styles.secondaryImage}
       />
-      <MediaDetectionDebugBadge compact media={media} />
     </Pressable>
   );
 }

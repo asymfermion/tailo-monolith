@@ -136,6 +136,18 @@ export async function getNewestPromotedEventTimestamp(
   return row?.timestamp ?? null;
 }
 
+export async function getLocalEventCount(
+  db: SQLite.SQLiteDatabase,
+): Promise<number> {
+  const row = await db.getFirstAsync<{ count: number }>(`
+    SELECT COUNT(*) AS count
+    FROM local_events
+    WHERE deleted_at IS NULL
+  `);
+
+  return Number(row?.count ?? 0);
+}
+
 export async function getLocalEventById(
   db: SQLite.SQLiteDatabase,
   localEventId: string,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { loadLocalPetProfile, type LocalPetProfile } from './petProfile';
 
@@ -11,12 +11,16 @@ export type LocalPetProfileState = {
 export function useLocalPetProfile(): LocalPetProfileState {
   const [profile, setProfile] = useState<LocalPetProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
 
   const refresh = useCallback(async () => {
-    setIsLoading(true);
+    if (!hasLoadedRef.current) {
+      setIsLoading(true);
+    }
 
     try {
       setProfile(await loadLocalPetProfile());
+      hasLoadedRef.current = true;
     } finally {
       setIsLoading(false);
     }

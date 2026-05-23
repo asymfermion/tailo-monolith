@@ -5,6 +5,7 @@ export const TAILO_LOG_PREFIX = '[Tailo]';
 
 export type TailoLogArea =
   | 'App'
+  | 'Auth'
   | 'Pipeline'
   | 'Scan'
   | 'Detect'

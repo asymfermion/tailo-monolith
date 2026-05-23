@@ -16,6 +16,30 @@
 3. **Dashboard → Project Settings → API** — copy the **anon** `publishable` key into `apps/mobile/.env.local`.
 4. **Never** put the database password or `service_role` key in the mobile app.
 
+## Auth email templates (OTP)
+
+Tailo’s mobile app expects **8-digit codes** in email, not link-only messages. Full templates, dashboard mapping, and QA steps:
+
+**[supabase/templates/README.md](./templates/README.md)**
+
+Quick reference:
+
+| App flow | Paste this file into dashboard template |
+| -------- | ---------------------------------------- |
+| Save memories / Create account (email link) | [email_change.html](./templates/email_change.html) → **Change email address** |
+| Sign in with code | [magic_link.html](./templates/magic_link.html) → **Magic Link** |
+| Forgot password | [recovery.html](./templates/recovery.html) → **Reset password** |
+| Direct signup (future) | [confirmation.html](./templates/confirmation.html) → **Confirm signup** |
+| Admin invite (optional) | [invite.html](./templates/invite.html) → **Invite user** |
+| Reauthentication (optional) | [reauthentication.html](./templates/reauthentication.html) → **Reauthentication** |
+| Password changed notice | [password_changed_notification.html](./templates/password_changed_notification.html) → notification |
+
+- **Local stack:** all paths and subjects are in [config.toml](./config.toml) (`otp_length = 8`).
+- **Hosted:** `npm run push:supabase:email-templates` (linked CLI) or paste HTML into **Authentication → Email Templates** for each row above.
+- **Verify repo templates:** `npm run verify:supabase:email-templates`
+
+If a hosted template still sends only a magic link, the in-app code screen will not match the email.
+
 ## Local secrets (gitignored)
 
 ```bash
@@ -63,18 +87,19 @@ This runs `supabase db push` and deploys every function under `supabase/function
 
 Functions deployed:
 
-- `link-anonymous-user`
-- `upsert-pet`
-- `create-upload-urls`
-- `sync-event`
-- `get-event-updates`
-- `process-ai-job`
+- `api-auth` — `ensure-current-user`, `link-anonymous-user`
+- `api-pet` — `upsert-pet`
+- `api-account` — `upsert-account-profile`
+- `api-events` — `create-upload-urls`, `sync-event`, `get-event-updates`, `delete-event`
+- `process-ai-job` — internal AI worker (cron + service invoke from `sync-event`)
+
+Each user API accepts `POST` with body `{ "action": "<name>", ...payload }`.
 
 Manual deploy (single function):
 
 ```bash
 npx supabase db push
-npx supabase functions deploy sync-event
+npx supabase functions deploy api-events
 # Internal AI worker — must disable gateway JWT (service role invoke from sync-event):
 npx supabase functions deploy process-ai-job --no-verify-jwt
 ```
@@ -103,18 +128,30 @@ After deploy, logs appear under **Edge Functions → process-ai-job → Logs** (
 
 Upgraded devices (Phase 1 `anon_*` in SecureStore) call `link-anonymous-user` once on launch after anonymous sign-in.
 
+## Email auth templates (OTP)
+
+Mobile email flows use **8-digit codes** (`verifyOtp`), not magic links. In the Supabase Dashboard (**Authentication → Email Templates**), align templates for `dev` and `prod`:
+
+| Template | Used for | Body must include |
+| -------- | -------- | ----------------- |
+| **Confirm sign up** | Direct create account (`signInWithOtp` / signup OTP) | `{{ .Token }}` (8-digit code) |
+| **Change email address** | Anonymous upgrade + email change (`updateUser` + `email_change`) | `{{ .Token }}` |
+| **Reset password** | Forgot password (`resetPasswordForEmail` + `recovery`) | `{{ .Token }}` |
+
+Disable link-only templates if they conflict with in-app code entry. After changes, smoke-test: create account, link email from Settings, forgot password.
+
 ## Known limitation: session loss (B2.6.9)
 
 If the Supabase refresh token is cleared (app reinstall, SecureStore wipe, or hard auth failure), the app signs in **anonymously again** and receives a **new** `auth.users.id`. Cloud pets/events from the previous anonymous user remain on the old account; the MVP does **not** auto-merge or restore them. Permanent account linking (email / Apple / Google) is the path to keep data on one user id. See [Auth edge-case policy](../docs/architecture/phase-2-backend-mvp.md#auth-edge-case-policy).
 
 ## Backend QA scripts (B2.6)
 
-| Script | Purpose |
-| ------ | ------- |
-| `npm run test:supabase:rls -- --linked` | RLS cross-user smoke |
-| `npm run test:supabase:upload` | Signed PUT `Content-Type` enforcement |
-| `npm run test:supabase:qa` | Edge Function hardening integration tests |
-| `npm run audit:supabase` | `npm audit` for function-related workspace deps |
+| Script                                  | Purpose                                         |
+| --------------------------------------- | ----------------------------------------------- |
+| `npm run test:supabase:rls -- --linked` | RLS cross-user smoke                            |
+| `npm run test:supabase:upload`          | Signed PUT `Content-Type` enforcement           |
+| `npm run test:supabase:qa`              | Edge Function hardening integration tests       |
+| `npm run audit:supabase`                | `npm audit` for function-related workspace deps |
 
 Staging/prod promotion: **[STAGING_CHECKLIST.md](./STAGING_CHECKLIST.md)**.
 

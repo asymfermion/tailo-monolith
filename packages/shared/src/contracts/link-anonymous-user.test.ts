@@ -24,6 +24,7 @@ describe('isLinkAnonymousUserResponse', () => {
     expect(
       isLinkAnonymousUserResponse({
         user_id: 'uuid',
+        app_user_id: 'app-uuid',
         created: true,
       }),
     ).toBe(true);

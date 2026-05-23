@@ -6,11 +6,11 @@ describe('validateUploadRequest', () => {
   it('accepts a valid owned pet batch', () => {
     expect(
       validateUploadRequest({
-        callerUserId: 'user-1',
+        callerAppUserId: 'user-1',
         petId: 'pet-1',
         sourceLocalEventId: 'local-event-1',
         assets: [{ sourceLocalAssetId: 'asset-1' }],
-        petOwnerUserId: 'user-1',
+        petOwnerAppUserId: 'user-1',
       }),
     ).toEqual({ ok: true });
   });
@@ -18,11 +18,11 @@ describe('validateUploadRequest', () => {
   it('rejects a pet owned by another user', () => {
     expect(
       validateUploadRequest({
-        callerUserId: 'user-1',
+        callerAppUserId: 'user-1',
         petId: 'pet-1',
         sourceLocalEventId: 'local-event-1',
         assets: [{ sourceLocalAssetId: 'asset-1' }],
-        petOwnerUserId: 'user-2',
+        petOwnerAppUserId: 'user-2',
       }),
     ).toEqual({
       ok: false,
@@ -34,14 +34,14 @@ describe('validateUploadRequest', () => {
   it('rejects duplicate asset ids', () => {
     expect(
       validateUploadRequest({
-        callerUserId: 'user-1',
+        callerAppUserId: 'user-1',
         petId: 'pet-1',
         sourceLocalEventId: 'local-event-1',
         assets: [
           { sourceLocalAssetId: 'asset-1' },
           { sourceLocalAssetId: 'asset-1' },
         ],
-        petOwnerUserId: 'user-1',
+        petOwnerAppUserId: 'user-1',
       }),
     ).toEqual({
       ok: false,

@@ -15,4 +15,8 @@ export { useEventUpdatesPoll } from './useEventUpdatesPoll';
 export { SyncStatusIndicator } from './components/SyncStatusIndicator';
 export { useSyncStatus } from './useSyncStatus';
 export { useBackgroundSync } from './useBackgroundSync';
+export {
+  runCloudSyncPass,
+  type RunCloudSyncPassResult,
+} from './runCloudSyncPass';
 export { deleteEvent } from './deleteEvent';

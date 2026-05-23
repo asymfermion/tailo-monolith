@@ -255,6 +255,20 @@ Structured dev logs use the `[Tailo]` prefix with an area tag. Filter Metro / Xc
 **New local moments** → look for `[Promote] New timeline moments promoted locally`.  
 **Cloud backlog** → `[Upload] Cloud media upload completed for moment` (includes `note: not a new on-device discovery`).
 
+### Account email upgrade sends a link instead of an 8-digit code
+
+The app uses **8-digit OTP codes** for email linking, sign-in codes, and password reset — not link-only emails.
+
+Configure every template listed in **[supabase/templates/README.md](../supabase/templates/README.md)** (hosted dashboard) or [supabase/config.toml](../supabase/config.toml) (local stack). At minimum:
+
+- **Change email address** → `email_change.html` with `{{ .Token }}`
+- **Magic Link** → `magic_link.html` with `{{ .Token }}`
+- **Reset password** → `recovery.html` with `{{ .Token }}`
+
+Verify repo templates: `node scripts/verify-supabase-email-templates.mjs`
+
+If the email contains only a magic link, the in-app verification screen will not match.
+
 ---
 
 ## Backend (Phase 2)

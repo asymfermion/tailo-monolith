@@ -2,25 +2,22 @@ import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { getDatabase } from '@/db';
-import { logTailo } from '@/lib/tailoLogger';
 
-import { pollEventUpdates } from './pollEventUpdates';
-import { runPendingCloudSync } from './runPendingCloudSync';
-import { runUploadQueueWorker } from './uploadQueueWorker';
+import { runCloudSyncPass } from './runCloudSyncPass';
 
-export function useBackgroundSync(): void {
+export function useBackgroundSync(requiresLogin = false): void {
   useEffect(() => {
+    if (requiresLogin) {
+      return;
+    }
+
     let appState: AppStateStatus = AppState.currentState;
 
     const runSyncPass = () => {
-      logTailo('Sync', 'Foreground cloud sync pass started');
-      void getDatabase().then(async (database) => {
-        await runUploadQueueWorker(database);
-        await runPendingCloudSync(database);
-        await pollEventUpdates(database);
-        logTailo('Sync', 'Foreground cloud sync pass finished');
-      });
+      void getDatabase().then((database) => runCloudSyncPass(database));
     };
+
+    runSyncPass();
 
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (appState.match(/inactive|background/) && nextState === 'active') {
@@ -33,5 +30,5 @@ export function useBackgroundSync(): void {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [requiresLogin]);
 }

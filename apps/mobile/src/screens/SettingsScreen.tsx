@@ -1,21 +1,37 @@
-import { useMemo, type ReactNode } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getFontFamilyForStyle } from '@/constants/typography';
 import { spacing, type AppTheme } from '@/constants/theme';
-import { setAppLocale, t, useAppLocale } from '@/i18n';
+import { t, useAppLocale, type AppLocale } from '@/i18n';
 import {
   APP_FONT_STYLES,
-  setAppFontStyle,
   useAppFontStyle,
   type AppFontStyle,
 } from '@/lib/appFontStyle';
-import { setAppTheme, useAppTheme } from '@/lib/appTheme';
+import { useAppTheme } from '@/lib/appTheme';
 import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
 import { useNavigation } from '@/navigation/NavigationContext';
 import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
+import {
+  formatAccountSettingsLabel,
+  logoutRemoteAccount,
+  setAppFontStyleAndSyncProfile,
+  setAppLocaleAndSyncProfile,
+  setAppThemeAndSyncProfile,
+  type PersistAppPreferenceResult,
+  useAuthAccountStatus,
+  useAuthGate,
+  useRemoteAccountProfile,
+} from '@/modules/auth';
 
 import { SettingsOptionPicker } from './settings/SettingsOptionPicker';
 
@@ -43,6 +59,7 @@ function createSettingsStyles({
       flex: 1,
     },
     content: {
+      flexGrow: 1,
       paddingHorizontal: spacing.lg,
     },
     title: {
@@ -111,6 +128,36 @@ function createSettingsStyles({
       lineHeight: 22,
       marginLeft: spacing.sm,
     },
+    rowLast: {
+      borderBottomWidth: 0,
+    },
+    logoutFooter: {
+      marginTop: 'auto' as const,
+      paddingTop: spacing.xl,
+    },
+    logoutButton: {
+      alignItems: 'center' as const,
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      justifyContent: 'center' as const,
+      minHeight: 48,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    logoutButtonPressed: {
+      backgroundColor: colors.background,
+    },
+    logoutButtonDisabled: {
+      opacity: 0.6,
+    },
+    logoutButtonText: {
+      color: colors.destructive,
+      fontFamily: getFontFamily('600'),
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
   };
 }
 
@@ -123,7 +170,111 @@ export function SettingsScreen() {
   const locale = useAppLocale();
   const theme = useAppTheme();
   const fontStyle = useAppFontStyle();
+  const account = useAuthAccountStatus();
+  const { profile: accountProfile, refresh: refreshAccountProfile } =
+    useRemoteAccountProfile();
+  const authGate = useAuthGate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const styles = useThemedStyles(createSettingsStyles);
+  const showLogout = account.isConfigured && account.isLinked;
+
+  useEffect(() => {
+    if (navigation.activeTab !== 'Settings') {
+      return;
+    }
+
+    void refreshAccountProfile();
+  }, [
+    navigation.activeTab,
+    navigation.modalStack.length,
+    refreshAccountProfile,
+  ]);
+
+  const handleLogout = useCallback(() => {
+    Alert.alert(
+      t('settings.logoutConfirmTitle'),
+      t('settings.logoutConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.logoutLabel'),
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setIsLoggingOut(true);
+              const result = await logoutRemoteAccount();
+              await authGate.refresh();
+              await account.refresh();
+              setIsLoggingOut(false);
+
+              if (result.status === 'error') {
+                Alert.alert(
+                  t('settings.logoutFailedTitle'),
+                  result.message || t('settings.logoutFailedMessage'),
+                );
+              }
+            })();
+          },
+        },
+      ],
+    );
+  }, [account, authGate]);
+
+  const shouldSyncProfile =
+    account.isConfigured && !account.isLoading && account.isLinked;
+
+  const handlePreferenceSyncResult = useCallback(
+    async (result: PersistAppPreferenceResult) => {
+      if (result.status === 'synced') {
+        await refreshAccountProfile();
+        return;
+      }
+
+      if (result.status === 'error') {
+        Alert.alert(
+          t('settings.preferenceSyncFailedTitle'),
+          result.message || t('settings.preferenceSyncFailedMessage'),
+        );
+      }
+    },
+    [refreshAccountProfile],
+  );
+
+  const handleLanguageSelect = useCallback(
+    (value: AppLocale) => {
+      void (async () => {
+        const result = await setAppLocaleAndSyncProfile(value, {
+          syncToRemoteProfile: shouldSyncProfile,
+        });
+        await handlePreferenceSyncResult(result);
+      })();
+    },
+    [handlePreferenceSyncResult, shouldSyncProfile],
+  );
+
+  const handleThemeSelect = useCallback(
+    (value: AppTheme) => {
+      void (async () => {
+        const result = await setAppThemeAndSyncProfile(value, {
+          syncToRemoteProfile: shouldSyncProfile,
+        });
+        await handlePreferenceSyncResult(result);
+      })();
+    },
+    [handlePreferenceSyncResult, shouldSyncProfile],
+  );
+
+  const handleFontStyleSelect = useCallback(
+    (value: AppFontStyle) => {
+      void (async () => {
+        const result = await setAppFontStyleAndSyncProfile(value, {
+          syncToRemoteProfile: shouldSyncProfile,
+        });
+        await handlePreferenceSyncResult(result);
+      })();
+    },
+    [handlePreferenceSyncResult, shouldSyncProfile],
+  );
 
   const languageOptions = useMemo(
     () => [
@@ -172,6 +323,51 @@ export function SettingsScreen() {
       ? t('settings.languages.simplifiedChinese')
       : t('settings.languages.english');
 
+  const profileDisplayName = accountProfile?.displayName?.trim() ?? '';
+  const accountEmail = account.session?.email ?? null;
+
+  const accountLabel = useMemo(() => {
+    if (account.isLoading) {
+      return t('settings.accountLoadingLabel');
+    }
+
+    if (!account.isLinked) {
+      return t('userProfile.settingsRowLabel');
+    }
+
+    if (profileDisplayName) {
+      return profileDisplayName;
+    }
+
+    const emailLabel = formatAccountSettingsLabel({
+      session: account.session,
+      displayName: null,
+    });
+
+    return emailLabel || t('userProfile.settingsRowLabel');
+  }, [
+    account.isLoading,
+    account.isLinked,
+    account.session,
+    profileDisplayName,
+  ]);
+
+  const accountDescription = useMemo(() => {
+    if (account.isLoading) {
+      return t('settings.accountLoadingDescription');
+    }
+
+    if (!account.isLinked) {
+      return t('userProfile.settingsRowDescriptionAnonymous');
+    }
+
+    if (profileDisplayName && accountEmail) {
+      return accountEmail;
+    }
+
+    return t('userProfile.settingsRowDescriptionLinked');
+  }, [account.isLoading, account.isLinked, accountEmail, profileDisplayName]);
+
   return (
     <ScrollView
       contentContainerStyle={[
@@ -187,10 +383,13 @@ export function SettingsScreen() {
       <Text style={styles.title}>{t('navigation.tabs.Settings')}</Text>
       <Text style={styles.subtitle}>{t('settings.subtitle')}</Text>
 
-      <SettingsSection styles={styles} title={t('settings.sections.account')}>
+      <SettingsSection
+        styles={styles}
+        title={t('userProfile.settingsSectionTitle')}
+      >
         <SettingsRow
-          description={t('settings.accountDescription')}
-          label={t('settings.accountLabel')}
+          description={accountDescription}
+          label={accountLabel}
           styles={styles}
           onPress={() => navigation.push('AccountSettings')}
         />
@@ -205,9 +404,7 @@ export function SettingsScreen() {
           options={languageOptions}
           selectedLabel={selectedLanguageLabel}
           selectedValue={locale}
-          onSelect={(value) => {
-            void setAppLocale(value);
-          }}
+          onSelect={handleLanguageSelect}
         />
       </SettingsSection>
 
@@ -221,9 +418,7 @@ export function SettingsScreen() {
               : t('settings.themes.light')
           }
           selectedValue={theme}
-          onSelect={(value) => {
-            void setAppTheme(value);
-          }}
+          onSelect={handleThemeSelect}
         />
       </SettingsSection>
 
@@ -234,11 +429,29 @@ export function SettingsScreen() {
           selectedLabel={t(FONT_STYLE_LABEL_KEYS[fontStyle])}
           selectedLabelStyle={selectedFontLabelStyle}
           selectedValue={fontStyle}
-          onSelect={(value) => {
-            void setAppFontStyle(value);
-          }}
+          onSelect={handleFontStyleSelect}
         />
       </SettingsSection>
+
+      {showLogout ? (
+        <View style={styles.logoutFooter}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isLoggingOut }}
+            disabled={isLoggingOut}
+            style={({ pressed }) => [
+              styles.logoutButton,
+              pressed && styles.logoutButtonPressed,
+              isLoggingOut && styles.logoutButtonDisabled,
+            ]}
+            onPress={handleLogout}
+          >
+            <Text style={styles.logoutButtonText}>
+              {t('settings.logoutLabel')}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -262,10 +475,12 @@ function SettingsSection({
 
 function SettingsRow({
   description,
+  isLast = false,
   label,
   onPress,
   styles,
 }: SettingsRowProps & {
+  isLast?: boolean;
   styles: SettingsStyles;
 }) {
   const content = (
@@ -278,13 +493,19 @@ function SettingsRow({
   );
 
   if (!onPress) {
-    return <View style={styles.row}>{content}</View>;
+    return (
+      <View style={[styles.row, isLast && styles.rowLast]}>{content}</View>
+    );
   }
 
   return (
     <Pressable
       accessibilityRole="button"
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      style={({ pressed }) => [
+        styles.row,
+        isLast && styles.rowLast,
+        pressed && styles.rowPressed,
+      ]}
       onPress={onPress}
     >
       {content}

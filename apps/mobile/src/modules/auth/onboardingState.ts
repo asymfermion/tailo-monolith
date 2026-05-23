@@ -1,4 +1,5 @@
-import { secureStorage, type SecureStorage } from './secureStorage';
+import { workspaceSecureStorage } from './localWorkspace';
+import { type SecureStorage } from './secureStorage';
 
 export type OnboardingStep =
   | 'welcome'
@@ -57,7 +58,7 @@ export const initialOnboardingState: OnboardingState = {
 };
 
 export async function loadOnboardingState(
-  storage: SecureStorage = secureStorage,
+  storage: SecureStorage = workspaceSecureStorage,
 ): Promise<OnboardingState> {
   const storedValue = await storage.getItemAsync(ONBOARDING_STATE_KEY);
 
@@ -74,7 +75,7 @@ export async function loadOnboardingState(
 
 export async function saveOnboardingState(
   state: OnboardingState,
-  storage: SecureStorage = secureStorage,
+  storage: SecureStorage = workspaceSecureStorage,
 ): Promise<void> {
   await storage.setItemAsync(ONBOARDING_STATE_KEY, JSON.stringify(state));
 }

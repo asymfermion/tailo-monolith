@@ -19,11 +19,12 @@ jest.mock('@/lib/env', () => ({
   },
 }));
 
-jest.mock('@/modules/auth/secureStorage', () => ({
-  secureStorage: {
-    getItemAsync: jest.fn(),
-    setItemAsync: jest.fn(),
-    deleteItemAsync: jest.fn(),
+jest.mock('@/lib/supabaseAuthStorage', () => ({
+  SUPABASE_AUTH_STORAGE_KEY: 'tailo.supabase.auth',
+  supabaseAuthStorage: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
   },
 }));
 

@@ -1,6 +1,5 @@
-import { appEnv } from '@/lib/env';
+import { invokeTailoApi, readApiErrorMessage } from '@/lib/invokeTailoApi';
 import {
-  getAuthAccessToken,
   getAuthSession,
   isRemoteAuthConfigured,
 } from '@/modules/auth/authService';
@@ -49,42 +48,26 @@ export async function syncRemotePetProfileIfNeeded(): Promise<SyncRemotePetProfi
     return { status: 'incomplete_profile' };
   }
 
-  const accessToken = await getAuthAccessToken();
-
-  if (!accessToken) {
-    return { status: 'error', message: 'Missing auth session token.' };
-  }
-
   try {
-    const response = await fetch(
-      `${appEnv.supabaseUrl}/functions/v1/upsert-pet`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          apikey: appEnv.supabaseAnonKey,
-        },
-        body: JSON.stringify({
-          source_local_pet_id: profile.petId,
-          name: profile.name.trim(),
-          type: profile.type,
-          gender: profile.gender,
-        }),
-      },
-    );
+    const result = await invokeTailoApi('upsert-pet', {
+      source_local_pet_id: profile.petId,
+      name: profile.name.trim(),
+      type: profile.type,
+      gender: profile.gender,
+      birthday: profile.birthday,
+    });
 
-    const payload: unknown = await response.json().catch(() => null);
+    if ('error' in result) {
+      return { status: 'error', message: result.error };
+    }
 
-    if (!response.ok) {
-      const message =
-        typeof payload === 'object' &&
-        payload &&
-        typeof Reflect.get(payload, 'error') === 'string'
-          ? String(Reflect.get(payload, 'error'))
-          : `Pet sync failed (${response.status}).`;
+    const { ok, status, payload } = result;
 
-      return { status: 'error', message };
+    if (!ok) {
+      return {
+        status: 'error',
+        message: readApiErrorMessage(payload, `Pet sync failed (${status}).`),
+      };
     }
 
     if (!isUpsertPetResponse(payload)) {

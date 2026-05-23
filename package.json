@@ -25,6 +25,8 @@
     "deploy:supabase": "bash scripts/deploy-supabase.sh",
     "setup:ai-job-cron": "bash scripts/setup-ai-job-cron.sh",
     "verify:supabase": "node scripts/verify-supabase-setup.mjs",
+    "verify:supabase:email-templates": "node scripts/verify-supabase-email-templates.mjs",
+    "push:supabase:email-templates": "bash scripts/push-supabase-email-templates.sh",
     "test:supabase:rls": "node scripts/test-supabase-rls.mjs",
     "test:supabase:upload": "npm run test:integration --workspace=@tailo/backend-core -- src/integration/signedUploadContentType.integration.test.ts",
     "test:supabase:qa": "npm run test:integration --workspace=@tailo/backend-core -- src/integration/backendHardening.integration.test.ts",

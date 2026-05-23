@@ -30,6 +30,8 @@ type NavigationContextValue = {
   canGoBack: boolean;
   captureCompletedNonce: number;
   completeCapture: () => void;
+  /** Dismisses auth modals after sign-in; shell shows onboarding or timeline. */
+  finishSignInToTimeline: () => void;
   /** Bumped when moment data changes (reorder, edits) so the timeline reloads. */
   timelineChangedNonce: number;
   notifyTimelineChanged: () => void;
@@ -87,6 +89,13 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     dispatchModal({ type: 'popAll' });
   }, []);
 
+  const finishSignInToTimeline = useCallback(() => {
+    setActiveTabState('Timeline');
+    dispatchModal({ type: 'popAll' });
+    setTimelineChangedNonce((value) => value + 1);
+    setTimelineScrollToTopNonce((value) => value + 1);
+  }, []);
+
   const notifyTimelineChanged = useCallback(() => {
     setTimelineChangedNonce((value) => value + 1);
   }, []);
@@ -107,6 +116,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       canGoBack: modalStack.length > 0,
       captureCompletedNonce,
       completeCapture,
+      finishSignInToTimeline,
       timelineChangedNonce,
       notifyTimelineChanged,
       timelineScrollToTopNonce,
@@ -116,6 +126,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       activeTab,
       captureCompletedNonce,
       completeCapture,
+      finishSignInToTimeline,
       modalStack,
       notifyTimelineChanged,
       openSettings,

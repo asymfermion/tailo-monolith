@@ -6,10 +6,10 @@ describe('mergeSyncEventPayload', () => {
   it('preserves user-edited caption on repeat sync from client', () => {
     expect(
       mergeSyncEventPayload({
-        callerUserId: 'user-1',
+        callerAppUserId: 'user-1',
         existing: {
           eventId: 'event-1',
-          userId: 'user-1',
+          appUserId: 'user-1',
           petId: 'pet-1',
           sourceLocalEventId: 'local-event-1',
           timestamp: '2026-05-18T12:00:00.000Z',
@@ -55,7 +55,7 @@ describe('mergeSyncEventPayload', () => {
   it('creates a new event payload', () => {
     expect(
       mergeSyncEventPayload({
-        callerUserId: 'user-1',
+        callerAppUserId: 'user-1',
         existing: null,
         request: {
           source_local_event_id: 'local-event-1',

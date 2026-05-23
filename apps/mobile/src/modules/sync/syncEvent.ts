@@ -1,5 +1,4 @@
-import { appEnv } from '@/lib/env';
-import { getAuthAccessToken } from '@/modules/auth/authService';
+import { invokeTailoApi, readApiErrorMessage } from '@/lib/invokeTailoApi';
 import {
   isSyncEventResponse,
   type SyncEventRequest,
@@ -13,37 +12,23 @@ export type SyncEventResult =
 export async function syncEvent(
   request: SyncEventRequest,
 ): Promise<SyncEventResult> {
-  const accessToken = await getAuthAccessToken();
-
-  if (!accessToken) {
-    return { status: 'error', message: 'Missing auth session token.' };
-  }
-
   try {
-    const response = await fetch(
-      `${appEnv.supabaseUrl}/functions/v1/sync-event`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          apikey: appEnv.supabaseAnonKey,
-        },
-        body: JSON.stringify(request),
-      },
-    );
+    const result = await invokeTailoApi('sync-event', { ...request });
 
-    const payload: unknown = await response.json().catch(() => null);
+    if ('error' in result) {
+      return { status: 'error', message: result.error };
+    }
 
-    if (!response.ok) {
-      const message =
-        typeof payload === 'object' &&
-        payload &&
-        typeof Reflect.get(payload, 'error') === 'string'
-          ? String(Reflect.get(payload, 'error'))
-          : `Could not sync event (${response.status}).`;
+    const { ok, status, payload } = result;
 
-      return { status: 'error', message };
+    if (!ok) {
+      return {
+        status: 'error',
+        message: readApiErrorMessage(
+          payload,
+          `Could not sync event (${status}).`,
+        ),
+      };
     }
 
     if (!isSyncEventResponse(payload)) {

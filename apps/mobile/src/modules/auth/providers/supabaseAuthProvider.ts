@@ -1,4 +1,7 @@
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+import { logAuth } from '../authLogger';
 
 import {
   classifyEmailLinkError,
@@ -9,9 +12,21 @@ import type { AuthProvider } from '../authProvider';
 import type {
   AuthSession,
   BootstrapAuthResult,
+  PasswordSignInResult,
   RequestEmailLinkResult,
+  RequestEmailSignUpResult,
+  RequestPasswordResetResult,
+  RequestSignInResult,
+  SetPasswordResult,
+  SignOutResult,
   VerifyEmailLinkResult,
+  VerifyEmailSignUpResult,
+  VerifyPasswordResetResult,
+  VerifySignInResult,
 } from '../authTypes';
+
+const MIN_PASSWORD_LENGTH = 8;
+const EMAIL_OTP_LENGTH = 8;
 
 function mapUser(user: {
   id: string;
@@ -40,6 +55,67 @@ function emailLinkErrorMessage(message: string): string {
     default:
       return message || 'Could not update your account.';
   }
+}
+
+type AnonymousSessionEnsureResult =
+  | { status: 'ready'; userId: string; isAnonymous: boolean }
+  | { status: 'error'; message: string };
+
+/** Anonymous upgrade path only — links email onto the current device session. */
+async function ensureAnonymousAuthSession(
+  client: SupabaseClient,
+): Promise<AnonymousSessionEnsureResult> {
+  const {
+    data: { session: existingSession },
+  } = await client.auth.getSession();
+
+  if (existingSession?.user) {
+    return {
+      status: 'ready',
+      userId: existingSession.user.id,
+      isAnonymous: existingSession.user.is_anonymous ?? false,
+    };
+  }
+
+  logAuth('Creating anonymous auth session for account email link');
+
+  const { data, error } = await client.auth.signInAnonymously();
+
+  if (error) {
+    return { status: 'error', message: error.message };
+  }
+
+  const user = data.user ?? data.session?.user;
+
+  if (!user) {
+    return {
+      status: 'error',
+      message: 'Could not start account setup on this device.',
+    };
+  }
+
+  return {
+    status: 'ready',
+    userId: user.id,
+    isAnonymous: user.is_anonymous ?? true,
+  };
+}
+
+function passwordErrorMessage(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes('password should be at least') ||
+    normalized.includes('password is too short')
+  ) {
+    return `Use at least ${MIN_PASSWORD_LENGTH} characters for your password.`;
+  }
+
+  if (normalized.includes('invalid login credentials')) {
+    return 'That email or password does not look right.';
+  }
+
+  return message || 'Could not update your password.';
 }
 
 export function createSupabaseAuthProvider(): AuthProvider {
@@ -137,15 +213,13 @@ export function createSupabaseAuthProvider(): AuthProvider {
       }
 
       const client = getSupabaseClient();
-      const {
-        data: { session },
-      } = await client.auth.getSession();
+      const sessionResult = await ensureAnonymousAuthSession(client);
 
-      if (!session?.user) {
-        return { status: 'skipped' };
+      if (sessionResult.status === 'error') {
+        return { status: 'error', message: sessionResult.message };
       }
 
-      if (!session.user.is_anonymous) {
+      if (!sessionResult.isAnonymous) {
         return { status: 'already_linked' };
       }
 
@@ -174,10 +248,13 @@ export function createSupabaseAuthProvider(): AuthProvider {
       const normalizedEmail = normalizeAccountEmail(email);
       const otp = token.trim();
 
-      if (!isValidAccountEmail(normalizedEmail) || otp.length < 6) {
+      if (
+        !isValidAccountEmail(normalizedEmail) ||
+        otp.length < EMAIL_OTP_LENGTH
+      ) {
         return {
           status: 'error',
-          message: 'Enter the 6-digit code from your email.',
+          message: 'Enter the 8-digit code from your email.',
         };
       }
 
@@ -208,6 +285,363 @@ export function createSupabaseAuthProvider(): AuthProvider {
         status: 'verified',
         session: mapUser(user),
       };
+    },
+
+    async requestEmailSignUp(email: string): Promise<RequestEmailSignUpResult> {
+      if (!isSupabaseConfigured()) {
+        return { status: 'skipped' };
+      }
+
+      const normalizedEmail = normalizeAccountEmail(email);
+
+      if (!isValidAccountEmail(normalizedEmail)) {
+        return { status: 'error', message: 'Enter a valid email address.' };
+      }
+
+      const client = getSupabaseClient();
+      const {
+        data: { session },
+      } = await client.auth.getSession();
+
+      if (session?.user && !session.user.is_anonymous) {
+        return {
+          status: 'error',
+          message: 'That email is already linked to an account on this device.',
+        };
+      }
+
+      if (session?.user?.is_anonymous) {
+        logAuth('Signing out anonymous session before direct email sign-up');
+        await client.auth.signOut();
+      }
+
+      const { error } = await client.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: { shouldCreateUser: true },
+      });
+
+      if (error) {
+        return {
+          status: 'error',
+          message: emailLinkErrorMessage(error.message),
+        };
+      }
+
+      return { status: 'code_sent' };
+    },
+
+    async verifyEmailSignUp(
+      email: string,
+      token: string,
+    ): Promise<VerifyEmailSignUpResult> {
+      if (!isSupabaseConfigured()) {
+        return { status: 'skipped' };
+      }
+
+      const normalizedEmail = normalizeAccountEmail(email);
+      const otp = token.trim();
+
+      if (
+        !isValidAccountEmail(normalizedEmail) ||
+        otp.length < EMAIL_OTP_LENGTH
+      ) {
+        return {
+          status: 'error',
+          message: 'Enter the 8-digit code from your email.',
+        };
+      }
+
+      const client = getSupabaseClient();
+      const { data, error } = await client.auth.verifyOtp({
+        email: normalizedEmail,
+        token: otp,
+        type: 'email',
+      });
+
+      if (error) {
+        return {
+          status: 'error',
+          message: emailLinkErrorMessage(error.message),
+        };
+      }
+
+      const user = data.user ?? data.session?.user;
+
+      if (!user) {
+        return {
+          status: 'error',
+          message: 'Could not verify your email. Try again.',
+        };
+      }
+
+      const session = mapUser(user);
+
+      if (session.isAnonymous || !session.emailConfirmed) {
+        return {
+          status: 'error',
+          message: 'Could not finish creating your account. Try again.',
+        };
+      }
+
+      return {
+        status: 'verified',
+        session,
+      };
+    },
+
+    async setPassword(password: string): Promise<SetPasswordResult> {
+      if (!isSupabaseConfigured()) {
+        return { status: 'skipped' };
+      }
+
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        return {
+          status: 'error',
+          message: `Use at least ${MIN_PASSWORD_LENGTH} characters for your password.`,
+        };
+      }
+
+      const client = getSupabaseClient();
+      const { error } = await client.auth.updateUser({
+        password,
+      });
+
+      if (error) {
+        return {
+          status: 'error',
+          message: passwordErrorMessage(error.message),
+        };
+      }
+
+      const {
+        data: { session },
+      } = await client.auth.getSession();
+
+      return {
+        status: 'updated',
+        session: session?.user ? mapUser(session.user) : null,
+      };
+    },
+
+    async requestSignInOtp(email: string): Promise<RequestSignInResult> {
+      if (!isSupabaseConfigured()) {
+        return { status: 'skipped' };
+      }
+
+      const normalizedEmail = normalizeAccountEmail(email);
+
+      if (!isValidAccountEmail(normalizedEmail)) {
+        return { status: 'error', message: 'Enter a valid email address.' };
+      }
+
+      const { error } = await getSupabaseClient().auth.signInWithOtp({
+        email: normalizedEmail,
+        options: { shouldCreateUser: false },
+      });
+
+      if (error) {
+        return {
+          status: 'error',
+          message: emailLinkErrorMessage(error.message),
+        };
+      }
+
+      return { status: 'code_sent' };
+    },
+
+    async verifySignInOtp(
+      email: string,
+      token: string,
+    ): Promise<VerifySignInResult> {
+      if (!isSupabaseConfigured()) {
+        return { status: 'skipped' };
+      }
+
+      const normalizedEmail = normalizeAccountEmail(email);
+      const otp = token.trim();
+
+      if (
+        !isValidAccountEmail(normalizedEmail) ||
+        otp.length < EMAIL_OTP_LENGTH
+      ) {
+        return {
+          status: 'error',
+          message: 'Enter the 8-digit code from your email.',
+        };
+      }
+
+      const { data, error } = await getSupabaseClient().auth.verifyOtp({
+        email: normalizedEmail,
+        token: otp,
+        type: 'email',
+      });
+
+      if (error) {
+        return {
+          status: 'error',
+          message: emailLinkErrorMessage(error.message),
+        };
+      }
+
+      const user = data.user ?? data.session?.user;
+
+      if (!user) {
+        return {
+          status: 'error',
+          message: 'Could not sign in. Try again.',
+        };
+      }
+
+      const session = mapUser(user);
+
+      if (session.isAnonymous || !session.emailConfirmed) {
+        return {
+          status: 'error',
+          message: 'This email is not linked to a saved account yet.',
+        };
+      }
+
+      return {
+        status: 'signed_in',
+        session,
+      };
+    },
+
+    async requestPasswordReset(
+      email: string,
+    ): Promise<RequestPasswordResetResult> {
+      if (!isSupabaseConfigured()) {
+        return { status: 'skipped' };
+      }
+
+      const normalizedEmail = normalizeAccountEmail(email);
+
+      if (!isValidAccountEmail(normalizedEmail)) {
+        return { status: 'error', message: 'Enter a valid email address.' };
+      }
+
+      const { error } =
+        await getSupabaseClient().auth.resetPasswordForEmail(normalizedEmail);
+
+      if (error) {
+        return {
+          status: 'error',
+          message: emailLinkErrorMessage(error.message),
+        };
+      }
+
+      return { status: 'code_sent' };
+    },
+
+    async verifyPasswordResetOtp(
+      email: string,
+      token: string,
+    ): Promise<VerifyPasswordResetResult> {
+      if (!isSupabaseConfigured()) {
+        return { status: 'skipped' };
+      }
+
+      const normalizedEmail = normalizeAccountEmail(email);
+      const otp = token.trim();
+
+      if (
+        !isValidAccountEmail(normalizedEmail) ||
+        otp.length < EMAIL_OTP_LENGTH
+      ) {
+        return {
+          status: 'error',
+          message: 'Enter the 8-digit code from your email.',
+        };
+      }
+
+      const { error } = await getSupabaseClient().auth.verifyOtp({
+        email: normalizedEmail,
+        token: otp,
+        type: 'recovery',
+      });
+
+      if (error) {
+        return {
+          status: 'error',
+          message: emailLinkErrorMessage(error.message),
+        };
+      }
+
+      return { status: 'verified' };
+    },
+
+    async signInWithPassword(
+      email: string,
+      password: string,
+    ): Promise<PasswordSignInResult> {
+      if (!isSupabaseConfigured()) {
+        return { status: 'skipped' };
+      }
+
+      const normalizedEmail = normalizeAccountEmail(email);
+
+      if (!isValidAccountEmail(normalizedEmail)) {
+        return { status: 'error', message: 'Enter a valid email address.' };
+      }
+
+      if (!password) {
+        return { status: 'error', message: 'Enter your password.' };
+      }
+
+      const { data, error } = await getSupabaseClient().auth.signInWithPassword(
+        {
+          email: normalizedEmail,
+          password,
+        },
+      );
+
+      if (error) {
+        logAuth('Supabase password sign-in failed', {
+          code: error.code ?? null,
+          message: error.message,
+        });
+        return {
+          status: 'error',
+          message: passwordErrorMessage(error.message),
+        };
+      }
+
+      const user = data.user ?? data.session?.user;
+
+      if (!user) {
+        return {
+          status: 'error',
+          message: 'Could not sign in. Try again.',
+        };
+      }
+
+      const session = mapUser(user);
+
+      if (session.isAnonymous || !session.emailConfirmed) {
+        return {
+          status: 'error',
+          message: 'This email is not linked to a saved account yet.',
+        };
+      }
+
+      return {
+        status: 'signed_in',
+        session,
+      };
+    },
+
+    async signOut(): Promise<SignOutResult> {
+      if (!isSupabaseConfigured()) {
+        return { status: 'skipped' };
+      }
+
+      const { error } = await getSupabaseClient().auth.signOut();
+
+      if (error) {
+        return { status: 'error', message: error.message };
+      }
+
+      return { status: 'signed_out' };
     },
   };
 }

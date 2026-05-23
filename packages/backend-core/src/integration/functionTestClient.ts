@@ -1,4 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import {
+  buildTailoApiBody,
+  getTailoApiFunctionForAction,
+  type TailoApiAction,
+} from '@tailo/shared';
 
 import type { SupabaseIntegrationEnv } from './loadIntegrationEnv.ts';
 
@@ -59,6 +64,20 @@ export async function invokeEdgeFunction(
     status: response.status,
     body: await response.json().catch(() => null),
   };
+}
+
+export async function invokeTailoApi(
+  env: SupabaseIntegrationEnv,
+  action: TailoApiAction,
+  options: {
+    accessToken?: string | null;
+    body?: Record<string, unknown>;
+  } = {},
+): Promise<FunctionInvokeResult> {
+  return invokeEdgeFunction(env, getTailoApiFunctionForAction(action), {
+    accessToken: options.accessToken,
+    body: buildTailoApiBody(action, options.body ?? {}),
+  });
 }
 
 export function readStringField(body: unknown, key: string): string | null {

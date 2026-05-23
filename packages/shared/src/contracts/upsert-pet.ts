@@ -1,11 +1,13 @@
+import { parsePetBirthdayIso } from '../petBirthday.ts';
 import type { PetGender, PetType } from '../types/pet.ts';
 
-/** Request body for POST /functions/v1/upsert-pet */
+/** Payload for `api-pet` action `upsert-pet` */
 export type UpsertPetRequest = {
   source_local_pet_id: string;
   name: string;
   type: PetType;
   gender?: PetGender | null;
+  birthday?: string | null;
 };
 
 /** Success response from upsert-pet */
@@ -23,6 +25,7 @@ export function parseUpsertPetRequest(body: unknown): UpsertPetRequest | null {
   const name = Reflect.get(body, 'name');
   const type = Reflect.get(body, 'type');
   const gender = Reflect.get(body, 'gender');
+  const birthday = Reflect.get(body, 'birthday');
 
   if (typeof sourceLocalPetId !== 'string' || sourceLocalPetId.trim() === '') {
     return null;
@@ -46,12 +49,26 @@ export function parseUpsertPetRequest(body: unknown): UpsertPetRequest | null {
     return null;
   }
 
-  return {
+  if (birthday !== undefined && birthday !== null) {
+    if (typeof birthday !== 'string' || parsePetBirthdayIso(birthday) === null) {
+      return null;
+    }
+  }
+
+  const request: UpsertPetRequest = {
     source_local_pet_id: sourceLocalPetId.trim(),
     name: name.trim(),
     type,
     gender: gender ?? null,
   };
+
+  if (birthday !== undefined) {
+    request.birthday = parsePetBirthdayIso(
+      typeof birthday === 'string' ? birthday : null,
+    );
+  }
+
+  return request;
 }
 
 export function isUpsertPetResponse(

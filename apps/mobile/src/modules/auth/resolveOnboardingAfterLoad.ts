@@ -12,10 +12,11 @@ import {
 export function resolveOnboardingAfterLoad(
   storedState: OnboardingState,
   petProfile: LocalPetProfile | null,
+  options: { allowCompletedWithoutLocalPet?: boolean } = {},
 ): OnboardingState {
   const hasPetProfile = Boolean(petProfile?.name?.trim() && petProfile?.type);
 
-  if (hasPetProfile) {
+  if (hasPetProfile || options.allowCompletedWithoutLocalPet) {
     return storedState;
   }
 
@@ -49,7 +50,8 @@ export function resolveOnboardingAfterLoad(
 
 export async function loadResolvedOnboardingState(
   storedState: OnboardingState,
+  options: { allowCompletedWithoutLocalPet?: boolean } = {},
 ): Promise<OnboardingState> {
   const petProfile = await loadLocalPetProfile();
-  return resolveOnboardingAfterLoad(storedState, petProfile);
+  return resolveOnboardingAfterLoad(storedState, petProfile, options);
 }

@@ -180,8 +180,8 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [x] **2.1.3** One-time legacy bridge: Phase 1 `anonymous_user_id` → `link-anonymous-user` after first session (upgrades only)
 - [x] **2.1.4** Create/link pet record on server after local pet profile exists (`upsert-pet`)
 - [x] **2.1.5** Account upgrade UI (settings): **email** via `updateUser` + OTP (`verifyOtp`); Apple / Google deferred
-- [ ] **2.1.6** After auth bootstrap, resolve the current Supabase session into a stable backend `app_user_id` (`ensure-current-user`) instead of treating Supabase `user.id` as the canonical owner id
-- [ ] **2.1.7** Update auth/session UX and dev diagnostics to distinguish Supabase auth subject from Tailo `app_user_id`
+- [x] **2.1.6** After auth bootstrap, resolve the current Supabase session into a stable backend `app_user_id` (`ensure-current-user`) instead of treating Supabase `user.id` as the canonical owner id
+- [x] **2.1.7** Update auth/session UX and dev diagnostics to distinguish Supabase auth subject from Tailo `app_user_id`
 
 ### 2.2 Upload pipeline (`storage`, `sync`)
 
@@ -230,12 +230,13 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [x] **B2.1.8** RLS: `event_media` via join to `events` ownership
 - [x] **B2.1.9** Indexes: `events(user_id, updated_at)`, unique `(user_id, source_local_event_id)`, `ai_jobs(status, next_attempt_at)`, `event_media(event_id)`
 - [x] **B2.1.10** SQL smoke: user A cannot read/write user B rows (`supabase/tests/rls_cross_user_smoke.sql`; `npm run test:supabase:rls -- --linked`)
-- [ ] **B2.1.11** Identity portability refactor: add `app_users` as the canonical Tailo user table
-- [ ] **B2.1.12** Add `user_identities` mapping table (`provider`, `provider_subject`, `app_user_id`) and uniqueness constraints
-- [ ] **B2.1.13** Migrate ownership columns on `pets`, `events`, and related tables from Supabase `user_id` to canonical `app_user_id`
-- [ ] **B2.1.14** Add SQL helper / RLS function to resolve `auth.uid()` → `app_user_id`, then update policies to use it
-- [ ] **B2.1.15** Re-key storage path rules from `{user_id}/...` to `{app_user_id}/...`
-- [ ] **B2.1.16** Update smoke tests and integration tests for the `app_user_id` ownership model
+- [x] **B2.1.11** Identity portability refactor: add `app_users` as the canonical Tailo user table
+- [x] **B2.1.12** Add `user_identities` mapping table (`provider`, `provider_subject`, `app_user_id`) and uniqueness constraints
+- [x] **B2.1.13** Migrate ownership columns on `pets`, `events`, and related tables from Supabase `user_id` to canonical `app_user_id`
+- [x] **B2.1.14** Add SQL helper / RLS function to resolve `auth.uid()` → `app_user_id`, then update policies to use it
+- [x] **B2.1.15** Re-key storage path rules from `{user_id}/...` to `{app_user_id}/...`
+- [x] **B2.1.16** Update smoke tests and integration tests for the `app_user_id` ownership model
+- [x] **B2.1.17** Add account profile fields to the canonical app-user model (`display_name`, `preferred_locale`, provider summary hooks) — stub `account_profiles` table; profile editing API deferred
 
 ### 2.7 Backend auth & upload APIs (`functions`, `backend-core`)
 
@@ -244,9 +245,11 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [x] **B2.2.3** Storage policies: read/write only under `auth.uid()` prefix
 - [x] **B2.2.4** Enforce JPEG only, 15 min signed URL TTL, 1–5 assets per request
 - [x] **B2.2.5** Document max sizes: original <=3 MB post-compress, thumb <200 KB target
-- [ ] **B2.4.0** Implement auth edge-case policy in `backend-core` + tests
+- [x] **B2.4.0** Implement auth edge-case policy in `backend-core` + tests
 - [x] **B2.4.1** Edge Function `link-anonymous-user` + unit tests
+- [x] **B2.4.1a** Edge Function `ensure-current-user` + `ensure_app_user_for_auth()` RPC + unit tests
 - [x] **B2.4.2** Edge Function `upsert-pet` + unit tests (idempotent `source_local_pet_id`)
+- [x] **B2.4.2a** Add `upsert-account-profile` use case/API so connected users can create and update their Tailo account profile
 - [x] **B2.3.4** `validateUploadRequest()` — pet ownership, 1–5 assets, duplicate asset ids rejected
 - [x] **B2.3.4a** Unit tests: over limit, wrong pet, expired retry
 - [x] **B2.4.3** `create-upload-urls` — returns paired URLs + paths + `expires_at`
@@ -372,7 +375,7 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - 2026-05-18: **Auth decouple** — `AuthProvider` + `authService` (`modules/auth/`); Supabase isolated in `providers/supabaseAuthProvider.ts`. Portability rules in [AGENTS.md](../AGENTS.md#backend-portability-phase-2).
 - 2026-05-18: **2.1.2** — `bootstrapAuthSession()` on app launch (reuse persisted session or `signInAnonymously()`); skips when env unset; does not block local SQLite if auth fails.
 - 2026-05-18: **B0 / 2.1.1** — Dev project `sgxtyxvithlmuuofkzlk`; `supabase/` scaffold + [SETUP.md](../supabase/SETUP.md); mobile `getSupabaseClient()` with SecureStore session (`apps/mobile/src/lib/supabase.ts`). Postgres URI is CLI-only; mobile uses API URL + anon key.
-- 2026-05-20: Identity portability decision — Supabase `signInAnonymously()` still bootstraps the session, but canonical ownership should move to Tailo-managed `app_user_id` with separate `user_identities` mappings. The completed Supabase-coupled schema tasks remain useful first-pass work, but the follow-up refactor tasks **B2.1.11–B2.1.16** now define the target model. See [architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md#1-identity--auth).
+- 2026-05-19: `app_user_id` ownership migration — `pets`/`events` use `app_user_id`, RLS + storage paths keyed by `current_app_user_id()`, `upsert-account-profile` Edge Function, Account settings profile editing.
 - 2026-05-18: Upload/sync/AI numbers and merge rules live in phase-2 spec; backend tasks are tracked inline in this Phase 2 section with `B...` task IDs preserved.
 
 ---
@@ -387,18 +390,36 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - [x] **3.0.2** Settings IA: user account settings, localisation, and app preferences (`SettingsScreen` sections)
 - [x] **3.0.3** Replace the lightweight temporary stack with the long-term app navigation shell (`MainTabShell` + `modalStack`)
 - [x] **3.0.4** Keep capture, capture preview, event detail, and account upgrade as modal routes (`ModalShell`)
-- [ ] **3.0.5** Add anonymous-to-email upgrade IA per [account-upgrade-ux.md](./architecture/account-upgrade-ux.md): home reminder, settings entry, and linked state
+- [ ] **3.0.5** Add anonymous-to-email upgrade IA per [authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md): home reminder, settings entry, and linked state
 - [ ] **3.0.6** Tune reminder timing/cooldown so account prompts appear only after the user has seen timeline value and never feel blocking or repetitive
+- [ ] **3.0.6a** Implement explicit account-notification rules from [authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md): alternate auth actions on welcome, passive timeline reminder after value, stronger reminder at 500-image cap, permanent Settings entry, and contextual reminders only for continuity-risk moments
 - [ ] **3.0.7** Distinguish anonymous vs linked account capabilities in UI/UX: recent-only scan for anonymous users, deeper historical scan for linked users
-- [ ] **3.0.8** Add provider strategy to Settings/account UX: email OTP first; Apple and Google as later linked-provider options on iOS / cross-platform builds
-- [ ] **3.0.9** Design linked-account state UI so users can see whether they are anonymous, email-linked, Apple-linked, or Google-linked
+- [x] **3.0.8** Add provider strategy to Settings/account UX: email OTP first; Apple and Google as later linked-provider options on iOS / cross-platform builds
+- [x] **3.0.9** Design linked-account state UI so users can see whether they are anonymous, email-linked, Apple-linked, or Google-linked
+- [x] **3.0.10** Add direct auth entry points alongside anonymous-first onboarding: `Create account` and `Log in` without making them the default path
+- [x] **3.0.11** Turn connected account state into a full account profile surface: display name, email, connected methods, preferred language, and edit affordances
+- [ ] **3.0.12** Add an explicit account switcher UI for devices that hold more than one Tailo account locally; list known accounts/workspaces and let the user switch without re-onboarding confusion
+- [ ] **3.0.13** Align account UX with [authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md): anonymous-first default, code-based email verification, direct sign-in support, and provider-based sign-in later
+
+### 3.0a Authentication completion
+
+- [x] **3.0a.1** Direct email registration flow: email entry, 8-digit verification code, then continue into onboarding/app; password is optional and can be added later
+- [x] **3.0a.2** Direct email login flow: email + password
+- [x] **3.0a.3** Forgot-password flow for email accounts
+- [ ] **3.0a.3a** Configure and test hosted Supabase email templates for auth flows so app UX and email content match: `Confirm sign up`, `Change email address`, and `Reset password` should all use the intended OTP / recovery experience for mobile
+- [ ] **3.0a.3b** Add template-level QA for `dev` and `prod`: correct subject lines, `{{ .Token }}` where OTP is expected, correct copy for account creation vs email change vs password reset, and no accidental magic-link-only mismatch
+- [ ] **3.0a.4** Link Apple from anonymous or connected account state
+- [ ] **3.0a.5** Link Google from anonymous or connected account state
+- [ ] **3.0a.6** Direct sign-in / sign-up with Apple
+- [ ] **3.0a.7** Direct sign-in / sign-up with Google
+- [x] **3.0a.8** Account profile editing: display name and preferred language
 
 ### 3.1 Onboarding & permissions
 
 - [ ] **3.1.1** Refine onboarding animations and pacing
 - [ ] **3.1.2** Limited-access flow: process available photos + prompt to grant more later
 - [ ] **3.1.3** Privacy copy: what is scanned, what is uploaded, what stays on device
-- [ ] **3.1.4** Keep onboarding anonymous-first: no email prompt before first meaningful timeline value; align copy and flow with [account-upgrade-ux.md](./architecture/account-upgrade-ux.md)
+- [ ] **3.1.4** Keep onboarding anonymous-first: no email prompt before first meaningful timeline value; align copy and flow with [authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md)
 
 ### 3.2 Timeline & event UX
 
@@ -432,6 +453,7 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - [ ] **3.5.2** iOS build via EAS (or dev client) with correct entitlements
 - [ ] **3.5.3** TestFlight checklist from [Testing guidelines](../Tailo_Agent_Coding_Guidelines_v2.md#18-testing-guidelines)
 - [ ] **3.5.4** Prepare auth-provider configuration checklist for `dev` and `prod`: Supabase redirect URLs, email templates, Apple capability, Google OAuth clients
+- [ ] **3.5.4a** Document the canonical hosted-email-template setup in `supabase/SETUP.md` and `docs/DEVELOPER.md`: which auth flow uses which template, expected mobile UX, and dashboard locations for `Confirm sign up`, `Change email address`, and `Reset password`
 - [ ] **3.5.5** Defer phone auth until a regional launch requires it; when scheduled, scope SMS provider, abuse controls, and market-specific UX
 - [ ] **3.5.6** Validate layout and interaction fit across recent iPhone sizes, iPads, and common Android phone sizes: safe areas, text wrapping, scroll behavior, and no clipped or overlapping UI
 
@@ -439,9 +461,13 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 
 - 2026-05-20: **3.0** — Tab shell (Timeline / Pet / Settings) + modal stack for EventDetail, Capture, CapturePreview, AccountSettings. `HomeScreen` renamed `TimelineScreen`; pet summary moved off timeline header to Pet tab.
 
-- 2026-05-20: Email account linking remains a **soft upgrade** after anonymous onboarding. Settings is the permanent home for account state; home/timeline can show a calm `Save your memories` reminder only after the user has seen timeline value. See [architecture/account-upgrade-ux.md](./architecture/account-upgrade-ux.md).
-- 2026-05-20: Anonymous users can use Tailo normally but are capped at **500 recent images** plus ongoing new-photo detection. Linking email unlocks deeper historical scanning to build a fuller pet story. See [architecture/account-upgrade-ux.md](./architecture/account-upgrade-ux.md).
-- 2026-05-20: Auth-provider rollout is `anonymous -> email OTP -> Apple -> Google`, with phone auth deferred unless a regional launch makes it worth the extra SMS and abuse-prevention work. See [architecture/account-upgrade-ux.md](./architecture/account-upgrade-ux.md).
+- 2026-05-20: Email account linking remains a **soft upgrade** after anonymous onboarding. Settings is the permanent home for account state; home/timeline can show a calm `Save your memories` reminder only after the user has seen timeline value. See [architecture/authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md).
+- 2026-05-23: Auth expansion direction — Tailo stays anonymous-first by default, but should also support direct email registration, direct email login, forgot password, Apple/Google sign-in, and a real connected account profile. See [architecture/authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md).
+- 2026-05-23: Local multi-user foundation — device storage now separates linked-account workspaces by `app_user_id` (workspace-scoped SQLite DB + onboarding/profile scan state). This supports testing multiple accounts on one device, but an explicit account switcher UI is still pending.
+- 2026-05-23: First direct-entry slice shipped — onboarding welcome now exposes secondary `Create account` and `Log in` actions while keeping `Choose Photos` as the primary anonymous-first path.
+- 2026-05-23: Email-account slice expanded — direct account creation now signs the user in immediately after OTP verification, with password setup available later from Account settings. Returning users can sign in with email + password, and OTP sign-in remains available as a fallback until password reset ships.
+- 2026-05-20: Anonymous users can use Tailo normally but are capped at **500 recent images** plus ongoing new-photo detection. Linking email unlocks deeper historical scanning to build a fuller pet story. See [architecture/authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md).
+- 2026-05-20: Auth-provider rollout is `anonymous -> email OTP -> Apple -> Google`, with phone auth deferred unless a regional launch makes it worth the extra SMS and abuse-prevention work. See [architecture/authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md).
 - 2026-05-20: Screen-fit rule — the app should fit recent iPhones, iPads, and common Android phone sizes without clipped/overlapping UI; validate safe areas, wrapping, and scroll behavior before release.
 - 2026-05-20: Caption localisation rule — only AI-generated captions should be translated for the current app language, on device where possible. Never auto-translate user-authored or user-edited captions; once a user edits an AI caption, treat it as `caption_source = user`.
 - 2026-05-20: Backend caption-language direction — when the app has a preferred language, AI caption generation should request that language and persist `caption_language`; user-edited captions still win and should not be overwritten.
@@ -461,6 +487,6 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 
 ## Suggested next task
 
-**Phase 3 → 3.0.5** — anonymous-to-email upgrade IA ([account-upgrade-ux.md](./architecture/account-upgrade-ux.md)), or **3.1.1** onboarding polish.
+**Phase 3 → 3.0.5** — anonymous-to-email upgrade IA ([authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md)), or **3.1.1** onboarding polish.
 
 When picking up work, reference the GitHub issue (e.g. _“Continue #25”_) or task ID in `docs/MOBILE_TASKS.md`.

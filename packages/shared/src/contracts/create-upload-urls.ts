@@ -10,7 +10,7 @@ export type CreateUploadUrlsAssetInput = {
   height?: number;
 };
 
-/** Request body for POST /functions/v1/create-upload-urls */
+/** Payload for `api-events` action `create-upload-urls` */
 export type CreateUploadUrlsRequest = {
   pet_id: string;
   source_local_event_id: string;

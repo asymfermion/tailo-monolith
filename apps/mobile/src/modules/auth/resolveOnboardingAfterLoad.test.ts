@@ -26,6 +26,20 @@ describe('resolveOnboardingAfterLoad', () => {
     expect(resolveOnboardingAfterLoad(stored, sampleProfile)).toEqual(stored);
   });
 
+  it('keeps completed state for a linked account even before local pet data loads', () => {
+    const stored = {
+      ...initialOnboardingState,
+      completed: true,
+      step: 'complete' as const,
+    };
+
+    expect(
+      resolveOnboardingAfterLoad(stored, null, {
+        allowCompletedWithoutLocalPet: true,
+      }),
+    ).toEqual(stored);
+  });
+
   it('reopens onboarding at pet_type when completed flag is stale without scan', () => {
     const stored = {
       ...initialOnboardingState,

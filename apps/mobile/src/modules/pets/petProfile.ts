@@ -1,7 +1,7 @@
-import {
-  secureStorage,
-  type SecureStorage,
-} from '@/modules/auth/secureStorage';
+import { parsePetBirthdayIso } from '@tailo/shared';
+
+import { type SecureStorage } from '@/modules/auth/secureStorage';
+import { workspaceSecureStorage } from '@/modules/auth/localWorkspace';
 import { getDatabase } from '@/db';
 import { LOCAL_PET_PROFILE_KEY } from './keys';
 
@@ -13,6 +13,8 @@ export type LocalPetProfile = {
   name: string;
   type: LocalPetType;
   gender: LocalPetGender | null;
+  /** ISO calendar date YYYY-MM-DD */
+  birthday: string | null;
   profilePhotoLocalAssetId: string | null;
   profilePhotoUri: string | null;
   /** Canonical server pet id after upsert-pet succeeds. */
@@ -25,14 +27,27 @@ export type SaveLocalPetProfileInput = {
   name: string;
   type: LocalPetType;
   gender?: LocalPetGender | null;
+  birthday?: string | null;
   profilePhotoLocalAssetId?: string | null;
   profilePhotoUri?: string | null;
 };
 
 export { LOCAL_PET_PROFILE_KEY } from './keys';
 
+export function isLocalPetProfileReady(
+  profile: LocalPetProfile | null,
+): profile is LocalPetProfile {
+  return Boolean(profile?.name.trim() && profile.type);
+}
+
+export async function hasReadyLocalPetProfile(
+  storage: SecureStorage = workspaceSecureStorage,
+): Promise<boolean> {
+  return isLocalPetProfileReady(await loadLocalPetProfile(storage));
+}
+
 export async function loadLocalPetProfile(
-  storage: SecureStorage = secureStorage,
+  storage: SecureStorage = workspaceSecureStorage,
 ): Promise<LocalPetProfile | null> {
   const storedValue = await storage.getItemAsync(LOCAL_PET_PROFILE_KEY);
 
@@ -50,7 +65,7 @@ export async function loadLocalPetProfile(
 /** After scan: user picks dog or cat; rebuilds timeline for that type only. */
 export async function saveSelectedPetType(
   type: LocalPetType,
-  storage: SecureStorage = secureStorage,
+  storage: SecureStorage = workspaceSecureStorage,
 ): Promise<LocalPetProfile> {
   const existingProfile = await loadLocalPetProfile(storage);
   const now = new Date().toISOString();
@@ -60,6 +75,7 @@ export async function saveSelectedPetType(
     name: existingProfile?.name ?? '',
     type,
     gender: existingProfile?.gender ?? null,
+    birthday: existingProfile?.birthday ?? null,
     profilePhotoLocalAssetId: existingProfile?.profilePhotoLocalAssetId ?? null,
     profilePhotoUri: existingProfile?.profilePhotoUri ?? null,
     remotePetId: existingProfile?.remotePetId ?? null,
@@ -79,7 +95,7 @@ export async function saveSelectedPetType(
 
 export async function saveLocalPetProfile(
   input: SaveLocalPetProfileInput,
-  storage: SecureStorage = secureStorage,
+  storage: SecureStorage = workspaceSecureStorage,
 ): Promise<LocalPetProfile> {
   const existingProfile = await loadLocalPetProfile(storage);
   const now = new Date().toISOString();
@@ -88,6 +104,7 @@ export async function saveLocalPetProfile(
     name: input.name.trim(),
     type: input.type,
     gender: input.gender ?? null,
+    birthday: parsePetBirthdayIso(input.birthday ?? existingProfile?.birthday),
     profilePhotoLocalAssetId: input.profilePhotoLocalAssetId ?? null,
     profilePhotoUri: input.profilePhotoUri ?? null,
     remotePetId: existingProfile?.remotePetId ?? null,
@@ -120,7 +137,7 @@ export async function saveLocalPetProfile(
 export async function saveLocalPetProfileWithRemoteId(
   profile: LocalPetProfile,
   remotePetId: string,
-  storage: SecureStorage = secureStorage,
+  storage: SecureStorage = workspaceSecureStorage,
 ): Promise<LocalPetProfile> {
   const nextProfile: LocalPetProfile = {
     ...profile,
@@ -158,6 +175,9 @@ function normalizeLocalPetProfile(value: unknown): LocalPetProfile | null {
     name: value.name,
     type: value.type,
     gender: isLocalPetGender(value.gender) ? value.gender : null,
+    birthday: parsePetBirthdayIso(
+      typeof value.birthday === 'string' ? value.birthday : null,
+    ),
     profilePhotoLocalAssetId:
       typeof value.profilePhotoLocalAssetId === 'string'
         ? value.profilePhotoLocalAssetId

@@ -2,7 +2,7 @@ import type { SyncEventRequest } from '@tailo/shared';
 
 export type ExistingEventRow = {
   eventId: string;
-  userId: string;
+  appUserId: string;
   petId: string;
   sourceLocalEventId: string;
   timestamp: string;
@@ -17,7 +17,7 @@ export type ExistingEventRow = {
 };
 
 export type SyncEventMergeInput = {
-  callerUserId: string;
+  callerAppUserId: string;
   request: SyncEventRequest;
   existing: ExistingEventRow | null;
 };
@@ -43,7 +43,7 @@ export function mergeSyncEventPayload(
 ): SyncEventMergeResult | { ok: false; code: 'forbidden'; message: string } {
   const { request, existing } = input;
 
-  if (existing && existing.userId !== input.callerUserId) {
+  if (existing && existing.appUserId !== input.callerAppUserId) {
     return {
       ok: false,
       code: 'forbidden',

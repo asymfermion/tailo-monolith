@@ -11,9 +11,10 @@ import {
   UPLOAD_MAX_ASSETS_PER_EVENT,
 } from '@tailo/shared';
 
-import { INVALID_JWT, MINIMAL_JPEG, USER_EDGE_FUNCTIONS } from './fixtures.ts';
+import { INVALID_JWT, MINIMAL_JPEG, USER_API_FUNCTIONS } from './fixtures.ts';
 import {
   invokeEdgeFunction,
+  invokeTailoApi,
   readStringField,
   signInAnonymously,
 } from './functionTestClient.ts';
@@ -39,7 +40,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
   const env = integrationEnv!;
 
   describe('B2.6.1 JWT on Edge Functions', () => {
-    it.each(USER_EDGE_FUNCTIONS)(
+    it.each(USER_API_FUNCTIONS)(
       '%s returns 401 without Authorization',
       async (functionName) => {
         const result = await invokeEdgeFunction(env, functionName, {
@@ -51,7 +52,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
       },
     );
 
-    it.each(USER_EDGE_FUNCTIONS)(
+    it.each(USER_API_FUNCTIONS)(
       '%s returns 401 with invalid JWT',
       async (functionName) => {
         const result = await invokeEdgeFunction(env, functionName, {
@@ -74,14 +75,20 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
 
   describe('B2.6.2 Upload URL scoping', () => {
     let signedUrl = '';
-    let userId = '';
+    let appUserId = '';
 
     beforeAll(async () => {
       const session = await signInAnonymously(env);
-      userId = session.userId;
+      const ensured = await invokeTailoApi(env, 'ensure-current-user', {
+        accessToken: session.accessToken,
+        body: {},
+      });
+      expect(ensured.status).toBe(200);
+      appUserId = readStringField(ensured.body, 'app_user_id') ?? '';
+      expect(appUserId).toBeTruthy();
       const suffix = Date.now();
 
-      const pet = await invokeEdgeFunction(env, 'upsert-pet', {
+      const pet = await invokeTailoApi(env, 'upsert-pet', {
         accessToken: session.accessToken,
         body: {
           source_local_pet_id: `local_pet_scope_${suffix}`,
@@ -92,7 +99,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
       const petId = readStringField(pet.body, 'pet_id');
       expect(petId).toBeTruthy();
 
-      const urls = await invokeEdgeFunction(env, 'create-upload-urls', {
+      const urls = await invokeTailoApi(env, 'create-upload-urls', {
         accessToken: session.accessToken,
         body: {
           pet_id: petId,
@@ -110,7 +117,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
     });
 
     it('accepts PUT on the signed path with image/jpeg', async () => {
-      expect(signedUrl).toContain(userId);
+      expect(signedUrl).toContain(appUserId);
       expect(
         await putSignedUrl(signedUrl, 'image/jpeg'),
       ).toBeGreaterThanOrEqual(200);
@@ -138,20 +145,44 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
   });
 
   describe('B2.6.4 Auth: anonymous + legacy link', () => {
+    it('ensures a stable app_user_id for an anonymous session', async () => {
+      const session = await signInAnonymously(env);
+
+      const ensured = await invokeTailoApi(env, 'ensure-current-user', {
+        accessToken: session.accessToken,
+        body: {},
+      });
+
+      expect(ensured.status).toBe(200);
+      const appUserId = readStringField(ensured.body, 'app_user_id');
+      expect(appUserId).toBeTruthy();
+      expect(readStringField(ensured.body, 'user_id')).toBe(session.userId);
+
+      const repeat = await invokeTailoApi(env, 'ensure-current-user', {
+        accessToken: session.accessToken,
+        body: {},
+      });
+
+      expect(repeat.status).toBe(200);
+      expect(readStringField(repeat.body, 'app_user_id')).toBe(appUserId);
+      expect(Reflect.get(repeat.body, 'created_app_user')).toBe(false);
+    });
+
     it('links a fresh anonymous user to a legacy id', async () => {
       const session = await signInAnonymously(env);
       const legacyId = `anon_${Date.now()}`;
 
-      const first = await invokeEdgeFunction(env, 'link-anonymous-user', {
+      const first = await invokeTailoApi(env, 'link-anonymous-user', {
         accessToken: session.accessToken,
         body: { anonymous_user_id: legacyId },
       });
 
       expect(first.status).toBe(200);
       expect(readStringField(first.body, 'user_id')).toBe(session.userId);
+      expect(readStringField(first.body, 'app_user_id')).toBeTruthy();
       expect(Reflect.get(first.body, 'created')).toBe(true);
 
-      const second = await invokeEdgeFunction(env, 'link-anonymous-user', {
+      const second = await invokeTailoApi(env, 'link-anonymous-user', {
         accessToken: session.accessToken,
         body: { anonymous_user_id: legacyId },
       });
@@ -165,14 +196,14 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
       const userB = await signInAnonymously(env);
       const legacyId = `anon_conflict_${Date.now()}`;
 
-      const first = await invokeEdgeFunction(env, 'link-anonymous-user', {
+      const first = await invokeTailoApi(env, 'link-anonymous-user', {
         accessToken: userA.accessToken,
         body: { anonymous_user_id: legacyId },
       });
 
       expect(first.status).toBe(200);
 
-      const conflict = await invokeEdgeFunction(env, 'link-anonymous-user', {
+      const conflict = await invokeTailoApi(env, 'link-anonymous-user', {
         accessToken: userB.accessToken,
         body: { anonymous_user_id: legacyId },
       });
@@ -191,7 +222,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
       accessToken = session.accessToken;
       const suffix = Date.now();
 
-      const pet = await invokeEdgeFunction(env, 'upsert-pet', {
+      const pet = await invokeTailoApi(env, 'upsert-pet', {
         accessToken,
         body: {
           source_local_pet_id: `local_pet_limits_${suffix}`,
@@ -210,7 +241,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
     }
 
     it('accepts 1 asset', async () => {
-      const result = await invokeEdgeFunction(env, 'create-upload-urls', {
+      const result = await invokeTailoApi(env, 'create-upload-urls', {
         accessToken,
         body: {
           pet_id: petId,
@@ -223,7 +254,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
     });
 
     it(`accepts ${UPLOAD_MAX_ASSETS_PER_EVENT} assets`, async () => {
-      const result = await invokeEdgeFunction(env, 'create-upload-urls', {
+      const result = await invokeTailoApi(env, 'create-upload-urls', {
         accessToken,
         body: {
           pet_id: petId,
@@ -239,7 +270,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
     });
 
     it('returns 422 for 6 assets', async () => {
-      const result = await invokeEdgeFunction(env, 'create-upload-urls', {
+      const result = await invokeTailoApi(env, 'create-upload-urls', {
         accessToken,
         body: {
           pet_id: petId,
@@ -259,7 +290,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
       const sourceLocalEventId = `local_event_sync_${suffix}`;
       const sourceLocalAssetId = `local_asset_sync_${suffix}`;
 
-      const pet = await invokeEdgeFunction(env, 'upsert-pet', {
+      const pet = await invokeTailoApi(env, 'upsert-pet', {
         accessToken: session.accessToken,
         body: {
           source_local_pet_id: `local_pet_sync_${suffix}`,
@@ -270,7 +301,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
       const petId = readStringField(pet.body, 'pet_id');
       expect(petId).toBeTruthy();
 
-      const urls = await invokeEdgeFunction(env, 'create-upload-urls', {
+      const urls = await invokeTailoApi(env, 'create-upload-urls', {
         accessToken: session.accessToken,
         body: {
           pet_id: petId,
@@ -315,7 +346,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
         ],
       };
 
-      const first = await invokeEdgeFunction(env, 'sync-event', {
+      const first = await invokeTailoApi(env, 'sync-event', {
         accessToken: session.accessToken,
         body: syncBody,
       });
@@ -330,7 +361,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
       const eventId = first.body.event_id;
       const versionAfterFirst = first.body.server_sync_version;
 
-      const hostileResync = await invokeEdgeFunction(env, 'sync-event', {
+      const hostileResync = await invokeTailoApi(env, 'sync-event', {
         accessToken: session.accessToken,
         body: {
           ...syncBody,
@@ -352,7 +383,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
         versionAfterFirst + 1,
       );
 
-      const poll = await invokeEdgeFunction(env, 'get-event-updates', {
+      const poll = await invokeTailoApi(env, 'get-event-updates', {
         accessToken: session.accessToken,
         body: {},
       });
@@ -387,7 +418,7 @@ describeIntegration('B2.6 Backend hardening & QA (integration)', () => {
         const suffix = Date.now();
         const sourceLocalEventId = `local_event_ai_retry_${suffix}`;
 
-        const pet = await invokeEdgeFunction(env, 'upsert-pet', {
+        const pet = await invokeTailoApi(env, 'upsert-pet', {
           accessToken: session.accessToken,
           body: {
             source_local_pet_id: `local_pet_ai_retry_${suffix}`,

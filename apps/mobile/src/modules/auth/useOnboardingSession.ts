@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { getDatabase } from '@/db';
+import { logTailo } from '@/lib/tailoLogger';
+import { runCloudSyncPass } from '@/modules/sync/runCloudSyncPass';
+
+import { logAuth } from './authLogger';
 import { getOrCreateAnonymousUserId } from './identity';
 import { getAuthSession, isRemoteAuthConfigured } from './authService';
+import { isLinkedRemoteAccount } from './authTypes';
+import { subscribeAuthSessionChanged } from './authSessionEvents';
 import { loadResolvedOnboardingState } from './resolveOnboardingAfterLoad';
 import {
   initialOnboardingState,
@@ -14,11 +21,27 @@ import {
   type OnboardingStep,
 } from './onboardingState';
 
+function onboardingStatesEqual(
+  left: OnboardingState,
+  right: OnboardingState,
+): boolean {
+  return (
+    left.completed === right.completed &&
+    left.step === right.step &&
+    left.completedFlags.identityCreated ===
+      right.completedFlags.identityCreated &&
+    left.completedFlags.scanStarted === right.completedFlags.scanStarted &&
+    left.completedFlags.timelinePreviewSeen ===
+      right.completedFlags.timelinePreviewSeen
+  );
+}
+
 export type OnboardingSessionState = {
   anonymousUserId: string | null;
   onboardingState: OnboardingState;
   isLoading: boolean;
   errorMessage: string | null;
+  reload: (options?: { silent?: boolean; reason?: string }) => Promise<void>;
   updateOnboardingState: (patch: OnboardingStatePatch) => Promise<void>;
   setOnboardingStep: (
     step: OnboardingStep,
@@ -36,48 +59,96 @@ export function useOnboardingSession(): OnboardingSessionState {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
+  const reload = useCallback(
+    async (options?: { silent?: boolean; reason?: string }) => {
+      const silent = options?.silent ?? onboardingStateRef.current.completed;
+      const reason = options?.reason ?? 'manual';
 
-    async function loadSession() {
+      logAuth('Onboarding session reload started', {
+        reason,
+        silent,
+        completed: onboardingStateRef.current.completed,
+      });
+
+      if (!silent) {
+        setIsLoading(true);
+      }
+      setErrorMessage(null);
+
       try {
+        const session = isRemoteAuthConfigured()
+          ? await getAuthSession()
+          : null;
         const nextAnonymousUserId = isRemoteAuthConfigured()
-          ? ((await getAuthSession())?.userId ?? null)
+          ? (session?.userId ?? null)
           : await getOrCreateAnonymousUserId();
         const storedOnboardingState = await loadOnboardingState();
         const resolvedOnboardingState = await loadResolvedOnboardingState(
           mergeOnboardingState(storedOnboardingState, {
             completedFlags: { identityCreated: true },
           }),
+          {
+            allowCompletedWithoutLocalPet:
+              isLinkedRemoteAccount(session) && storedOnboardingState.completed,
+          },
         );
         await saveOnboardingState(resolvedOnboardingState);
 
-        if (isMounted) {
-          setAnonymousUserId(nextAnonymousUserId);
-          setOnboardingState(resolvedOnboardingState);
+        setAnonymousUserId((current) =>
+          current === nextAnonymousUserId ? current : nextAnonymousUserId,
+        );
+        setOnboardingState((current) => {
+          if (onboardingStatesEqual(current, resolvedOnboardingState)) {
+            return current;
+          }
+
           onboardingStateRef.current = resolvedOnboardingState;
-        }
+          return resolvedOnboardingState;
+        });
+
+        logAuth('Onboarding session reload finished', {
+          reason,
+          silent,
+          completed: resolvedOnboardingState.completed,
+          userId: nextAnonymousUserId,
+        });
       } catch (error) {
-        if (isMounted) {
-          setErrorMessage(
-            error instanceof Error
-              ? error.message
-              : 'Could not prepare first session.',
-          );
-        }
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Could not prepare first session.';
+        logAuth('Onboarding session reload failed', { reason, message });
+        setErrorMessage(message);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
-    }
+    },
+    [],
+  );
 
-    loadSession();
+  useEffect(() => {
+    void reload({ reason: 'initial_mount' });
+  }, [reload]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  useEffect(
+    () =>
+      subscribeAuthSessionChanged(() => {
+        void (async () => {
+          let silent = onboardingStateRef.current.completed;
+
+          if (!silent && isRemoteAuthConfigured()) {
+            const session = await getAuthSession();
+            silent = isLinkedRemoteAccount(session);
+          }
+
+          await reload({
+            silent,
+            reason: 'auth_session_changed',
+          });
+        })();
+      }),
+    [reload],
+  );
 
   const updateOnboardingState = useCallback(
     async (patch: OnboardingStatePatch) => {
@@ -105,6 +176,16 @@ export function useOnboardingSession(): OnboardingSessionState {
       completed: true,
       completedFlags: { profilePhotoSuggested: true },
     });
+
+    try {
+      const database = await getDatabase();
+      logTailo('Sync', 'Onboarding complete — starting cloud sync pass');
+      await runCloudSyncPass(database);
+    } catch (error) {
+      logTailo('Sync', 'Onboarding cloud sync pass failed', {
+        message: error instanceof Error ? error.message : 'Unknown sync error.',
+      });
+    }
   }, [updateOnboardingState]);
 
   return {
@@ -112,6 +193,7 @@ export function useOnboardingSession(): OnboardingSessionState {
     onboardingState,
     isLoading,
     errorMessage,
+    reload,
     updateOnboardingState,
     setOnboardingStep,
     completeOnboarding,

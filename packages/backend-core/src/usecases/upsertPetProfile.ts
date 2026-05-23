@@ -1,6 +1,6 @@
 export type PetProfileRow = {
   petId: string;
-  userId: string;
+  appUserId: string;
   sourceLocalPetId: string;
   name: string;
   type: 'dog' | 'cat';
@@ -8,7 +8,7 @@ export type PetProfileRow = {
 };
 
 export type UpsertPetProfileInput = {
-  callerUserId: string;
+  callerAppUserId: string;
   sourceLocalPetId: string;
   name: string;
   type: 'dog' | 'cat';
@@ -72,7 +72,7 @@ export function resolveUpsertPetProfile(
     };
   }
 
-  if (existing.userId !== input.callerUserId) {
+  if (existing.appUserId !== input.callerAppUserId) {
     return {
       ok: false,
       code: 'conflict',

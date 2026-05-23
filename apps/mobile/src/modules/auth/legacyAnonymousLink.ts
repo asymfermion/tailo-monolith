@@ -1,6 +1,5 @@
-import { appEnv } from '@/lib/env';
+import { invokeTailoApi, readApiErrorMessage } from '@/lib/invokeTailoApi';
 import {
-  getAuthAccessToken,
   getAuthSession,
   isRemoteAuthConfigured,
 } from '@/modules/auth/authService';
@@ -50,49 +49,32 @@ export async function linkLegacyAnonymousUserIfNeeded(): Promise<LinkLegacyAnony
     return { status: 'no_legacy_id' };
   }
 
-  const accessToken = await getAuthAccessToken();
-
-  if (!accessToken) {
-    return { status: 'error', message: 'Missing auth session token.' };
-  }
-
   try {
-    const response = await fetch(
-      `${appEnv.supabaseUrl}/functions/v1/link-anonymous-user`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          apikey: appEnv.supabaseAnonKey,
-        },
-        body: JSON.stringify({ anonymous_user_id: legacyId }),
-      },
-    );
+    const result = await invokeTailoApi('link-anonymous-user', {
+      anonymous_user_id: legacyId,
+    });
 
-    const payload: unknown = await response.json().catch(() => null);
+    if ('error' in result) {
+      return { status: 'error', message: result.error };
+    }
 
-    if (response.status === 409) {
+    const { ok, status, payload } = result;
+
+    if (status === 409) {
       return {
         status: 'error',
-        message:
-          typeof payload === 'object' &&
-          payload &&
-          typeof Reflect.get(payload, 'error') === 'string'
-            ? String(Reflect.get(payload, 'error'))
-            : 'This device identity is already linked to another account.',
+        message: readApiErrorMessage(
+          payload,
+          'This device identity is already linked to another account.',
+        ),
       };
     }
 
-    if (!response.ok) {
-      const message =
-        typeof payload === 'object' &&
-        payload &&
-        typeof Reflect.get(payload, 'error') === 'string'
-          ? String(Reflect.get(payload, 'error'))
-          : `Link failed (${response.status}).`;
-
-      return { status: 'error', message };
+    if (!ok) {
+      return {
+        status: 'error',
+        message: readApiErrorMessage(payload, `Link failed (${status}).`),
+      };
     }
 
     if (!isLinkAnonymousUserResponse(payload)) {

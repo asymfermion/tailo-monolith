@@ -10,7 +10,11 @@ import {
 import { LOCAL_PET_PROFILE_KEY } from '@/modules/pets/keys';
 import { LAST_SCAN_TIMESTAMP_KEY } from '@/modules/mediaScanner/scanState';
 
+import { clearSupabaseAuthStorage } from '@/lib/supabaseAuthStorage';
+
+import { LOCAL_ACCOUNT_PROFILE_KEY } from './keys';
 import { ANONYMOUS_USER_ID_KEY } from './identity';
+import { createWorkspaceSecureStorage } from './localWorkspace';
 import { ONBOARDING_STATE_KEY } from './onboardingState';
 import { secureStorage, type SecureStorage } from './secureStorage';
 
@@ -45,7 +49,7 @@ export async function reconcileInstallIdentity(
     const hasStaleSecureData = await hasSecureUserData(storage);
 
     if (!hasLocalData && hasStaleSecureData) {
-      await clearSecureUserData(storage);
+      await clearSecureUserData(storage, db);
       const installId = generateInstallId();
       await persistInstallId(db, storage, installId);
       return { installId, clearedStaleSecureStore: true };
@@ -57,7 +61,7 @@ export async function reconcileInstallIdentity(
   }
 
   if (secureInstallId !== dbInstallId) {
-    await clearSecureUserData(storage);
+    await clearSecureUserData(storage, db);
     await persistInstallId(db, storage, dbInstallId);
     return { installId: dbInstallId, clearedStaleSecureStore: true };
   }
@@ -75,22 +79,26 @@ export async function reconcileInstallIdentity(
 
 export async function clearSecureUserData(
   storage: SecureStorage = secureStorage,
+  db?: SQLite.SQLiteDatabase,
 ): Promise<void> {
-  await Promise.all(
-    [
-      INSTALL_ID_KEY,
-      ANONYMOUS_USER_ID_KEY,
-      ONBOARDING_STATE_KEY,
-      LOCAL_PET_PROFILE_KEY,
-      LAST_SCAN_TIMESTAMP_KEY,
-    ].map((key) => storage.deleteItemAsync(key)),
-  );
+  const workspaceStorage = createWorkspaceSecureStorage(storage);
+
+  await Promise.all([
+    clearSupabaseAuthStorage(db),
+    storage.deleteItemAsync(INSTALL_ID_KEY),
+    storage.deleteItemAsync(ANONYMOUS_USER_ID_KEY),
+    workspaceStorage.deleteItemAsync(ONBOARDING_STATE_KEY),
+    workspaceStorage.deleteItemAsync(LOCAL_PET_PROFILE_KEY),
+    workspaceStorage.deleteItemAsync(LOCAL_ACCOUNT_PROFILE_KEY),
+    workspaceStorage.deleteItemAsync(LAST_SCAN_TIMESTAMP_KEY),
+  ]);
 }
 
 async function hasSecureUserData(storage: SecureStorage): Promise<boolean> {
+  const workspaceStorage = createWorkspaceSecureStorage(storage);
   const [onboarding, profile, anonymousId] = await Promise.all([
-    storage.getItemAsync(ONBOARDING_STATE_KEY),
-    storage.getItemAsync(LOCAL_PET_PROFILE_KEY),
+    workspaceStorage.getItemAsync(ONBOARDING_STATE_KEY),
+    workspaceStorage.getItemAsync(LOCAL_PET_PROFILE_KEY),
     storage.getItemAsync(ANONYMOUS_USER_ID_KEY),
   ]);
 

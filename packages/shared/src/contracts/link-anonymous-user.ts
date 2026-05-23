@@ -1,4 +1,4 @@
-/** Request body for POST /functions/v1/link-anonymous-user */
+/** Payload for `api-auth` action `link-anonymous-user` */
 export type LinkAnonymousUserRequest = {
   anonymous_user_id: string;
 };
@@ -6,6 +6,7 @@ export type LinkAnonymousUserRequest = {
 /** Success response from link-anonymous-user */
 export type LinkAnonymousUserResponse = {
   user_id: string;
+  app_user_id: string;
   created: boolean;
 };
 
@@ -34,6 +35,7 @@ export function isLinkAnonymousUserResponse(
 
   return (
     typeof Reflect.get(value, 'user_id') === 'string' &&
+    typeof Reflect.get(value, 'app_user_id') === 'string' &&
     typeof Reflect.get(value, 'created') === 'boolean'
   );
 }

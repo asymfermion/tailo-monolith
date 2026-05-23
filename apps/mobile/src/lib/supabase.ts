@@ -5,19 +5,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 import { appEnv } from '@/lib/env';
-import { secureStorage } from '@/modules/auth/secureStorage';
-
-const SUPABASE_AUTH_STORAGE_KEY = 'tailo.supabase.auth';
+import {
+  SUPABASE_AUTH_STORAGE_KEY,
+  supabaseAuthStorage,
+} from '@/lib/supabaseAuthStorage';
 
 let client: SupabaseClient | null = null;
-
-/** Expo SecureStore adapter for Supabase Auth session persistence. */
-const supabaseAuthStorage = {
-  getItem: (key: string) => secureStorage.getItemAsync(key),
-  setItem: (key: string, value: string) =>
-    secureStorage.setItemAsync(key, value),
-  removeItem: (key: string) => secureStorage.deleteItemAsync(key),
-};
 
 export function isSupabaseConfigured(): boolean {
   return appEnv.hasSupabaseConfig;

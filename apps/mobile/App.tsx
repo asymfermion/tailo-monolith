@@ -26,6 +26,7 @@ import { countPendingUploadQueueItems } from '@/db/uploadQueue';
 import { hydrateAppLocale, t, useAppLocale } from '@/i18n';
 import {
   bootstrapAuthSession,
+  ensureCurrentUserIfNeeded,
   linkLegacyAnonymousUserIfNeeded,
 } from '@/modules/auth';
 import { syncRemotePetProfileIfNeeded } from '@/modules/pets';
@@ -105,22 +106,28 @@ export default function App() {
           hydrateAppFontStyle(),
         ]);
 
-        if (authResult.status === 'ready') {
-          await linkLegacyAnonymousUserIfNeeded();
-          await syncRemotePetProfileIfNeeded();
-          const pendingCloudUploadCount =
-            await countPendingUploadQueueItems(database);
+        if (
+          authResult.status === 'ready' ||
+          authResult.status === 'logged_out'
+        ) {
+          if (authResult.status === 'ready') {
+            await ensureCurrentUserIfNeeded();
+            await linkLegacyAnonymousUserIfNeeded();
+            await syncRemotePetProfileIfNeeded();
+            const pendingCloudUploadCount =
+              await countPendingUploadQueueItems(database);
 
-          logTailo('App', 'Startup cloud upload worker triggered', {
-            pendingCloudUploadCount,
-            note:
-              pendingCloudUploadCount > 0
-                ? 'Draining upload_queue from prior promotions'
-                : 'No pending uploads; worker exits quickly',
-          });
-          void runUploadQueueWorker(database).then(() =>
-            runPendingCloudSync(database),
-          );
+            logTailo('App', 'Startup cloud upload worker triggered', {
+              pendingCloudUploadCount,
+              note:
+                pendingCloudUploadCount > 0
+                  ? 'Draining upload_queue from prior promotions'
+                  : 'No pending uploads; worker exits quickly',
+            });
+            void runUploadQueueWorker(database).then(() =>
+              runPendingCloudSync(database),
+            );
+          }
         }
 
         if (isMounted) {
@@ -169,9 +176,14 @@ export default function App() {
               hydrateAppFontStyle(),
             ])
               .then(async ([, authResult]) => {
-                if (authResult.status === 'ready') {
-                  await linkLegacyAnonymousUserIfNeeded();
-                  await syncRemotePetProfileIfNeeded();
+                if (
+                  authResult.status === 'ready' ||
+                  authResult.status === 'logged_out'
+                ) {
+                  if (authResult.status === 'ready') {
+                    await linkLegacyAnonymousUserIfNeeded();
+                    await syncRemotePetProfileIfNeeded();
+                  }
                 }
 
                 setStartupState({ status: 'ready' });

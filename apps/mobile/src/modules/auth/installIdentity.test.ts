@@ -22,6 +22,10 @@ jest.mock('@/db/syncState', () => ({
   setSyncStateValue: jest.fn(),
 }));
 
+jest.mock('@/lib/supabaseAuthStorage', () => ({
+  clearSupabaseAuthStorage: jest.fn(async () => undefined),
+}));
+
 function createStorage(
   values: Record<string, string | null> = {},
 ): SecureStorage & {

@@ -1,8 +1,17 @@
 import type {
   AuthSession,
   BootstrapAuthResult,
+  PasswordSignInResult,
   RequestEmailLinkResult,
+  RequestEmailSignUpResult,
+  RequestPasswordResetResult,
+  RequestSignInResult,
+  SetPasswordResult,
+  SignOutResult,
   VerifyEmailLinkResult,
+  VerifyEmailSignUpResult,
+  VerifyPasswordResetResult,
+  VerifySignInResult,
 } from './authTypes';
 
 /**
@@ -20,4 +29,26 @@ export interface AuthProvider {
   requestEmailLink(email: string): Promise<RequestEmailLinkResult>;
   /** Confirms the OTP from updateUser; same auth user id when successful. */
   verifyEmailLink(email: string, token: string): Promise<VerifyEmailLinkResult>;
+  /** Sends a verification code to register a new email account. */
+  requestEmailSignUp(email: string): Promise<RequestEmailSignUpResult>;
+  verifyEmailSignUp(
+    email: string,
+    token: string,
+  ): Promise<VerifyEmailSignUpResult>;
+  /** Sets a password on the current verified account. */
+  setPassword(password: string): Promise<SetPasswordResult>;
+  /** Sends a sign-in OTP for a returning linked account (after logout). */
+  requestSignInOtp(email: string): Promise<RequestSignInResult>;
+  verifySignInOtp(email: string, token: string): Promise<VerifySignInResult>;
+  requestPasswordReset(email: string): Promise<RequestPasswordResetResult>;
+  verifyPasswordResetOtp(
+    email: string,
+    token: string,
+  ): Promise<VerifyPasswordResetResult>;
+  signInWithPassword(
+    email: string,
+    password: string,
+  ): Promise<PasswordSignInResult>;
+  /** Clears the current remote session (local data unchanged). */
+  signOut(): Promise<SignOutResult>;
 }

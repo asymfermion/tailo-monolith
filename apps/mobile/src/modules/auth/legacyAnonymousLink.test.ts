@@ -64,12 +64,20 @@ describe('linkLegacyAnonymousUserIfNeeded', () => {
     jest.mocked(global.fetch).mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ user_id: 'user-1', created: true }),
+      json: async () => ({
+        user_id: 'user-1',
+        app_user_id: 'app-user-1',
+        created: true,
+      }),
     } as Response);
 
     await expect(linkLegacyAnonymousUserIfNeeded()).resolves.toEqual({
       status: 'linked',
-      response: { user_id: 'user-1', created: true },
+      response: {
+        user_id: 'user-1',
+        app_user_id: 'app-user-1',
+        created: true,
+      },
     });
 
     expect(secureStorage.setItemAsync).toHaveBeenCalledWith(

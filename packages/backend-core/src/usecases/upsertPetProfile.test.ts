@@ -7,7 +7,7 @@ describe('resolveUpsertPetProfile', () => {
     expect(
       resolveUpsertPetProfile(
         {
-          callerUserId: 'user-a',
+          callerAppUserId: 'user-a',
           sourceLocalPetId: 'local_pet_abc',
           name: 'Milo',
           type: 'dog',
@@ -25,14 +25,14 @@ describe('resolveUpsertPetProfile', () => {
     expect(
       resolveUpsertPetProfile(
         {
-          callerUserId: 'user-a',
+          callerAppUserId: 'user-a',
           sourceLocalPetId: 'local_pet_abc',
           name: 'Milo',
           type: 'dog',
         },
         {
           petId: 'pet-uuid',
-          userId: 'user-a',
+          appUserId: 'user-a',
           sourceLocalPetId: 'local_pet_abc',
           name: 'Old',
           type: 'dog',
@@ -50,14 +50,14 @@ describe('resolveUpsertPetProfile', () => {
     expect(
       resolveUpsertPetProfile(
         {
-          callerUserId: 'user-b',
+          callerAppUserId: 'user-b',
           sourceLocalPetId: 'local_pet_abc',
           name: 'Milo',
           type: 'cat',
         },
         {
           petId: 'pet-uuid',
-          userId: 'user-a',
+          appUserId: 'user-a',
           sourceLocalPetId: 'local_pet_abc',
           name: 'Milo',
           type: 'dog',

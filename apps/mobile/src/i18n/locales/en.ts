@@ -1,4 +1,5 @@
 import { accountMessages } from '../messages/account';
+import { signInMessages } from '../messages/signIn';
 import { syncMessages } from '../messages/sync';
 
 export type TranslationTree = {
@@ -11,10 +12,15 @@ export const en = {
     appName: 'Tailo',
     back: 'Back',
     cancel: 'Cancel',
+    dismissKeyboard: 'Done',
     continue: 'Continue',
+    createAccount: 'Create account',
     finish: 'Finish',
     choosePhotos: 'Choose Photos',
+    signIn: 'Sign in',
+    alreadyHaveAccountSignIn: 'Already have an account? Sign in.',
     saving: 'Saving...',
+    startOnThisDevice: 'Start on this device',
     yourPet: 'your pet',
   },
   startup: {
@@ -219,6 +225,22 @@ export const en = {
     },
     accountLabel: 'Save your memories',
     accountDescription: 'Link an email to keep moments if you change devices.',
+    accountConnectedDescription: '{{email}}',
+    accountLanguageLabel: 'Preferred language',
+    accountLanguageDescription: 'Managed in your account profile',
+    accountLoadingLabel: 'Account',
+    accountLoadingDescription: 'Checking account status...',
+    logoutLabel: 'Log out',
+    logoutDescription:
+      'Sign out on this device. You will need your email to open Tailo again.',
+    logoutConfirmTitle: 'Log out?',
+    logoutConfirmMessage:
+      'You will sign out on this device. Sign in again with your email to open your timeline.',
+    logoutFailedTitle: 'Could not log out',
+    logoutFailedMessage: 'Try again in a moment.',
+    preferenceSyncFailedTitle: 'Could not save preference',
+    preferenceSyncFailedMessage:
+      'This device is using your choice, but it could not be saved to your account. Try again in a moment.',
     languageLabel: 'Language',
     themeLabel: 'Theme',
     themes: {
@@ -242,14 +264,39 @@ export const en = {
     petProfileLabel: 'Pet profile',
     petProfileDescription: 'Name, photo, and pet details.',
   },
+  userProfile: {
+    title: 'Your profile',
+    titleAnonymous: 'Your profile',
+    subtitle: 'Name and email for your Tailo account.',
+    subtitleAnonymous: 'Connect an account to save your profile across devices.',
+    settingsSectionTitle: 'Profile',
+    settingsRowLabel: 'Your profile',
+    settingsRowDescriptionLinked: 'Name and email',
+    settingsRowDescriptionAnonymous: 'Connect an account to save your profile',
+  },
   petProfile: {
     label: 'Your pet',
     loading: 'Loading profile...',
     fallbackName: 'Your pet',
     screenSubtitle: 'The pet Tailo is building memories for.',
-    genderLabel: '{{gender}}',
-    editHint:
-      'Name and profile photo are set during onboarding for now. Editing here is planned soon.',
+    nameLabel: 'Name',
+    typeLabel: 'Type',
+    genderLabel: 'Gender',
+    genders: {
+      female: 'Female',
+      male: 'Male',
+      unknown: 'Prefer not to say',
+    },
+    birthdayLabel: 'Birthday',
+    birthdayNotSet: 'Not set',
+    birthdayClear: 'Clear',
+    birthdayYearLabel: 'Year',
+    birthdayMonthLabel: 'Month',
+    birthdayDayLabel: 'Day',
+    autoSaving: 'Saving changes…',
+    autoSaved: 'Changes saved.',
+    saveFailed: 'Could not save your pet profile.',
+    emptyState: 'Finish onboarding to set up your pet profile first.',
     askTailo: 'Ask Tailo',
     askTailoBody:
       'Soon you will be able to ask quiet questions about your pet and their moments. Nothing leaves your device until you choose to save a memory.',
@@ -276,6 +323,7 @@ export const en = {
       'A quiet placeholder until Tailo learns more about this moment.',
   },
   account: accountMessages,
+  signIn: signInMessages,
   sync: syncMessages,
   capture: {
     cameraTitle: 'Camera access',

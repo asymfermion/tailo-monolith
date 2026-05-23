@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Animated,
   Dimensions,
@@ -15,12 +15,12 @@ import {
   getModalDismissTargetX,
 } from '../modalSwipeBack';
 import { ModalSwipeBack } from './ModalSwipeBack';
-import { MainTabShell } from '../MainTabShell';
 import { ModalShell } from '../ModalShell';
 
 type ModalStackLayerProps = {
   activeModal: ModalRoute | undefined;
   onPop: () => void;
+  underlay: ReactNode;
 };
 
 const FALLBACK_WIDTH = Dimensions.get('window').width;
@@ -48,7 +48,11 @@ function createModalStackLayerStyles({ colors }: AppearanceContextValue) {
   };
 }
 
-export function ModalStackLayer({ activeModal, onPop }: ModalStackLayerProps) {
+export function ModalStackLayer({
+  activeModal,
+  onPop,
+  underlay,
+}: ModalStackLayerProps) {
   const dragX = useRef(new Animated.Value(0)).current;
   const [containerWidth, setContainerWidth] = useState(FALLBACK_WIDTH);
   const styles = useThemedStyles(createModalStackLayerStyles);
@@ -88,9 +92,7 @@ export function ModalStackLayer({ activeModal, onPop }: ModalStackLayerProps) {
 
   return (
     <View onLayout={handleLayout} style={styles.stack}>
-      <View style={styles.underlay}>
-        <MainTabShell />
-      </View>
+      <View style={styles.underlay}>{underlay}</View>
 
       {activeModal ? (
         <View pointerEvents="box-none" style={styles.modalLayer}>

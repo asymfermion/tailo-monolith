@@ -38,6 +38,9 @@ export function SettingsOptionPicker<T extends string>({
   const [anchor, setAnchor] = useState<DropdownAnchor | null>(null);
   const { anchorRef, measureAnchor } = useDropdownAnchor();
   const styles = useThemedStyles(({ colors: palette, getFontFamily }) => ({
+    anchor: {
+      alignSelf: 'stretch',
+    },
     row: {
       alignItems: 'center',
       borderBottomColor: palette.border,
@@ -118,28 +121,30 @@ export function SettingsOptionPicker<T extends string>({
 
   return (
     <>
-      <Pressable
-        ref={anchorRef}
-        accessibilityLabel={accessibilityLabel}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: isOpen }}
-        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-        onPress={toggleOpen}
-      >
-        <Text style={[styles.rowLabel, styles.selection, selectedLabelStyle]}>
-          {selectedLabel}
-        </Text>
-        <View style={styles.chevronWrap}>
-          <Ionicons
-            color={colors.textMuted}
-            name={isOpen ? 'chevron-up' : 'chevron-down'}
-            size={20}
-          />
-        </View>
-      </Pressable>
+      <View ref={anchorRef} collapsable={false} style={styles.anchor}>
+        <Pressable
+          accessibilityLabel={accessibilityLabel}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: isOpen }}
+          style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          onPress={toggleOpen}
+        >
+          <Text style={[styles.rowLabel, styles.selection, selectedLabelStyle]}>
+            {selectedLabel}
+          </Text>
+          <View style={styles.chevronWrap}>
+            <Ionicons
+              color={colors.textMuted}
+              name={isOpen ? 'chevron-up' : 'chevron-down'}
+              size={20}
+            />
+          </View>
+        </Pressable>
+      </View>
 
       <DismissibleDropdownMenu
         anchor={anchor}
+        minMenuWidth={220}
         visible={isOpen}
         onDismiss={close}
       >

@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { describe, expect, it, beforeAll } from 'vitest';
 
 import {
+  buildTailoApiBody,
+  getTailoApiFunctionForAction,
   isCreateUploadUrlsResponse,
   type CreateUploadUrlsResponse,
 } from '@tailo/shared';
@@ -65,15 +67,17 @@ describeIntegration('B2.4.3a signed upload Content-Type (integration)', () => {
     };
 
     const petResponse = await fetch(
-      `${integrationEnv.supabaseUrl}/functions/v1/upsert-pet`,
+      `${integrationEnv.supabaseUrl}/functions/v1/${getTailoApiFunctionForAction('upsert-pet')}`,
       {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          source_local_pet_id: `local_pet_upload_smoke_${suffix}`,
-          name: 'Upload smoke',
-          type: 'dog',
-        }),
+        body: JSON.stringify(
+          buildTailoApiBody('upsert-pet', {
+            source_local_pet_id: `local_pet_upload_smoke_${suffix}`,
+            name: 'Upload smoke',
+            type: 'dog',
+          }),
+        ),
       },
     );
 
@@ -94,17 +98,19 @@ describeIntegration('B2.4.3a signed upload Content-Type (integration)', () => {
     petId = remotePetId;
 
     const urlsResponse = await fetch(
-      `${integrationEnv.supabaseUrl}/functions/v1/create-upload-urls`,
+      `${integrationEnv.supabaseUrl}/functions/v1/${getTailoApiFunctionForAction('create-upload-urls')}`,
       {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          pet_id: petId,
-          source_local_event_id: `local_event_upload_smoke_${suffix}`,
-          assets: [
-            { source_local_asset_id: `local_asset_upload_smoke_${suffix}` },
-          ],
-        }),
+        body: JSON.stringify(
+          buildTailoApiBody('create-upload-urls', {
+            pet_id: petId,
+            source_local_event_id: `local_event_upload_smoke_${suffix}`,
+            assets: [
+              { source_local_asset_id: `local_asset_upload_smoke_${suffix}` },
+            ],
+          }),
+        ),
       },
     );
 

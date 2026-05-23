@@ -59,6 +59,7 @@ describe('local pet profile storage', () => {
         name: 'Miso',
         type: 'cat',
         gender: 'female',
+        birthday: '2020-05-09',
         profilePhotoLocalAssetId: 'asset-1',
         profilePhotoUri: 'ph://asset-1',
       },
@@ -67,6 +68,7 @@ describe('local pet profile storage', () => {
 
     expect(profile.petId).toMatch(/^local_pet_/);
     expect(profile.name).toBe('Miso');
+    expect(profile.birthday).toBe('2020-05-09');
     expect(storage.setItemAsync).toHaveBeenCalledWith(
       LOCAL_PET_PROFILE_KEY,
       expect.stringContaining('"name":"Miso"'),

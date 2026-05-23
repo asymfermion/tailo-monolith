@@ -4,6 +4,9 @@ const SECURE_STORE_OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
 };
 
+/** Expo SecureStore limit on iOS Keychain (see expo-secure-store docs). */
+const SECURE_STORE_VALUE_LIMIT_BYTES = 2048;
+
 export type SecureStorage = {
   getItemAsync: (key: string) => Promise<string | null>;
   setItemAsync: (
@@ -42,6 +45,12 @@ async function safeSetItemAsync(
   value: string,
   options: SecureStore.SecureStoreOptions = SECURE_STORE_OPTIONS,
 ): Promise<void> {
+  if (__DEV__ && value.length > SECURE_STORE_VALUE_LIMIT_BYTES) {
+    console.warn(
+      `[Tailo] SecureStore value for "${key}" is ${value.length} bytes (limit ${SECURE_STORE_VALUE_LIMIT_BYTES}). Use AsyncStorage for large blobs.`,
+    );
+  }
+
   try {
     await SecureStore.setItemAsync(key, value, options);
   } catch (error) {

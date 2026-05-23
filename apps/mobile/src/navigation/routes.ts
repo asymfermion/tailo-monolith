@@ -12,7 +12,19 @@ export const MAIN_TAB_ORDER = [
 
 /** Full-screen flows pushed above the tab shell (3.0.4). */
 export type ModalStackParamList = {
-  AccountSettings: undefined;
+  AccountSettings:
+    | {
+        mode?: 'link' | 'create';
+        /** Dismiss this modal to reveal sign-in (login gate underlay) instead of stacking Login. */
+        signInPresentation?: 'pop';
+      }
+    | undefined;
+  Login:
+    | {
+        variant?: 'welcome' | 'locked';
+      }
+    | undefined;
+  ForgotPassword: undefined;
   EventDetail: {
     localEventId: string;
   };
@@ -36,6 +48,14 @@ export type ModalRoute =
       params: ModalStackParamList['AccountSettings'];
     })
   | (RouteBase & {
+      name: 'Login';
+      params: ModalStackParamList['Login'];
+    })
+  | (RouteBase & {
+      name: 'ForgotPassword';
+      params: ModalStackParamList['ForgotPassword'];
+    })
+  | (RouteBase & {
       name: 'EventDetail';
       params: ModalStackParamList['EventDetail'];
     })
@@ -48,7 +68,9 @@ export type ModalRoute =
 /** @deprecated Use MainTabId + ModalRouteName. Kept for gradual migration in tests. */
 export type RootStackParamList = {
   Home: undefined;
-  AccountSettings: undefined;
+  AccountSettings: ModalStackParamList['AccountSettings'];
+  Login: ModalStackParamList['Login'];
+  ForgotPassword: undefined;
   EventDetail: ModalStackParamList['EventDetail'];
   Capture: undefined;
   CapturePreview: ModalStackParamList['CapturePreview'];

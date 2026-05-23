@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+
+import { AppTextInput } from '@/components/AppTextInput';
+import { SocialSignInPlaceholders } from '@/components/SocialSignInPlaceholders';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 
@@ -11,6 +14,7 @@ import {
   type AppearanceContextValue,
 } from '@/lib/appearance';
 import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
+import { useNavigation } from '@/navigation/NavigationContext';
 import {
   formatPetOptionPhotoCount,
   getOnboardingPipelineTitle,
@@ -18,6 +22,7 @@ import {
   t,
 } from '@/i18n';
 import { getDatabase } from '@/db';
+import { getLocalEventCount } from '@/db/localEvents';
 import {
   getDetectedPetOptions,
   type DetectedPetOption,
@@ -32,6 +37,7 @@ import type {
   OnboardingStep,
 } from '@/modules/auth';
 import { canContinueOnboardingScan } from '@/modules/auth/canContinueOnboardingScan';
+import { isRemoteAuthConfigured } from '@/modules/auth';
 import {
   ScanProgressIndicator,
   canScanPhotos,
@@ -43,6 +49,7 @@ import {
   saveSelectedPetType,
   type LocalPetType,
 } from '@/modules/pets';
+
 type OnboardingScreenProps = {
   anonymousUserId: string;
   onboardingState: OnboardingState;
@@ -74,6 +81,17 @@ function createOnboardingStyles({
       fontSize: 32,
       fontWeight: '600' as const,
       marginBottom: spacing.xl,
+    },
+    topBackButton: {
+      alignSelf: 'flex-start' as const,
+      marginBottom: spacing.lg,
+      paddingVertical: spacing.xs,
+    },
+    topBackText: {
+      color: colors.accent,
+      fontFamily: getFontFamily('600'),
+      fontSize: 15,
+      fontWeight: '600' as const,
     },
     panel: {
       borderTopWidth: 1,
@@ -253,6 +271,7 @@ export function OnboardingScreen({
   onStepChange,
 }: OnboardingScreenProps) {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { colors } = useAppearance();
   const styles = useThemedStyles(createOnboardingStyles);
   const photoAccess = usePhotoAccess({ autoResumeOnMount: false });
@@ -270,6 +289,7 @@ export function OnboardingScreen({
   >([]);
   const [isLoadingPetOptions, setIsLoadingPetOptions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasExistingLocalData, setHasExistingLocalData] = useState(false);
   const step = getEffectiveStep(
     onboardingState.step,
     petName,
@@ -286,9 +306,21 @@ export function OnboardingScreen({
     let isMounted = true;
 
     async function hydratePetProfile() {
-      const profile = await loadLocalPetProfile();
+      const [profile, database] = await Promise.all([
+        loadLocalPetProfile(),
+        getDatabase(),
+      ]);
+      const eventCount = await getLocalEventCount(database);
 
-      if (!isMounted || !profile) {
+      if (!isMounted) {
+        return;
+      }
+
+      setHasExistingLocalData(
+        Boolean(profile?.name?.trim() || profile?.type || eventCount > 0),
+      );
+
+      if (!profile) {
         return;
       }
 
@@ -432,6 +464,11 @@ export function OnboardingScreen({
     }
   }, [onComplete, petName, petType, selectedProfilePhoto]);
 
+  const previousStep = useMemo(
+    () => getPreviousStep(step, onboardingState.completedFlags.scanStarted),
+    [onboardingState.completedFlags.scanStarted, step],
+  );
+
   const body = useMemo(() => {
     switch (step) {
       case 'welcome':
@@ -442,30 +479,73 @@ export function OnboardingScreen({
             title={t('onboarding.welcomeTitle')}
             text={t('onboarding.welcomeText')}
           >
-            <PrimaryButton
-              label={t('common.choosePhotos')}
-              onPress={async () => {
-                await onStepChange('scan', {
-                  photoPermissionHandled: true,
-                  scanStarted: true,
-                });
+            {hasExistingLocalData && isRemoteAuthConfigured() ? (
+              <>
+                <SocialSignInPlaceholders />
+                <PrimaryButton
+                  label={t('common.alreadyHaveAccountSignIn')}
+                  onPress={() =>
+                    navigation.push('Login', { variant: 'welcome' })
+                  }
+                />
+                <QuietButton
+                  label={t('common.startOnThisDevice')}
+                  onPress={async () => {
+                    await onStepChange('scan', {
+                      photoPermissionHandled: true,
+                      scanStarted: true,
+                    });
 
-                if (canScanPhotos(photoAccess.permissionStatus)) {
-                  await photoAccess.startScan();
-                  return;
-                }
+                    if (canScanPhotos(photoAccess.permissionStatus)) {
+                      await photoAccess.startScan();
+                      return;
+                    }
 
-                await photoAccess.requestAccess();
-              }}
-            />
-            <QuietButton
-              label={t('onboarding.continueWithoutPhotos')}
-              onPress={() =>
-                onStepChange('pet_type', {
-                  photoPermissionHandled: true,
-                })
-              }
-            />
+                    await photoAccess.requestAccess();
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <PrimaryButton
+                  label={t('common.startOnThisDevice')}
+                  onPress={async () => {
+                    await onStepChange('scan', {
+                      photoPermissionHandled: true,
+                      scanStarted: true,
+                    });
+
+                    if (canScanPhotos(photoAccess.permissionStatus)) {
+                      await photoAccess.startScan();
+                      return;
+                    }
+
+                    await photoAccess.requestAccess();
+                  }}
+                />
+                {isRemoteAuthConfigured() ? (
+                  <>
+                    <SocialSignInPlaceholders />
+                    <QuietButton
+                      label={t('common.alreadyHaveAccountSignIn')}
+                      onPress={() =>
+                        navigation.push('Login', { variant: 'welcome' })
+                      }
+                    />
+                  </>
+                ) : null}
+              </>
+            )}
+            {isRemoteAuthConfigured() ? (
+              <>
+                <QuietButton
+                  label={t('common.createAccount')}
+                  onPress={() =>
+                    navigation.push('AccountSettings', { mode: 'create' })
+                  }
+                />
+              </>
+            ) : null}
           </Panel>
         );
       case 'scan':
@@ -600,7 +680,7 @@ export function OnboardingScreen({
             title={t('onboarding.profileTitle')}
             text={t('onboarding.profileText')}
           >
-            <TextInput
+            <AppTextInput
               autoCapitalize="words"
               onChangeText={setPetName}
               placeholder={t('onboarding.namePlaceholder')}
@@ -654,8 +734,10 @@ export function OnboardingScreen({
     completeProfile,
     isPipelineActive,
     detectedPetOptions,
+    hasExistingLocalData,
     isLoadingPetOptions,
     isSaving,
+    navigation,
     onStepChange,
     petName,
     petType,
@@ -679,6 +761,15 @@ export function OnboardingScreen({
       keyboardShouldPersistTaps="handled"
       style={styles.screen}
     >
+      {previousStep ? (
+        <Pressable
+          accessibilityRole="button"
+          style={styles.topBackButton}
+          onPress={() => onStepChange(previousStep)}
+        >
+          <Text style={styles.topBackText}>{`< ${t('common.back')}`}</Text>
+        </Pressable>
+      ) : null}
       <Text style={styles.logo}>{t('common.appName')}</Text>
       {body}
     </ScrollView>
@@ -873,4 +964,22 @@ function getEffectiveStep(
   }
 
   return storedStep;
+}
+
+function getPreviousStep(
+  step: OnboardingStep,
+  scanStarted: boolean,
+): OnboardingStep | null {
+  switch (step) {
+    case 'scan':
+      return 'welcome';
+    case 'pet_select':
+      return 'scan';
+    case 'pet_type':
+      return 'welcome';
+    case 'pet_profile':
+      return scanStarted ? 'pet_select' : 'pet_type';
+    default:
+      return null;
+  }
 }

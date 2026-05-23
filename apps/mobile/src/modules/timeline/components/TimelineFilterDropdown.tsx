@@ -151,28 +151,30 @@ export function TimelineFilterDropdown({
 
   return (
     <View style={styles.wrapper}>
-      <Pressable
-        ref={anchorRef}
-        accessibilityHint={t('home.filterDropdownHint')}
-        accessibilityLabel={t('home.filterDropdownLabel', {
-          selection: selectedLabel,
-        })}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: isOpen }}
-        hitSlop={spacing.xs}
-        style={({ pressed }) => [
-          styles.trigger,
-          pressed && styles.triggerPressed,
-          value === 'favorites' && styles.triggerSelected,
-        ]}
-        onPress={toggleOpen}
-      >
-        <Ionicons color={colors.accent} name="filter" size={18} />
-        {value === 'favorites' ? <View style={styles.activeDot} /> : null}
-      </Pressable>
+      <View ref={anchorRef} collapsable={false}>
+        <Pressable
+          accessibilityHint={t('home.filterDropdownHint')}
+          accessibilityLabel={t('home.filterDropdownLabel', {
+            selection: selectedLabel,
+          })}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: isOpen }}
+          hitSlop={spacing.xs}
+          style={({ pressed }) => [
+            styles.trigger,
+            pressed && styles.triggerPressed,
+            value === 'favorites' && styles.triggerSelected,
+          ]}
+          onPress={toggleOpen}
+        >
+          <Ionicons color={colors.accent} name="filter" size={18} />
+          {value === 'favorites' ? <View style={styles.activeDot} /> : null}
+        </Pressable>
+      </View>
 
       <DismissibleDropdownMenu
         anchor={anchor}
+        blurBackdrop={false}
         visible={isOpen}
         onDismiss={close}
       >

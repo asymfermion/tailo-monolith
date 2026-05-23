@@ -55,7 +55,7 @@ export async function processOneJobPass(
   const { data: event, error: eventError } = await adminClient
     .from('events')
     .select(
-      'event_id, user_id, pet_id, timestamp, source, event_type, caption, caption_source, user_edited_caption, user_edited_event_type, sync_version',
+      'event_id, app_user_id, pet_id, timestamp, source, event_type, caption, caption_source, user_edited_caption, user_edited_event_type, sync_version',
     )
     .eq('event_id', job.event_id)
     .maybeSingle();

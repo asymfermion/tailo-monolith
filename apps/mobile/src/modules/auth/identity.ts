@@ -1,4 +1,5 @@
 import { secureStorage, type SecureStorage } from './secureStorage';
+import { setCurrentLocalWorkspaceForAnonymousUser } from './localWorkspace';
 
 export const ANONYMOUS_USER_ID_KEY = 'tailo.anonymous_user_id';
 export const LEGACY_ANON_LINKED_KEY = 'tailo.legacy_anon_linked';
@@ -16,11 +17,13 @@ export async function getOrCreateAnonymousUserId(
   const existingId = await storage.getItemAsync(ANONYMOUS_USER_ID_KEY);
 
   if (existingId) {
+    await setCurrentLocalWorkspaceForAnonymousUser(existingId);
     return existingId;
   }
 
   const nextId = generateAnonymousUserId();
   await storage.setItemAsync(ANONYMOUS_USER_ID_KEY, nextId);
+  await setCurrentLocalWorkspaceForAnonymousUser(nextId);
 
   return nextId;
 }

@@ -1,0 +1,55 @@
+import type { AuthSession } from './authTypes';
+import { isLinkedRemoteAccount } from './authTypes';
+
+export type AccountAuthMethodId = 'email' | 'apple' | 'google';
+
+export type AccountAuthMethodStatus = 'connected' | 'available' | 'coming_soon';
+
+export type AccountAuthMethod = {
+  id: AccountAuthMethodId;
+  status: AccountAuthMethodStatus;
+};
+
+export type AccountLinkState = 'anonymous' | 'linked';
+
+export function resolveAccountLinkState(
+  session: AuthSession | null,
+): AccountLinkState {
+  return isLinkedRemoteAccount(session) ? 'linked' : 'anonymous';
+}
+
+/**
+ * Sign-in methods shown on the connected account profile (Phase 4).
+ * Apple / Google are listed as coming soon until provider linking ships.
+ */
+export function deriveAccountAuthMethods(
+  session: AuthSession | null,
+): AccountAuthMethod[] {
+  const emailConnected = isLinkedRemoteAccount(session);
+
+  return [
+    {
+      id: 'email',
+      status: emailConnected ? 'connected' : 'available',
+    },
+    { id: 'apple', status: 'coming_soon' },
+    { id: 'google', status: 'coming_soon' },
+  ];
+}
+
+export function formatAccountSettingsLabel(input: {
+  session: AuthSession | null;
+  displayName: string | null;
+}): string {
+  const trimmed = input.displayName?.trim();
+
+  if (trimmed) {
+    return trimmed;
+  }
+
+  if (input.session?.email) {
+    return input.session.email;
+  }
+
+  return '';
+}

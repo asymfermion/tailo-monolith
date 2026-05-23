@@ -7,12 +7,10 @@ export const MINIMAL_JPEG = Buffer.from(
 export const INVALID_JWT =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid.invalid';
 
-/** Edge Functions that require a user JWT (not service role). */
-export const USER_EDGE_FUNCTIONS = [
-  'link-anonymous-user',
-  'upsert-pet',
-  'create-upload-urls',
-  'sync-event',
-  'get-event-updates',
-  'delete-event',
+/** User-facing API routers (all require a user JWT). */
+export const USER_API_FUNCTIONS = [
+  'api-auth',
+  'api-pet',
+  'api-account',
+  'api-events',
 ] as const;

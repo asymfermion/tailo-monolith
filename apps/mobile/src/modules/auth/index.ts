@@ -2,9 +2,27 @@
 export type {
   AuthSession,
   BootstrapAuthResult,
+  LogoutResult,
+  PasswordSignInResult,
   RequestEmailLinkResult,
+  RequestPasswordResetResult,
+  RequestSignInResult,
+  SetPasswordResult,
+  SignOutResult,
   VerifyEmailLinkResult,
+  VerifyPasswordResetResult,
+  VerifySignInResult,
 } from './authTypes';
+export {
+  deriveAccountAuthMethods,
+  formatAccountSettingsLabel,
+  resolveAccountLinkState,
+  type AccountAuthMethod,
+  type AccountAuthMethodId,
+  type AccountLinkState,
+} from './accountAuthMethods';
+export { isLinkedRemoteAccount } from './authTypes';
+export { logAuth } from './authLogger';
 export {
   classifyEmailLinkError,
   isValidAccountEmail,
@@ -14,12 +32,23 @@ export {
 export type { AuthProvider } from './authProvider';
 export {
   bootstrapAuthSession,
+  finalizeConnectedSignIn,
   getAuthAccessToken,
   getAuthSession,
   getAuthProvider,
   isRemoteAuthConfigured,
+  logoutRemoteAccount,
   requestEmailLink,
+  requestEmailSignUp,
+  requestPasswordReset,
+  requestSignInOtp,
+  setAccountPassword,
+  signInWithPassword,
+  signOutRemoteSession,
   verifyEmailLink,
+  verifyEmailSignUp,
+  verifyPasswordResetOtp,
+  verifySignInOtp,
   resetAuthProvider,
   setAuthProvider,
 } from './authService';
@@ -32,9 +61,45 @@ export {
   getOrCreateAnonymousUserId,
 } from './identity';
 export {
+  completeEmailAccountConnection,
+  type CompleteEmailAccountConnectionResult,
+} from './completeEmailAccountConnection';
+export {
   linkLegacyAnonymousUserIfNeeded,
   type LinkLegacyAnonymousUserResult,
 } from './legacyAnonymousLink';
+export {
+  APP_USER_ID_KEY,
+  clearTailoAppUserIdCache,
+  ensureCurrentUserIfNeeded,
+  getTailoAppUserId,
+  type EnsureCurrentUserIfNeededResult,
+} from './ensureCurrentUser';
+export {
+  fetchRemoteAccountProfile,
+  loadRemoteAccountProfile,
+  syncRemoteAccountProfile,
+  type RemoteAccountProfile,
+  type SyncRemoteAccountProfilePatch,
+  type SyncRemoteAccountProfileResult,
+} from './remoteAccountProfile';
+export {
+  loadLocalAccountProfile,
+  saveLocalAccountProfile,
+  type LocalAccountProfile,
+} from './localAccountProfile';
+export {
+  saveAccountProfile,
+  type SaveAccountProfilePatch,
+  type SaveAccountProfileResult,
+} from './persistAccountProfile';
+export {
+  setAppFontStyleAndSyncProfile,
+  setAppLocaleAndSyncProfile,
+  setAppThemeAndSyncProfile,
+  type PersistAppPreferenceResult,
+} from './persistAppPreferenceAndSync';
+export { useRemoteAccountProfile } from './useRemoteAccountProfile';
 export {
   initialOnboardingState,
   loadOnboardingState,
@@ -60,7 +125,20 @@ export {
   useAuthAccountStatus,
   type AuthAccountStatusState,
 } from './useAuthAccountStatus';
+export {
+  useAuthGate,
+  resolveAuthGateSnapshot,
+  type AuthGateState,
+} from './useAuthGate';
+export {
+  clearAuthRequireLogin,
+  isAuthRequireLogin,
+  setAuthRequireLogin,
+} from './authRequireLogin';
 export { SaveMemoriesLink } from './SaveMemoriesLink';
+export { AnonymousAccountUpgradeForm } from './components/AnonymousAccountUpgradeForm';
+export { ConnectedAccountProfileForm } from './components/ConnectedAccountProfileForm';
+export { UserProfileHeader } from './components/UserProfileHeader';
 export { canContinueOnboardingScan } from './canContinueOnboardingScan';
 export {
   loadResolvedOnboardingState,

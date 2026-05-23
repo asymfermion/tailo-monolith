@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Image } from 'expo-image';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,7 +7,7 @@ import { t } from '@/i18n';
 import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
 import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
-import { formatPetType } from '@/lib/formatMoment';
+import { PetProfileEditor } from '@/modules/pets/components/PetProfileEditor';
 import { useLocalPetProfile } from '@/modules/pets/useLocalPetProfile';
 
 function createPetProfileScreenStyles({
@@ -44,44 +43,6 @@ function createPetProfileScreenStyles({
       marginTop: spacing.lg,
       padding: spacing.lg,
     },
-    avatar: {
-      alignSelf: 'center' as const,
-      backgroundColor: colors.border,
-      borderRadius: 48,
-      height: 96,
-      width: 96,
-    },
-    avatarPlaceholder: {
-      alignItems: 'center' as const,
-      alignSelf: 'center' as const,
-      backgroundColor: colors.border,
-      borderRadius: 48,
-      height: 96,
-      justifyContent: 'center' as const,
-      width: 96,
-    },
-    avatarPlaceholderText: {
-      color: colors.accent,
-      fontFamily: getFontFamily('600'),
-      fontSize: 36,
-      fontWeight: '600' as const,
-    },
-    petName: {
-      color: colors.text,
-      fontFamily: getFontFamily('600'),
-      fontSize: 22,
-      fontWeight: '600' as const,
-      marginTop: spacing.md,
-      textAlign: 'center' as const,
-    },
-    meta: {
-      color: colors.textMuted,
-      fontFamily: getFontFamily('400'),
-      fontSize: 14,
-      marginTop: spacing.sm,
-      textAlign: 'center' as const,
-      textTransform: 'capitalize' as const,
-    },
     sectionTitle: {
       color: colors.text,
       fontFamily: getFontFamily('600'),
@@ -102,13 +63,6 @@ function createPetProfileScreenStyles({
       fontWeight: '600' as const,
       marginTop: spacing.md,
     },
-    hint: {
-      color: colors.textMuted,
-      fontFamily: getFontFamily('400'),
-      fontSize: 14,
-      lineHeight: 20,
-      marginTop: spacing.lg,
-    },
   };
 }
 
@@ -117,15 +71,7 @@ export function PetProfileScreen() {
   const tabBarContentInset = useTabBarContentInset();
   const petProfile = useLocalPetProfile();
   const [askTailoOpen, setAskTailoOpen] = useState(false);
-  const profile = petProfile.profile;
   const styles = useThemedStyles(createPetProfileScreenStyles);
-
-  const petLabel = profile
-    ? t('petProfile.nameWithType', {
-        name: profile.name,
-        type: formatPetType(profile.type),
-      })
-    : t('petProfile.fallbackName');
 
   return (
     <ScrollView
@@ -142,34 +88,10 @@ export function PetProfileScreen() {
       <Text style={styles.title}>{t('navigation.tabs.PetProfile')}</Text>
       <Text style={styles.subtitle}>{t('petProfile.screenSubtitle')}</Text>
 
-      <View style={styles.card}>
-        {profile?.profilePhotoUri ? (
-          <Image
-            accessibilityLabel={t('accessibility.profilePhoto', {
-              name: profile.name,
-            })}
-            contentFit="cover"
-            source={{ uri: profile.profilePhotoUri }}
-            style={styles.avatar}
-          />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarPlaceholderText}>
-              {profile?.name?.slice(0, 1).toUpperCase() ?? 'P'}
-            </Text>
-          </View>
-        )}
-
-        <Text style={styles.petName}>
-          {petProfile.isLoading ? t('petProfile.loading') : petLabel}
-        </Text>
-
-        {profile?.gender ? (
-          <Text style={styles.meta}>
-            {t('petProfile.genderLabel', { gender: profile.gender })}
-          </Text>
-        ) : null}
-      </View>
+      <PetProfileEditor
+        isLoading={petProfile.isLoading}
+        profile={petProfile.profile}
+      />
 
       <View style={styles.card}>
         <Pressable
@@ -183,8 +105,6 @@ export function PetProfileScreen() {
           <Text style={styles.comingSoon}>{t('petProfile.askTailoSoon')}</Text>
         ) : null}
       </View>
-
-      <Text style={styles.hint}>{t('petProfile.editHint')}</Text>
     </ScrollView>
   );
 }

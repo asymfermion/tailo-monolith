@@ -8,11 +8,11 @@ export type UploadRequestAsset = {
 };
 
 export type ValidateUploadRequestInput = {
-  callerUserId: string;
+  callerAppUserId: string;
   petId: string;
   sourceLocalEventId: string;
   assets: UploadRequestAsset[];
-  petOwnerUserId: string | null;
+  petOwnerAppUserId: string | null;
 };
 
 export type ValidateUploadRequestSuccess = {
@@ -83,7 +83,7 @@ export function validateUploadRequest(
     seenAssetIds.add(sourceLocalAssetId);
   }
 
-  if (!input.petOwnerUserId) {
+  if (!input.petOwnerAppUserId) {
     return {
       ok: false,
       code: 'forbidden',
@@ -91,7 +91,7 @@ export function validateUploadRequest(
     };
   }
 
-  if (input.petOwnerUserId !== input.callerUserId) {
+  if (input.petOwnerAppUserId !== input.callerAppUserId) {
     return {
       ok: false,
       code: 'forbidden',

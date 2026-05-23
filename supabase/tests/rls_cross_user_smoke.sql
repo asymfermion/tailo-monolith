@@ -135,31 +135,60 @@ as $$
   select current_setting('test.user_a_event_id', true)::uuid;
 $$;
 
+create or replace function pg_temp.test_app_user_a () returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select ui.app_user_id
+  from public.user_identities ui
+  where ui.provider = 'supabase_auth'
+    and ui.provider_subject = pg_temp.test_user_a()::text;
+$$;
+
+create or replace function pg_temp.test_app_user_b () returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select ui.app_user_id
+  from public.user_identities ui
+  where ui.provider = 'supabase_auth'
+    and ui.provider_subject = pg_temp.test_user_b()::text;
+$$;
+
 create or replace function pg_temp.seed_user_a_data () returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
+  v_app_user_id uuid;
   v_pet_id uuid;
   v_event_id uuid;
 begin
+  select e.app_user_id
+  into v_app_user_id
+  from public.ensure_app_user_for_auth(pg_temp.test_user_a(), null, false) e;
+
   insert into public.profiles (user_id)
   values (pg_temp.test_user_a())
   on conflict (user_id) do nothing;
 
-  insert into public.anonymous_id_links (anonymous_user_id, user_id)
-  values ('anon-smoke-a', pg_temp.test_user_a())
+  insert into public.anonymous_id_links (anonymous_user_id, user_id, app_user_id)
+  values ('anon-smoke-a', pg_temp.test_user_a(), v_app_user_id)
   on conflict (anonymous_user_id) do nothing;
 
-  insert into public.pets (user_id, source_local_pet_id, name, type)
-  values (pg_temp.test_user_a(), 'pet-a', 'Smoke A', 'dog')
+  insert into public.pets (app_user_id, source_local_pet_id, name, type)
+  values (v_app_user_id, 'pet-a', 'Smoke A', 'dog')
   returning pet_id into v_pet_id;
 
   perform set_config('test.user_a_pet_id', v_pet_id::text, true);
 
   insert into public.events (
-    user_id,
+    app_user_id,
     pet_id,
     source_local_event_id,
     timestamp,
@@ -167,7 +196,7 @@ begin
     event_type
   )
   values (
-    pg_temp.test_user_a(),
+    v_app_user_id,
     v_pet_id,
     'event-a',
     now(),
@@ -190,8 +219,8 @@ begin
   values (
     v_event_id,
     'asset-a',
-    'a/events/x/original.jpg',
-    'a/events/x/thumb.jpg',
+    v_app_user_id::text || '/events/x/original.jpg',
+    v_app_user_id::text || '/events/x/thumb.jpg',
     100,
     100,
     true
@@ -207,10 +236,16 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_app_user_id uuid;
 begin
-  insert into public.pets (user_id, source_local_pet_id, name, type)
-  values (pg_temp.test_user_b(), 'pet-b', 'Smoke B', 'cat')
-  on conflict (user_id, source_local_pet_id) do nothing;
+  select e.app_user_id
+  into v_app_user_id
+  from public.ensure_app_user_for_auth(pg_temp.test_user_b(), null, false) e;
+
+  insert into public.pets (app_user_id, source_local_pet_id, name, type)
+  values (v_app_user_id, 'pet-b', 'Smoke B', 'cat')
+  on conflict (app_user_id, source_local_pet_id) do nothing;
 end;
 $$;
 
@@ -223,7 +258,7 @@ select pg_temp.authenticate_as(pg_temp.test_user_b());
 select pg_temp.assert_count(
   $$
     select 1 from public.pets
-    where user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+    where app_user_id = pg_temp.test_app_user_a()
   $$,
   0,
   'user B cannot select user A pets'
@@ -232,7 +267,7 @@ select pg_temp.assert_count(
 select pg_temp.assert_count(
   $$
     select 1 from public.events
-    where user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+    where app_user_id = pg_temp.test_app_user_a()
   $$,
   0,
   'user B cannot select user A events'
@@ -243,7 +278,7 @@ select pg_temp.assert_count(
     select 1
     from public.event_media em
     join public.events e on e.event_id = em.event_id
-    where e.user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+    where e.app_user_id = pg_temp.test_app_user_a()
   $$,
   0,
   'user B cannot select user A event_media'
@@ -254,7 +289,7 @@ select pg_temp.assert_count(
     select 1
     from public.ai_jobs j
     join public.events e on e.event_id = j.event_id
-    where e.user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+    where e.app_user_id = pg_temp.test_app_user_a()
   $$,
   0,
   'user B cannot select user A ai_jobs'
@@ -263,7 +298,7 @@ select pg_temp.assert_count(
 select pg_temp.assert_count(
   $$
     select 1 from public.profiles
-    where user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+    where user_id = pg_temp.test_user_a()
   $$,
   0,
   'user B cannot select user A profiles'
@@ -272,7 +307,7 @@ select pg_temp.assert_count(
 select pg_temp.assert_count(
   $$
     select 1 from public.anonymous_id_links
-    where user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+    where user_id = pg_temp.test_user_a()
   $$,
   0,
   'user B cannot select user A anonymous_id_links'
@@ -281,7 +316,7 @@ select pg_temp.assert_count(
 select pg_temp.assert_count(
   $$
     select 1 from public.pets
-    where user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'::uuid
+    where app_user_id = pg_temp.test_app_user_b()
   $$,
   1,
   'user B can select own pet'
@@ -291,7 +326,7 @@ select pg_temp.assert_empty(
   $$
     update public.events
     set caption = 'stolen'
-    where user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+    where app_user_id = pg_temp.test_app_user_a()
     returning event_id
   $$,
   'user B cannot update user A events'
@@ -301,7 +336,7 @@ select pg_temp.assert_empty(
   $$
     update public.pets
     set name = 'stolen'
-    where user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+    where app_user_id = pg_temp.test_app_user_a()
     returning pet_id
   $$,
   'user B cannot update user A pets'
@@ -312,7 +347,7 @@ select pg_temp.assert_empty(
     delete from public.event_media em
     using public.events e
     where e.event_id = em.event_id
-      and e.user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
+      and e.app_user_id = pg_temp.test_app_user_a()
     returning em.event_media_id
   $$,
   'user B cannot delete user A event_media'
@@ -320,9 +355,9 @@ select pg_temp.assert_empty(
 
 select pg_temp.assert_raises_rls(
   $$
-    insert into public.pets (user_id, source_local_pet_id, name, type)
+    insert into public.pets (app_user_id, source_local_pet_id, name, type)
     values (
-      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid,
+      pg_temp.test_app_user_a(),
       'hijack-pet',
       'Hijack',
       'dog'
@@ -335,7 +370,7 @@ select pg_temp.assert_raises_rls(
   format(
     $$
       insert into public.events (
-        user_id,
+        app_user_id,
         pet_id,
         source_local_event_id,
         timestamp,
@@ -343,7 +378,7 @@ select pg_temp.assert_raises_rls(
         event_type
       )
       values (
-        'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid,
+        pg_temp.test_app_user_a(),
         %L::uuid,
         'hijack-event',
         now(),
@@ -399,8 +434,8 @@ select pg_temp.assert_raises_rls(
 
 do $owned$
 begin
-  insert into public.pets (user_id, source_local_pet_id, name, type)
-  values (pg_temp.test_user_b(), 'pet-b-owned', 'Owned B', 'cat');
+  insert into public.pets (app_user_id, source_local_pet_id, name, type)
+  values (pg_temp.test_app_user_b(), 'pet-b-owned', 'Owned B', 'cat');
 exception
   when unique_violation then
     null;

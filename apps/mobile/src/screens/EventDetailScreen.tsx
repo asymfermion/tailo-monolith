@@ -7,11 +7,11 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppTextInput } from '@/components/AppTextInput';
 import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
 import {
@@ -306,7 +306,7 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
         <Text style={styles.sectionLabel}>
           {t('eventDetail.captionSection')}
         </Text>
-        <TextInput
+        <AppTextInput
           editable={!detail.isSaving}
           multiline
           placeholder={t('eventDetail.captionPlaceholder')}

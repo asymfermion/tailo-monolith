@@ -71,6 +71,9 @@ function createCapturePreviewScreenStyles({
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.md,
     },
+    primaryButtonDisabled: {
+      opacity: 0.6,
+    },
     primaryButtonText: {
       color: colors.surface,
       fontFamily: getFontFamily('600'),
@@ -141,7 +144,10 @@ export function CapturePreviewScreen({
           <Pressable
             accessibilityRole="button"
             disabled={isSaving}
-            style={styles.primaryButton}
+            style={[
+              styles.primaryButton,
+              isSaving && styles.primaryButtonDisabled,
+            ]}
             onPress={() => {
               void handleConfirm();
             }}

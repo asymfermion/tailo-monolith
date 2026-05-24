@@ -28,11 +28,7 @@ import { useNavigation } from '@/navigation/NavigationContext';
 import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
 import { SaveMemoriesLink } from '@/modules/auth';
 import { usePhotoAccess } from '@/modules/mediaScanner';
-import {
-  SyncStatusIndicator,
-  useEventUpdatesPoll,
-  useSyncStatus,
-} from '@/modules/sync';
+import { useEventUpdatesPoll } from '@/modules/sync';
 import { CaptureFab } from '@/modules/timeline/components/CaptureFab';
 import { TimelineTopBar } from '@/modules/timeline/components/TimelineTopBar';
 import type { TimelineListFilter } from '@/modules/timeline/components/TimelineFilterDropdown';
@@ -160,12 +156,9 @@ export function TimelineScreen() {
   const handleRemoteEventUpdatesApplied = useCallback(() => {
     setTimelineRefreshNonce((value) => value + 1);
   }, []);
-  const eventUpdatesPoll = useEventUpdatesPoll({
+  useEventUpdatesPoll({
     enabled: true,
     onApplied: handleRemoteEventUpdatesApplied,
-  });
-  const syncStatus = useSyncStatus({
-    isPolling: eventUpdatesPoll.isPolling,
   });
   const hasPhotoAccess =
     photoAccess.permissionStatus === 'full' ||
@@ -280,15 +273,7 @@ export function TimelineScreen() {
     ],
   );
 
-  const listHeader = useMemo(
-    () => (
-      <TimelineHeader
-        syncHasPendingMemories={syncStatus.hasPendingMemories}
-        syncIsActive={syncStatus.isSyncing}
-      />
-    ),
-    [syncStatus.hasPendingMemories, syncStatus.isSyncing],
-  );
+  const listHeader = useMemo(() => <TimelineHeader />, []);
 
   return (
     <View style={styles.screen}>
@@ -307,7 +292,7 @@ export function TimelineScreen() {
         ]}
         contentInsetAdjustmentBehavior="never"
         data={timeline.events}
-        extraData={locale}
+        extraData={`${locale}:${timelineRefreshKey}:${timeline.events.length}`}
         initialNumToRender={6}
         keyExtractor={keyExtractor}
         maxToRenderPerBatch={8}
@@ -348,23 +333,11 @@ export function TimelineScreen() {
   );
 }
 
-type TimelineHeaderProps = {
-  syncHasPendingMemories: boolean;
-  syncIsActive: boolean;
-};
-
-function TimelineHeader({
-  syncHasPendingMemories,
-  syncIsActive,
-}: TimelineHeaderProps) {
+function TimelineHeader() {
   const styles = useThemedStyles(createTimelineScreenStyles);
 
   return (
     <View style={styles.header}>
-      <SyncStatusIndicator
-        hasPendingMemories={syncHasPendingMemories}
-        isSyncing={syncIsActive}
-      />
       <SaveMemoriesLink />
     </View>
   );

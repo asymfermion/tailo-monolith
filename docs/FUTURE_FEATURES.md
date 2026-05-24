@@ -146,6 +146,20 @@ Offer stronger privacy modes beyond the MVP baseline.
 
 See [encrypted-media-ai-plan.md](./architecture/encrypted-media-ai-plan.md) for the design direction.
 
+### 11. Paid multiple daily moments
+
+The free/passive auto-detection rule keeps onboarding and incremental scans calm by promoting at most **one moment per UTC day per detected pet type**.
+
+Future paid behavior:
+
+- Allow multiple passive auto-detected moments per day per pet
+- Keep a clear free-tier default of one passive moment per day
+- Define product limits before implementation (for example daily cap, minimum time between moments, or “best N”)
+- Update clustering, sync, dedupe, and restore tests so additional paid moments do not duplicate the same images
+- Keep explicit in-app capture separate from this passive detection limit
+
+Tracked as MOBILE_TASKS **3.2.10**.
+
 ---
 
 ## Notes

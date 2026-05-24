@@ -1,6 +1,7 @@
 import { getDatabase } from '@/db';
 import { updateLocalEvent } from '@/db/localEvents';
 
+import { scheduleCloudSyncForMoment } from './scheduleCloudSyncForMoment';
 import { toggleMomentFavorite } from './toggleMomentFavorite';
 
 jest.mock('@/db', () => ({
@@ -14,8 +15,6 @@ jest.mock('@/db/localEvents', () => ({
 jest.mock('./scheduleCloudSyncForMoment', () => ({
   scheduleCloudSyncForMoment: jest.fn(),
 }));
-
-import { scheduleCloudSyncForMoment } from './scheduleCloudSyncForMoment';
 
 describe('toggleMomentFavorite', () => {
   it('updates favorite state in local storage', async () => {

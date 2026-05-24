@@ -1,14 +1,12 @@
-import { Text } from 'react-native';
+import { useState } from 'react';
 
-import { t } from '@/i18n';
-import { useThemedStyles } from '@/lib/appearance';
 import {
   AnonymousAccountUpgradeForm,
   ConnectedAccountProfileForm,
   isLinkedRemoteAccount,
   useAuthAccountStatus,
 } from '@/modules/auth';
-import { createAccountSettingsStyles } from '@/modules/auth/components/accountSettingsStyles';
+import { AnonymousProfileUpgradePrompt } from '@/modules/auth/components/AnonymousProfileUpgradePrompt';
 
 type UserProfileScreenProps = {
   mode?: 'link' | 'create';
@@ -27,11 +25,16 @@ export function UserProfileScreen({
   onAnonymousLinked,
 }: UserProfileScreenProps) {
   const account = useAuthAccountStatus();
+  const [isEmailLinkInProgress, setIsEmailLinkInProgress] = useState(false);
   const isLinked = isLinkedRemoteAccount(account.session);
+  const showConnectedProfile = isLinked && !isEmailLinkInProgress;
 
-  const styles = useThemedStyles(createAccountSettingsStyles);
+  const handleLinked = () => {
+    setIsEmailLinkInProgress(false);
+    onAnonymousLinked?.();
+  };
 
-  if (isLinked) {
+  if (showConnectedProfile) {
     return (
       <ConnectedAccountProfileForm
         mode={mode}
@@ -40,18 +43,27 @@ export function UserProfileScreen({
     );
   }
 
-  return (
-    <>
-      {mode === 'create' ? null : (
-        <>
-          <Text style={styles.title}>{t('userProfile.titleAnonymous')}</Text>
-          <Text style={styles.body}>{t('userProfile.subtitleAnonymous')}</Text>
-        </>
-      )}
+  if (mode === 'create') {
+    return (
       <AnonymousAccountUpgradeForm
         mode={mode}
+        presentation="standalone"
         signInPresentation={signInPresentation}
-        onLinked={() => onAnonymousLinked?.()}
+        onLinkFlowStart={() => setIsEmailLinkInProgress(true)}
+        onLinked={handleLinked}
+      />
+    );
+  }
+
+  return (
+    <>
+      <AnonymousProfileUpgradePrompt />
+      <AnonymousAccountUpgradeForm
+        mode={mode}
+        presentation="profile"
+        signInPresentation={signInPresentation}
+        onLinkFlowStart={() => setIsEmailLinkInProgress(true)}
+        onLinked={handleLinked}
       />
     </>
   );

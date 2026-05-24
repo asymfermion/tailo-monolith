@@ -1,7 +1,10 @@
 import type { getDatabase } from '@/db';
 import { upsertLocalEventCandidates } from '@/db/localEventCandidates';
 import { getLocalPetCandidateAssets } from '@/db/localAssets';
-import type { LocalPetType } from '@/modules/pets/petProfile';
+import {
+  loadLocalPetProfile,
+  type LocalPetType,
+} from '@/modules/pets/petProfile';
 
 import { buildEventCandidates } from './clustering';
 
@@ -25,8 +28,6 @@ export async function clusterLocalPetEvents({
   let profilePetType = profilePetTypeOverride ?? null;
 
   if (profilePetType == null) {
-    const { loadLocalPetProfile } =
-      require('@/modules/pets/petProfile') as typeof import('@/modules/pets/petProfile');
     profilePetType = (await loadLocalPetProfile())?.type ?? null;
   }
   const petCandidateAssets = await getLocalPetCandidateAssets(

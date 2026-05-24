@@ -108,12 +108,11 @@ function AppShellContent() {
 /** Login gate only — avoids onboarding reload re-rendering the sign-in form. */
 function LoginAppShell() {
   const navigation = useNavigation();
-  const activeModal = navigation.modalStack.at(-1);
 
   return (
     <AppShellFrame>
       <ModalStackLayer
-        activeModal={activeModal}
+        modalStack={navigation.modalStack}
         onPop={navigation.pop}
         underlay={
           <LoginScreen
@@ -131,11 +130,26 @@ function AuthenticatedAppShell({ authGate }: { authGate: AuthGateState }) {
   useBackgroundSync(false);
   const onboardingSession = useOnboardingSession();
   const navigation = useNavigation();
-  const activeModal = navigation.modalStack.at(-1);
+  const previousShowOnboardingRef = useRef<boolean | null>(null);
 
   const showOnboarding =
     !onboardingSession.onboardingState.completed &&
     Boolean(onboardingSession.anonymousUserId);
+
+  useEffect(() => {
+    if (onboardingSession.isLoading) {
+      return;
+    }
+
+    const wasShowingOnboarding = previousShowOnboardingRef.current === true;
+
+    if (wasShowingOnboarding && !showOnboarding) {
+      logAuth('Onboarding finished — showing timeline');
+      navigation.finishSignInToTimeline();
+    }
+
+    previousShowOnboardingRef.current = showOnboarding;
+  }, [navigation, onboardingSession.isLoading, showOnboarding]);
 
   const underlay = onboardingSession.isLoading ? (
     <LoadingState />
@@ -155,7 +169,7 @@ function AuthenticatedAppShell({ authGate }: { authGate: AuthGateState }) {
   return (
     <AppShellFrame>
       <ModalStackLayer
-        activeModal={activeModal}
+        modalStack={navigation.modalStack}
         onPop={navigation.pop}
         underlay={underlay}
       />

@@ -5,10 +5,7 @@ import { t } from '@/i18n';
 import { useAppearance, useThemedStyles } from '@/lib/appearance';
 import { ModalBackButton } from '@/navigation/components/ModalBackButton';
 import { getModalHeaderTopInset } from '@/navigation/modalHeaderInset';
-import {
-  isLinkedRemoteAccount,
-  useAuthAccountStatus,
-} from '@/modules/auth';
+import { isLinkedRemoteAccount, useAuthAccountStatus } from '@/modules/auth';
 import { createAccountSettingsStyles } from '@/modules/auth/components/accountSettingsStyles';
 import { useNavigation } from '@/navigation/NavigationContext';
 
@@ -57,10 +54,7 @@ export function AccountSettingsScreen({
         onAnonymousLinked={() => {
           void (async () => {
             await account.refresh();
-
-            if (mode === 'create') {
-              navigation.pop();
-            }
+            navigation.pop();
           })();
         }}
       />

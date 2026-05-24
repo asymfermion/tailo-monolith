@@ -80,7 +80,7 @@ export async function promoteScoredCandidatesToLocalEvents({
   }
 
   logTailo('Upload', 'Starting cloud upload worker after promotion');
-  void runUploadQueueWorker(database);
+  void runUploadQueueWorker();
 
   onProgress?.({
     candidateCount: candidates.length,

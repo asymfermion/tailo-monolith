@@ -56,6 +56,8 @@ export const zhHans: TranslationTree = {
     welcomeEyebrow: '欢迎',
     welcomeTitle: '让 Tailo 找到这些瞬间',
     welcomeText:
+      'Tailo 会在这台设备上查看最近的照片来寻找宠物瞬间——你可以允许全部照片，或只选择部分照片。',
+    welcomeTextNoAccount:
       '无需先注册。Tailo 会在这台设备上查看最近的照片来寻找宠物瞬间——你可以允许全部照片，或只选择部分照片。',
     continueWithoutPhotos: '不选照片继续',
     findingMomentsEyebrow: '寻找瞬间',
@@ -210,6 +212,7 @@ export const zhHans: TranslationTree = {
       theme: '主题',
       fontStyle: '字体',
       preferences: '应用',
+      developer: '开发者',
     },
     accountLabel: '保存你的回忆',
     accountDescription: '绑定邮箱后，即使换设备也能保留这些瞬间。',
@@ -226,6 +229,14 @@ export const zhHans: TranslationTree = {
       '你将在这台设备上退出登录。请使用你的邮箱重新登录以打开时间线。',
     logoutFailedTitle: '无法退出登录',
     logoutFailedMessage: '请稍后再试。',
+    resetLocalDataLabel: '重置本地数据',
+    resetLocalDataDescription:
+      '清除本设备上的时间线、宠物资料和已保存的登录状态。',
+    resetLocalDataConfirmTitle: '重置本地数据？',
+    resetLocalDataConfirmMessage:
+      '这将删除本设备上的所有本地瞬间和账户数据，如同全新安装。此操作无法撤销。',
+    resetLocalDataFailedTitle: '无法重置本地数据',
+    resetLocalDataFailedMessage: '请稍后再试。',
     preferenceSyncFailedTitle: '无法保存偏好设置',
     preferenceSyncFailedMessage:
       '这台设备已应用你的选择，但未能保存到你的账户。请稍后再试。',
@@ -257,10 +268,13 @@ export const zhHans: TranslationTree = {
     titleAnonymous: '你的资料',
     subtitle: 'Tailo 账户的姓名和邮箱。',
     subtitleAnonymous: '连接账户，在多设备保存你的资料。',
+    anonymousHeadline: '创建你的账户',
+    anonymousIntro: '保存回忆，解锁更多功能。',
     settingsSectionTitle: '资料',
     settingsRowLabel: '你的资料',
+    settingsRowLabelAnonymous: '账户',
     settingsRowDescriptionLinked: '姓名和邮箱',
-    settingsRowDescriptionAnonymous: '连接账户以保存资料',
+    settingsRowDescriptionAnonymous: '保存回忆，解锁更多功能',
   },
   petProfile: {
     label: '你的宠物',
@@ -310,9 +324,9 @@ export const zhHans: TranslationTree = {
       '在 Tailo 了解更多之前，这里会显示一个安静的占位说明。',
   },
   account: {
-    saveMemoriesLink: '保存你的回忆',
-    title: '保存你的回忆',
-    body: '添加邮箱后，即使换了新手机，也能保留宠物资料和这些瞬间。Tailo 只会同步你保存的瞬间，不会上传整个照片库。',
+    saveMemoriesLink: '创建账户',
+    title: '创建你的账户',
+    body: '连接邮箱，保存回忆并解锁更多功能。',
     createTitle: '创建你的账户',
     createBody:
       '你可以在开始使用时直接用邮箱创建 Tailo 账户。这样你的宠物资料和已保存的瞬间会和你保持关联。',
@@ -329,7 +343,7 @@ export const zhHans: TranslationTree = {
     passwordSetupBody:
       '密码是可选的。你现在可以设置密码，方便以后更快登录；也可以稍后在账户设置里再添加。',
     passwordLabel: '密码',
-    passwordPlaceholder: '至少 8 个字符',
+    passwordPlaceholder: '至少 8 位，含大小写字母、数字和符号',
     confirmPasswordLabel: '确认密码',
     confirmPasswordPlaceholder: '请再次输入密码',
     verifyCode: '验证邮箱',
@@ -371,8 +385,12 @@ export const zhHans: TranslationTree = {
     unavailableBody: '这个构建版本暂未配置云端同步。',
     errors: {
       invalidEmail: '请输入有效的邮箱地址。',
+      codeRequired: '请输入完整的 8 位验证码。',
+      displayNameRequired: '请输入显示名称。',
       passwordMismatch: '两次输入的密码不一致。',
       passwordTooShort: '密码至少需要 {{min}} 个字符。',
+      passwordWeak:
+        '密码至少需要 8 个字符，并包含大写字母、小写字母、数字和特殊字符。',
       unavailable: '当前暂时无法绑定账户。',
       profileSyncFailed: '无法将资料保存到云端。请检查网络后重试。',
       profileSavedLocalOnly: '已保存在本机，但云端同步失败：{{message}}',
@@ -403,10 +421,6 @@ export const zhHans: TranslationTree = {
     errors: {
       passwordRequired: '请输入密码。',
     },
-  },
-  sync: {
-    statusSaving: '正在保存你的瞬间…',
-    statusRemembering: 'Tailo 正在记住更多内容…',
   },
   capture: {
     cameraTitle: '相机权限',

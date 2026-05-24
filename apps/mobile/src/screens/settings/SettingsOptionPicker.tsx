@@ -1,6 +1,6 @@
-import { useState, type TextStyle } from 'react';
+import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View, type TextStyle } from 'react-native';
 
 import {
   DismissibleDropdownMenu,

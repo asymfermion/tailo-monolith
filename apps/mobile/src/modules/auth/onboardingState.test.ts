@@ -3,6 +3,7 @@ import {
   loadOnboardingState,
   mergeOnboardingState,
   ONBOARDING_STATE_KEY,
+  resetOnboardingForAccountSignInIntent,
   saveOnboardingState,
 } from './onboardingState';
 import type { SecureStorage } from './secureStorage';
@@ -42,6 +43,33 @@ describe('onboarding state storage', () => {
       ONBOARDING_STATE_KEY,
       expect.stringContaining('"step":"pet_name"'),
     );
+  });
+
+  it('clears in-progress device setup for account sign-in intent', async () => {
+    const storage = createStorage(
+      JSON.stringify({
+        step: 'scan',
+        completed: false,
+        completedFlags: {
+          ...initialOnboardingState.completedFlags,
+          identityCreated: true,
+          photoPermissionHandled: true,
+          scanStarted: true,
+        },
+      }),
+    );
+
+    await resetOnboardingForAccountSignInIntent(storage);
+
+    await expect(loadOnboardingState(storage)).resolves.toEqual({
+      ...initialOnboardingState,
+      step: 'welcome',
+      completed: false,
+      completedFlags: {
+        ...initialOnboardingState.completedFlags,
+        identityCreated: true,
+      },
+    });
   });
 
   it('merges completed flags without losing previous flags', () => {

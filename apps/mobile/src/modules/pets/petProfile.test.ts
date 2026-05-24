@@ -1,6 +1,9 @@
 import { getDatabase } from '@/db';
 import { rebuildPipelineForProfilePetType } from '@/modules/eventBuilder/rebuildPipelineForProfilePetType';
 
+import { prepareCloudUploadPrerequisites } from '@/modules/sync/prepareCloudUploadPrerequisites';
+import { runUploadQueueWorker } from '@/modules/sync/uploadQueueWorker';
+
 import {
   LOCAL_PET_PROFILE_KEY,
   loadLocalPetProfile,
@@ -20,6 +23,21 @@ jest.mock('./remotePetSync', () => ({
   syncRemotePetProfileIfNeeded: jest
     .fn()
     .mockResolvedValue({ status: 'skipped' }),
+}));
+
+jest.mock('@/modules/sync/prepareCloudUploadPrerequisites', () => ({
+  prepareCloudUploadPrerequisites: jest
+    .fn()
+    .mockResolvedValue({ remotePetId: 'pet-remote-1' }),
+}));
+
+jest.mock('@/modules/sync/uploadQueueWorker', () => ({
+  runUploadQueueWorker: jest.fn().mockResolvedValue({
+    processedBatches: 0,
+    uploadedAssets: 0,
+    failedAssets: 0,
+    skippedReason: null,
+  }),
 }));
 
 function createStorage(initialValue: string | null = null): SecureStorage & {
@@ -102,5 +120,22 @@ describe('local pet profile storage', () => {
     );
 
     expect(rebuildPipelineForProfilePetType).not.toHaveBeenCalled();
+  });
+
+  it('schedules cloud upload prerequisites when the pet profile becomes ready', async () => {
+    const storage = createStorage();
+
+    await saveLocalPetProfile(
+      {
+        name: 'Miso',
+        type: 'cat',
+      },
+      storage,
+    );
+
+    await Promise.resolve();
+
+    expect(prepareCloudUploadPrerequisites).toHaveBeenCalledTimes(1);
+    expect(runUploadQueueWorker).toHaveBeenCalledTimes(1);
   });
 });

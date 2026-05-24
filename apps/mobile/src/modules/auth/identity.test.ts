@@ -3,7 +3,12 @@ import {
   generateAnonymousUserId,
   getOrCreateAnonymousUserId,
 } from './identity';
+import { resetLocalWorkspaceForTests } from './localWorkspace';
 import type { SecureStorage } from './secureStorage';
+
+jest.mock('@/db', () => ({
+  invalidateDatabaseConnection: jest.fn().mockResolvedValue(undefined),
+}));
 
 function createStorage(initialValue: string | null = null): SecureStorage & {
   setItemAsync: jest.Mock;
@@ -22,6 +27,10 @@ function createStorage(initialValue: string | null = null): SecureStorage & {
 }
 
 describe('getOrCreateAnonymousUserId', () => {
+  beforeEach(() => {
+    resetLocalWorkspaceForTests();
+  });
+
   it('returns the stored anonymous user id when present', async () => {
     const storage = createStorage('anon_existing');
 

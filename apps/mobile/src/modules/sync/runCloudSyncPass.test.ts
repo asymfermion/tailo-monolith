@@ -33,7 +33,6 @@ describe('runCloudSyncPass', () => {
       response: {
         pet_id: 'pet-remote-1',
         created: false,
-        updated_at: '2026-05-19T00:00:00.000Z',
       },
     });
     jest.mocked(runUploadQueueWorker).mockResolvedValue({
@@ -48,7 +47,9 @@ describe('runCloudSyncPass', () => {
       skipped: 0,
       errors: 0,
     });
-    jest.mocked(pollEventUpdates).mockResolvedValue(undefined);
+    jest
+      .mocked(pollEventUpdates)
+      .mockResolvedValue({ applied: 0, skippedReason: null });
   });
 
   it('syncs remote pet before draining upload queue and pending edits', async () => {
@@ -73,6 +74,7 @@ describe('runCloudSyncPass', () => {
     });
     jest.mocked(pollEventUpdates).mockImplementation(async () => {
       callOrder.push('poll');
+      return { applied: 0, skippedReason: null };
     });
 
     await runCloudSyncPass(database);

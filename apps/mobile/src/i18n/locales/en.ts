@@ -1,6 +1,5 @@
 import { accountMessages } from '../messages/account';
 import { signInMessages } from '../messages/signIn';
-import { syncMessages } from '../messages/sync';
 
 export type TranslationTree = {
   [key: string]: string | TranslationTree;
@@ -62,6 +61,8 @@ export const en = {
     welcomeEyebrow: 'Welcome',
     welcomeTitle: 'Let Tailo find the moments',
     welcomeText:
+      'Tailo looks through recent photos on this device to find pet moments — you can allow all photos or pick selected ones.',
+    welcomeTextNoAccount:
       'Start without an account. Tailo looks through recent photos on this device to find pet moments — you can allow all photos or pick selected ones.',
     continueWithoutPhotos: 'Continue Without Photos',
     findingMomentsEyebrow: 'Finding moments',
@@ -222,6 +223,7 @@ export const en = {
       theme: 'Theme',
       fontStyle: 'Font style',
       preferences: 'App',
+      developer: 'Developer',
     },
     accountLabel: 'Save your memories',
     accountDescription: 'Link an email to keep moments if you change devices.',
@@ -238,6 +240,14 @@ export const en = {
       'You will sign out on this device. Sign in again with your email to open your timeline.',
     logoutFailedTitle: 'Could not log out',
     logoutFailedMessage: 'Try again in a moment.',
+    resetLocalDataLabel: 'Reset local data',
+    resetLocalDataDescription:
+      'Clears this device’s timeline, pet profile, and saved sign-in state.',
+    resetLocalDataConfirmTitle: 'Reset local data?',
+    resetLocalDataConfirmMessage:
+      'This removes all local moments and account data on this device, like a fresh install. It cannot be undone.',
+    resetLocalDataFailedTitle: 'Could not reset local data',
+    resetLocalDataFailedMessage: 'Try again in a moment.',
     preferenceSyncFailedTitle: 'Could not save preference',
     preferenceSyncFailedMessage:
       'This device is using your choice, but it could not be saved to your account. Try again in a moment.',
@@ -268,11 +278,15 @@ export const en = {
     title: 'Your profile',
     titleAnonymous: 'Your profile',
     subtitle: 'Name and email for your Tailo account.',
-    subtitleAnonymous: 'Connect an account to save your profile across devices.',
+    subtitleAnonymous:
+      'Connect an account to save your profile across devices.',
+    anonymousHeadline: 'Create your account',
+    anonymousIntro: 'Save your memories and unlock more.',
     settingsSectionTitle: 'Profile',
     settingsRowLabel: 'Your profile',
+    settingsRowLabelAnonymous: 'Account',
     settingsRowDescriptionLinked: 'Name and email',
-    settingsRowDescriptionAnonymous: 'Connect an account to save your profile',
+    settingsRowDescriptionAnonymous: 'Save memories and unlock more',
   },
   petProfile: {
     label: 'Your pet',
@@ -324,7 +338,6 @@ export const en = {
   },
   account: accountMessages,
   signIn: signInMessages,
-  sync: syncMessages,
   capture: {
     cameraTitle: 'Camera access',
     cameraMessage:

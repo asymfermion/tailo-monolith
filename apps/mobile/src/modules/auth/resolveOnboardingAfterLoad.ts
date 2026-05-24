@@ -1,3 +1,5 @@
+import { getDatabase } from '@/db';
+import { countLocalAssets } from '@/db/localAssets';
 import { loadLocalPetProfile, type LocalPetProfile } from '@/modules/pets';
 
 import {
@@ -12,15 +14,30 @@ import {
 export function resolveOnboardingAfterLoad(
   storedState: OnboardingState,
   petProfile: LocalPetProfile | null,
-  options: { allowCompletedWithoutLocalPet?: boolean } = {},
+  hasLocalMediaData = true,
 ): OnboardingState {
   const hasPetProfile = Boolean(petProfile?.name?.trim() && petProfile?.type);
+  const completedByReturningAccount =
+    storedState.completed &&
+    storedState.completionSource === 'returning_account';
 
-  if (hasPetProfile || options.allowCompletedWithoutLocalPet) {
+  if ((hasPetProfile || completedByReturningAccount) && hasLocalMediaData) {
     return storedState;
   }
 
   if (!storedState.completed && storedState.step !== 'complete') {
+    if (!hasLocalMediaData) {
+      return {
+        ...initialOnboardingState,
+        step: 'welcome',
+        completed: false,
+        completedFlags: {
+          ...initialOnboardingState.completedFlags,
+          identityCreated: storedState.completedFlags.identityCreated,
+        },
+      };
+    }
+
     return storedState;
   }
 
@@ -50,8 +67,16 @@ export function resolveOnboardingAfterLoad(
 
 export async function loadResolvedOnboardingState(
   storedState: OnboardingState,
-  options: { allowCompletedWithoutLocalPet?: boolean } = {},
 ): Promise<OnboardingState> {
-  const petProfile = await loadLocalPetProfile();
-  return resolveOnboardingAfterLoad(storedState, petProfile, options);
+  const [petProfile, database] = await Promise.all([
+    loadLocalPetProfile(),
+    getDatabase(),
+  ]);
+  const localAssetCount = await countLocalAssets(database);
+
+  return resolveOnboardingAfterLoad(
+    storedState,
+    petProfile,
+    localAssetCount > 0,
+  );
 }

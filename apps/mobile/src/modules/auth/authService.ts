@@ -27,12 +27,17 @@ import {
 import { logAuth } from './authLogger';
 import { notifyAuthSessionChanged } from './authSessionEvents';
 import { completeEmailAccountConnection } from './completeEmailAccountConnection';
-import { completeOnboardingForReturningLinkedUser } from './completeOnboardingForReturningLinkedUser';
+import {
+  completeOnboardingForReturningLinkedUser,
+  EXPLICIT_RETURNING_SIGN_IN_SOURCES,
+} from './completeOnboardingForReturningLinkedUser';
+import { resetOnboardingForAccountSignInIntent } from './onboardingState';
 import {
   clearTailoAppUserIdCache,
   ensureCurrentUserIfNeeded,
   getTailoAppUserId,
 } from './ensureCurrentUser';
+import { ensureAnonymousCloudAccountIfNeeded } from './anonymousCloudAccount';
 
 export { getAuthProvider, resetAuthProvider, setAuthProvider };
 
@@ -58,28 +63,15 @@ export async function bootstrapAuthSession(): Promise<BootstrapAuthResult> {
   return getAuthProvider().bootstrapSession();
 }
 
-async function runDeferredEmailAccountBootstrap(source: string): Promise<void> {
-  try {
-    const bootstrap = await completeEmailAccountConnection();
-    logAuth('Post-sign-in bootstrap finished', {
-      source,
-      status: bootstrap.status,
-      ...(bootstrap.status === 'partial' ? { message: bootstrap.message } : {}),
-    });
-    notifyAuthSessionChanged();
-    logAuth('Session listeners notified (after bootstrap)', { source });
-  } catch (error) {
-    logAuth('Post-sign-in bootstrap failed', {
-      source,
-      message:
-        error instanceof Error ? error.message : 'Unknown bootstrap error.',
-    });
-  }
-}
-
-/** Clears login gate and updates UI immediately; cloud bootstrap continues in background. */
-async function establishSignedInSession(source: string): Promise<void> {
+/** Clears login gate after workspace + account bootstrap so onboarding reads the right data. */
+async function establishSignedInSession(
+  source: string,
+  signedInSession?: AuthSession | null,
+): Promise<void> {
   logAuth('Establishing signed-in session', { source });
+
+  const sessionSnapshot =
+    signedInSession ?? (await getAuthProvider().getSession());
 
   await clearAuthRequireLogin();
   logAuth('Login-required gate cleared', { source });
@@ -93,17 +85,63 @@ async function establishSignedInSession(source: string): Promise<void> {
       : {}),
   });
 
-  await completeOnboardingForReturningLinkedUser();
+  try {
+    const bootstrap = await completeEmailAccountConnection();
+    logAuth('Post-sign-in bootstrap finished', {
+      source,
+      status: bootstrap.status,
+      ...(bootstrap.status === 'partial' ? { message: bootstrap.message } : {}),
+    });
+  } catch (error) {
+    logAuth('Post-sign-in bootstrap failed', {
+      source,
+      message:
+        error instanceof Error ? error.message : 'Unknown bootstrap error.',
+    });
+  }
+
+  if (EXPLICIT_RETURNING_SIGN_IN_SOURCES.has(source)) {
+    await resetOnboardingForAccountSignInIntent();
+  }
+
+  await completeOnboardingForReturningLinkedUser({
+    source,
+    ensureResult,
+    signedInSession: sessionSnapshot,
+  });
 
   notifyAuthSessionChanged();
-  logAuth('Session listeners notified (early)', { source });
-
-  void runDeferredEmailAccountBootstrap(source);
+  logAuth('Session listeners notified', { source });
 }
 
 /** After password reset OTP, the recovery session is already active — finalize without re-sign-in. */
 export async function finalizeConnectedSignIn(source: string): Promise<void> {
   return establishSignedInSession(source);
+}
+
+/**
+ * Returns the active remote session, bootstrapping an anonymous session when needed.
+ * Anonymous bootstrap is deferred until the user has a ready local pet profile.
+ * Call after `getDatabase()` so install identity reconciliation cannot race session writes.
+ */
+export async function ensureRemoteAuthSession(): Promise<AuthSession | null> {
+  if (!getAuthProvider().isConfigured() || (await isAuthRequireLogin())) {
+    return null;
+  }
+
+  const existing = await getAuthSession();
+
+  if (existing) {
+    return existing;
+  }
+
+  const accountResult = await ensureAnonymousCloudAccountIfNeeded();
+
+  if (accountResult.status !== 'ready') {
+    return null;
+  }
+
+  return accountResult.session;
 }
 
 export async function getAuthSession(): Promise<AuthSession | null> {
@@ -143,7 +181,7 @@ export async function verifyEmailLink(
   const result = await getAuthProvider().verifyEmailLink(email, token);
 
   if (result.status === 'verified') {
-    await establishSignedInSession('verify_email_link');
+    await establishSignedInSession('verify_email_link', result.session);
   }
 
   return result;
@@ -162,7 +200,7 @@ export async function verifyEmailSignUp(
   const result = await getAuthProvider().verifyEmailSignUp(email, token);
 
   if (result.status === 'verified') {
-    await establishSignedInSession('verify_email_sign_up');
+    await establishSignedInSession('verify_email_sign_up', result.session);
   }
 
   return result;
@@ -189,7 +227,7 @@ export async function verifySignInOtp(
   logAuth('OTP sign-in verification finished', { status: result.status });
 
   if (result.status === 'signed_in') {
-    await establishSignedInSession('verify_sign_in_otp');
+    await establishSignedInSession('verify_sign_in_otp', result.session);
   }
 
   return result;
@@ -207,7 +245,7 @@ export async function signInWithPassword(
   });
 
   if (result.status === 'signed_in') {
-    await establishSignedInSession('sign_in_with_password');
+    await establishSignedInSession('sign_in_with_password', result.session);
   }
 
   return result;

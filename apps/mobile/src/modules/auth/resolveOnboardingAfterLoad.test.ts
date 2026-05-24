@@ -8,6 +8,7 @@ const sampleProfile: LocalPetProfile = {
   name: 'Mochi',
   type: 'cat',
   gender: null,
+  birthday: null,
   profilePhotoLocalAssetId: null,
   profilePhotoUri: null,
   remotePetId: null,
@@ -26,18 +27,67 @@ describe('resolveOnboardingAfterLoad', () => {
     expect(resolveOnboardingAfterLoad(stored, sampleProfile)).toEqual(stored);
   });
 
-  it('keeps completed state for a linked account even before local pet data loads', () => {
+  it('reopens onboarding after reinstall when only SecureStore profile state remains', () => {
     const stored = {
       ...initialOnboardingState,
       completed: true,
       step: 'complete' as const,
     };
 
-    expect(
-      resolveOnboardingAfterLoad(stored, null, {
-        allowCompletedWithoutLocalPet: true,
-      }),
-    ).toEqual(stored);
+    expect(resolveOnboardingAfterLoad(stored, sampleProfile, false)).toEqual({
+      ...initialOnboardingState,
+      step: 'welcome',
+      completed: false,
+      completedFlags: {
+        ...initialOnboardingState.completedFlags,
+        identityCreated: false,
+        photoPermissionHandled: false,
+        scanStarted: false,
+        timelinePreviewSeen: false,
+      },
+    });
+  });
+
+  it('keeps completed state for a returning account even without local pet data', () => {
+    const stored = {
+      ...initialOnboardingState,
+      completed: true,
+      completionSource: 'returning_account' as const,
+      step: 'complete' as const,
+    };
+
+    expect(resolveOnboardingAfterLoad(stored, null)).toEqual(stored);
+  });
+
+  it('reopens returning-account onboarding after reinstall when no local media was restored', () => {
+    const stored = {
+      ...initialOnboardingState,
+      completed: true,
+      completionSource: 'returning_account' as const,
+      step: 'complete' as const,
+    };
+
+    expect(resolveOnboardingAfterLoad(stored, null, false)).toMatchObject({
+      completed: false,
+      step: 'welcome',
+    });
+  });
+
+  it('reopens linked account onboarding when completion was not from returning sign-in', () => {
+    const stored = {
+      ...initialOnboardingState,
+      completed: true,
+      completionSource: 'local_setup' as const,
+      step: 'complete' as const,
+    };
+
+    const resolved = resolveOnboardingAfterLoad(stored, null);
+
+    expect(resolved).toMatchObject({
+      completed: false,
+      step: 'welcome',
+    });
+    expect(resolved).not.toHaveProperty('completionSource');
   });
 
   it('reopens onboarding at pet_type when completed flag is stale without scan', () => {
@@ -95,6 +145,31 @@ describe('resolveOnboardingAfterLoad', () => {
     ).toMatchObject({
       completed: false,
       step: 'pet_profile',
+    });
+  });
+
+  it('reopens at welcome when in-progress onboarding survives reinstall without local media', () => {
+    const stored = {
+      ...initialOnboardingState,
+      completed: false,
+      step: 'pet_profile' as const,
+      completedFlags: {
+        ...initialOnboardingState.completedFlags,
+        identityCreated: true,
+        scanStarted: true,
+        timelinePreviewSeen: true,
+        petTypeSet: true,
+      },
+    };
+
+    expect(resolveOnboardingAfterLoad(stored, null, false)).toEqual({
+      ...initialOnboardingState,
+      step: 'welcome',
+      completed: false,
+      completedFlags: {
+        ...initialOnboardingState.completedFlags,
+        identityCreated: true,
+      },
     });
   });
 });

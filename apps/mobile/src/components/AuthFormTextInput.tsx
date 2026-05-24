@@ -22,6 +22,8 @@ export type AuthFormTextInputProps = Omit<
   placeholderTextColor: string;
   style: StyleProp<TextStyle>;
   valueRef: RefObject<string>;
+  /** Notifies parent when the field changes so submit buttons can enable/disable. */
+  onValueChange?: (value: string) => void;
   /** @default true — set false only when a screen needs native return-key-only behavior. */
   keyboardDismissAccessory?: boolean;
 };
@@ -35,7 +37,8 @@ function authFormTextInputPropsAreEqual(
     prev.placeholder === next.placeholder &&
     prev.placeholderTextColor === next.placeholderTextColor &&
     prev.style === next.style &&
-    prev.valueRef === next.valueRef
+    prev.valueRef === next.valueRef &&
+    prev.onValueChange === next.onValueChange
   );
 }
 
@@ -47,6 +50,7 @@ export const AuthFormTextInput = memo(
       placeholderTextColor,
       style,
       valueRef,
+      onValueChange,
       ...rest
     },
     ref,
@@ -54,8 +58,9 @@ export const AuthFormTextInput = memo(
     const onChangeText = useCallback(
       (text: string) => {
         valueRef.current = text;
+        onValueChange?.(text);
       },
-      [valueRef],
+      [onValueChange, valueRef],
     );
 
     const fieldProps = getAuthFormFieldProps(kind);
@@ -67,8 +72,7 @@ export const AuthFormTextInput = memo(
         {...rest}
         defaultValue={valueRef.current}
         keyboardDismissAccessory={
-          keyboardDismissAccessory ??
-          authFormFieldUsesKeyboardAccessory(kind)
+          keyboardDismissAccessory ?? authFormFieldUsesKeyboardAccessory(kind)
         }
         placeholderTextColor={placeholderTextColor}
         style={style}

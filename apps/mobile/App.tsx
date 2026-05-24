@@ -24,11 +24,7 @@ import { hydrateAppTheme } from '@/lib/appTheme';
 import { getDatabase } from '@/db';
 import { countPendingUploadQueueItems } from '@/db/uploadQueue';
 import { hydrateAppLocale, t, useAppLocale } from '@/i18n';
-import {
-  bootstrapAuthSession,
-  ensureCurrentUserIfNeeded,
-  linkLegacyAnonymousUserIfNeeded,
-} from '@/modules/auth';
+import { prepareAppRemoteAuth } from '@/modules/auth';
 import { syncRemotePetProfileIfNeeded } from '@/modules/pets';
 import { runPendingCloudSync, runUploadQueueWorker } from '@/modules/sync';
 import { AppShell } from '@/navigation/AppShell';
@@ -98,22 +94,21 @@ export default function App() {
 
     async function prepareApp() {
       try {
-        const [database, authResult] = await Promise.all([
-          getDatabase(),
-          bootstrapAuthSession(),
+        await getDatabase();
+        await Promise.all([
           hydrateAppLocale(),
           hydrateAppTheme(),
           hydrateAppFontStyle(),
         ]);
+        const authResult = await prepareAppRemoteAuth();
 
         if (
           authResult.status === 'ready' ||
           authResult.status === 'logged_out'
         ) {
           if (authResult.status === 'ready') {
-            await ensureCurrentUserIfNeeded();
-            await linkLegacyAnonymousUserIfNeeded();
             await syncRemotePetProfileIfNeeded();
+            const database = await getDatabase();
             const pendingCloudUploadCount =
               await countPendingUploadQueueItems(database);
 
@@ -168,35 +163,33 @@ export default function App() {
           errorMessage={startupState.message}
           onRetry={() => {
             setStartupState({ status: 'loading' });
-            void Promise.all([
-              getDatabase(),
-              bootstrapAuthSession(),
-              hydrateAppLocale(),
-              hydrateAppTheme(),
-              hydrateAppFontStyle(),
-            ])
-              .then(async ([, authResult]) => {
-                if (
-                  authResult.status === 'ready' ||
-                  authResult.status === 'logged_out'
-                ) {
-                  if (authResult.status === 'ready') {
-                    await linkLegacyAnonymousUserIfNeeded();
-                    await syncRemotePetProfileIfNeeded();
-                  }
+            void (async () => {
+              await getDatabase();
+              await Promise.all([
+                hydrateAppLocale(),
+                hydrateAppTheme(),
+                hydrateAppFontStyle(),
+              ]);
+              const authResult = await prepareAppRemoteAuth();
+              if (
+                authResult.status === 'ready' ||
+                authResult.status === 'logged_out'
+              ) {
+                if (authResult.status === 'ready') {
+                  await syncRemotePetProfileIfNeeded();
                 }
+              }
 
-                setStartupState({ status: 'ready' });
-              })
-              .catch((error: unknown) => {
-                setStartupState({
-                  status: 'error',
-                  message:
-                    error instanceof Error
-                      ? error.message
-                      : 'Unable to prepare local storage.',
-                });
+              setStartupState({ status: 'ready' });
+            })().catch((error: unknown) => {
+              setStartupState({
+                status: 'error',
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : 'Unable to prepare local storage.',
               });
+            });
           }}
         />
       </AppearanceProvider>

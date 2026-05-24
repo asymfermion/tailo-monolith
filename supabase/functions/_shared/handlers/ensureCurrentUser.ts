@@ -31,14 +31,6 @@ export const handleEnsureCurrentUser: ApiHandler = async ({ user, log }) => {
 
   const mapped = mapEnsureCurrentUserRow(user.id, row);
 
-  const { error: profileError } = await adminClient
-    .from('profiles')
-    .upsert({ user_id: user.id }, { onConflict: 'user_id' });
-
-  if (profileError) {
-    return jsonResponse({ error: profileError.message }, 500);
-  }
-
   log.info('ensure_current_user', {
     userId: user.id,
     appUserId: mapped.appUserId,

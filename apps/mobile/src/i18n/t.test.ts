@@ -11,6 +11,13 @@ describe('t', () => {
     );
   });
 
+  it('keeps separate welcome copy for local-start and registered paths', () => {
+    expect(t('onboarding.welcomeTextNoAccount')).toContain(
+      'Start without an account.',
+    );
+    expect(t('onboarding.welcomeText')).not.toContain('without an account');
+  });
+
   it('returns the key path when a translation is missing', () => {
     expect(t('missing.key')).toBe('missing.key');
   });

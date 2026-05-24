@@ -5,14 +5,18 @@ export const TAILO_API_AUTH_ACTIONS = [
   'link-anonymous-user',
 ] as const;
 
-export const TAILO_API_PET_ACTIONS = ['upsert-pet'] as const;
+export const TAILO_API_PET_ACTIONS = ['upsert-pet', 'get-pet'] as const;
 
-export const TAILO_API_ACCOUNT_ACTIONS = ['upsert-account-profile'] as const;
+export const TAILO_API_ACCOUNT_ACTIONS = [
+  'upsert-account-profile',
+  'get-account-profile',
+] as const;
 
 export const TAILO_API_EVENTS_ACTIONS = [
   'create-upload-urls',
   'sync-event',
   'get-event-updates',
+  'bootstrap-timeline',
   'delete-event',
 ] as const;
 
@@ -47,10 +51,13 @@ const ACTION_TO_FUNCTION: Record<TailoApiAction, TailoApiFunction> = {
   'ensure-current-user': 'api-auth',
   'link-anonymous-user': 'api-auth',
   'upsert-pet': 'api-pet',
+  'get-pet': 'api-pet',
   'upsert-account-profile': 'api-account',
+  'get-account-profile': 'api-account',
   'create-upload-urls': 'api-events',
   'sync-event': 'api-events',
   'get-event-updates': 'api-events',
+  'bootstrap-timeline': 'api-events',
   'delete-event': 'api-events',
 };
 

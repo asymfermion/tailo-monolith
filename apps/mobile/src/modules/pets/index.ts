@@ -16,7 +16,10 @@ export {
   useLocalPetProfile,
   type LocalPetProfileState,
 } from './useLocalPetProfile';
-export { PetProfileEditor, canSavePetProfileDraft } from './components/PetProfileEditor';
+export {
+  PetProfileEditor,
+  canSavePetProfileDraft,
+} from './components/PetProfileEditor';
 export {
   isPetCandidateForProfile,
   matchesProfilePetType,
@@ -25,3 +28,7 @@ export {
   syncRemotePetProfileIfNeeded,
   type SyncRemotePetProfileResult,
 } from './remotePetSync';
+export {
+  pullRemotePetProfileIfNeeded,
+  type PullRemotePetProfileResult,
+} from './pullRemotePetProfile';

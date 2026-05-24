@@ -37,7 +37,15 @@ import type {
   OnboardingStep,
 } from '@/modules/auth';
 import { canContinueOnboardingScan } from '@/modules/auth/canContinueOnboardingScan';
-import { isRemoteAuthConfigured } from '@/modules/auth';
+import {
+  isRemoteAuthConfigured,
+  resetOnboardingForAccountSignInIntent,
+  useAuthAccountStatus,
+} from '@/modules/auth';
+import {
+  shouldPreferSignInOnWelcome,
+  shouldShowAccountActionsOnWelcome,
+} from '@/modules/auth/onboardingWelcomeActions';
 import {
   ScanProgressIndicator,
   canScanPhotos,
@@ -161,6 +169,18 @@ function createOnboardingStyles({
       fontSize: 15,
       fontWeight: '600' as const,
     },
+    secondaryAction: {
+      alignItems: 'center' as const,
+      alignSelf: 'stretch' as const,
+      marginTop: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    secondaryActionText: {
+      color: colors.accent,
+      fontFamily: getFontFamily('600'),
+      fontSize: 15,
+      fontWeight: '600' as const,
+    },
     optionRow: {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
@@ -274,7 +294,14 @@ export function OnboardingScreen({
   const navigation = useNavigation();
   const { colors } = useAppearance();
   const styles = useThemedStyles(createOnboardingStyles);
+  const { isLinked } = useAuthAccountStatus();
   const photoAccess = usePhotoAccess({ autoResumeOnMount: false });
+  const {
+    initialScanCompleted,
+    permissionStatus,
+    startScan,
+    bestImageSelectionProgress,
+  } = photoAccess;
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState<LocalPetType | null>(null);
   const [profilePhotoSuggestions, setProfilePhotoSuggestions] = useState<
@@ -413,27 +440,23 @@ export function OnboardingScreen({
     return () => {
       isMounted = false;
     };
-  }, [step, photoAccess.bestImageSelectionProgress.selectedAssetCount]);
+  }, [step, bestImageSelectionProgress.selectedAssetCount]);
 
   useEffect(() => {
-    if (
-      step !== 'scan' ||
-      isPipelineActive ||
-      photoAccess.initialScanCompleted
-    ) {
+    if (step !== 'scan' || isPipelineActive || initialScanCompleted) {
       return;
     }
 
-    if (!canScanPhotos(photoAccess.permissionStatus)) {
+    if (!canScanPhotos(permissionStatus)) {
       return;
     }
 
-    void photoAccess.startScan();
+    void startScan();
   }, [
+    initialScanCompleted,
     isPipelineActive,
-    photoAccess.initialScanCompleted,
-    photoAccess.permissionStatus,
-    photoAccess.startScan,
+    permissionStatus,
+    startScan,
     step,
   ]);
 
@@ -469,6 +492,45 @@ export function OnboardingScreen({
     [onboardingState.completedFlags.scanStarted, step],
   );
 
+  const openAccountSignIn = useCallback(async () => {
+    await resetOnboardingForAccountSignInIntent();
+    await onStepChange('welcome', {
+      photoPermissionHandled: false,
+      scanStarted: false,
+      timelinePreviewSeen: false,
+      petNameSet: false,
+      petSelected: false,
+      petTypeSet: false,
+      petGenderSet: false,
+      profilePhotoSuggested: false,
+    });
+    navigation.push('Login', { variant: 'welcome' });
+  }, [navigation, onStepChange]);
+
+  const startOnThisDevice = useCallback(async () => {
+    await onStepChange('scan', {
+      photoPermissionHandled: true,
+      scanStarted: true,
+    });
+
+    if (canScanPhotos(photoAccess.permissionStatus)) {
+      await photoAccess.startScan();
+      return;
+    }
+
+    await photoAccess.requestAccess();
+  }, [onStepChange, photoAccess]);
+
+  const preferSignInOnWelcome = shouldPreferSignInOnWelcome({
+    isRemoteAuthConfigured: isRemoteAuthConfigured(),
+    isLinkedAccount: isLinked,
+    hasExistingLocalData,
+  });
+  const showAccountActionsOnWelcome = shouldShowAccountActionsOnWelcome({
+    isRemoteAuthConfigured: isRemoteAuthConfigured(),
+    isLinkedAccount: isLinked,
+  });
+
   const body = useMemo(() => {
     switch (step) {
       case 'welcome':
@@ -477,68 +539,44 @@ export function OnboardingScreen({
           <Panel
             eyebrow={t('onboarding.welcomeEyebrow')}
             title={t('onboarding.welcomeTitle')}
-            text={t('onboarding.welcomeText')}
+            text={t(
+              showAccountActionsOnWelcome
+                ? 'onboarding.welcomeTextNoAccount'
+                : 'onboarding.welcomeText',
+            )}
           >
-            {hasExistingLocalData && isRemoteAuthConfigured() ? (
+            {preferSignInOnWelcome && showAccountActionsOnWelcome ? (
               <>
                 <SocialSignInPlaceholders />
-                <PrimaryButton
+                <SecondaryLinkButton
                   label={t('common.alreadyHaveAccountSignIn')}
-                  onPress={() =>
-                    navigation.push('Login', { variant: 'welcome' })
-                  }
+                  onPress={() => void openAccountSignIn()}
                 />
                 <QuietButton
                   label={t('common.startOnThisDevice')}
-                  onPress={async () => {
-                    await onStepChange('scan', {
-                      photoPermissionHandled: true,
-                      scanStarted: true,
-                    });
-
-                    if (canScanPhotos(photoAccess.permissionStatus)) {
-                      await photoAccess.startScan();
-                      return;
-                    }
-
-                    await photoAccess.requestAccess();
-                  }}
+                  onPress={() => void startOnThisDevice()}
                 />
               </>
             ) : (
               <>
                 <PrimaryButton
                   label={t('common.startOnThisDevice')}
-                  onPress={async () => {
-                    await onStepChange('scan', {
-                      photoPermissionHandled: true,
-                      scanStarted: true,
-                    });
-
-                    if (canScanPhotos(photoAccess.permissionStatus)) {
-                      await photoAccess.startScan();
-                      return;
-                    }
-
-                    await photoAccess.requestAccess();
-                  }}
+                  onPress={() => void startOnThisDevice()}
                 />
-                {isRemoteAuthConfigured() ? (
+                {showAccountActionsOnWelcome ? (
                   <>
                     <SocialSignInPlaceholders />
-                    <QuietButton
+                    <SecondaryLinkButton
                       label={t('common.alreadyHaveAccountSignIn')}
-                      onPress={() =>
-                        navigation.push('Login', { variant: 'welcome' })
-                      }
+                      onPress={() => void openAccountSignIn()}
                     />
                   </>
                 ) : null}
               </>
             )}
-            {isRemoteAuthConfigured() ? (
+            {showAccountActionsOnWelcome ? (
               <>
-                <QuietButton
+                <SecondaryLinkButton
                   label={t('common.createAccount')}
                   onPress={() =>
                     navigation.push('AccountSettings', { mode: 'create' })
@@ -732,19 +770,28 @@ export function OnboardingScreen({
   }, [
     canContinueAfterScan,
     completeProfile,
+    colors.textMuted,
     isPipelineActive,
     detectedPetOptions,
-    hasExistingLocalData,
     isLoadingPetOptions,
     isSaving,
     navigation,
     onStepChange,
+    openAccountSignIn,
     petName,
     petType,
     photoAccess,
+    preferSignInOnWelcome,
+    showAccountActionsOnWelcome,
+    startOnThisDevice,
     isLoadingProfilePhotos,
     profilePhotoSuggestions,
     selectedProfilePhotoId,
+    styles.input,
+    styles.mutedText,
+    styles.petOptionList,
+    styles.profilePhotoLabel,
+    styles.profilePhotoRow,
     step,
   ]);
 
@@ -839,6 +886,7 @@ function PrimaryButton({
 
   return (
     <Pressable
+      accessibilityRole="button"
       disabled={disabled}
       style={[styles.primaryButton, disabled ? styles.disabledButton : null]}
       onPress={onPress}
@@ -858,8 +906,33 @@ function QuietButton({
   const styles = useThemedStyles(createOnboardingStyles);
 
   return (
-    <Pressable style={styles.quietButton} onPress={onPress}>
+    <Pressable
+      accessibilityRole="button"
+      style={styles.quietButton}
+      onPress={onPress}
+    >
       <Text style={styles.quietButtonText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Accent text action — matches LoginScreen secondary links (sign in, create account). */
+function SecondaryLinkButton({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  const styles = useThemedStyles(createOnboardingStyles);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      style={styles.secondaryAction}
+      onPress={onPress}
+    >
+      <Text style={styles.secondaryActionText}>{label}</Text>
     </Pressable>
   );
 }

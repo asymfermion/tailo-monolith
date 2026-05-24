@@ -2,8 +2,12 @@ import { completeEmailAccountConnection } from './completeEmailAccountConnection
 import { ensureCurrentUserIfNeeded } from './ensureCurrentUser';
 import { getAuthProvider } from './authProviderInstance';
 import { linkLegacyAnonymousUserIfNeeded } from './legacyAnonymousLink';
-import { syncRemoteAccountProfile } from './remoteAccountProfile';
+import {
+  pullRemoteAccountProfileIfNeeded,
+  seedLocalAccountPrefsToCloudIfEmpty,
+} from './remoteAccountProfile';
 import { syncRemotePetProfileIfNeeded } from '@/modules/pets';
+import { restoreRemoteAccountDataIfNeeded } from '@/modules/sync/restoreRemoteAccountData';
 
 jest.mock('./authProviderInstance', () => ({
   getAuthProvider: jest.fn(),
@@ -18,23 +22,16 @@ jest.mock('./legacyAnonymousLink', () => ({
 }));
 
 jest.mock('./remoteAccountProfile', () => ({
-  syncRemoteAccountProfile: jest.fn(),
+  pullRemoteAccountProfileIfNeeded: jest.fn(),
+  seedLocalAccountPrefsToCloudIfEmpty: jest.fn(),
 }));
 
 jest.mock('@/modules/pets', () => ({
   syncRemotePetProfileIfNeeded: jest.fn(),
 }));
 
-jest.mock('@/i18n/locale', () => ({
-  getAppLocale: jest.fn(() => 'en'),
-}));
-
-jest.mock('@/lib/appTheme', () => ({
-  getAppTheme: jest.fn(() => 'light'),
-}));
-
-jest.mock('@/lib/appFontStyle', () => ({
-  getAppFontStyle: jest.fn(() => 'system'),
+jest.mock('@/modules/sync/restoreRemoteAccountData', () => ({
+  restoreRemoteAccountDataIfNeeded: jest.fn(),
 }));
 
 describe('completeEmailAccountConnection', () => {
@@ -49,7 +46,7 @@ describe('completeEmailAccountConnection', () => {
         email: 'user@example.com',
         emailConfirmed: true,
       }),
-    } as ReturnType<typeof getAuthProvider>);
+    } as unknown as ReturnType<typeof getAuthProvider>);
     jest
       .mocked(ensureCurrentUserIfNeeded)
       .mockResolvedValue({ status: 'ensured', response: {} as never });
@@ -57,34 +54,58 @@ describe('completeEmailAccountConnection', () => {
       .mocked(linkLegacyAnonymousUserIfNeeded)
       .mockResolvedValue({ status: 'skipped' });
     jest
-      .mocked(syncRemoteAccountProfile)
-      .mockResolvedValue({ status: 'synced', response: {} as never });
+      .mocked(seedLocalAccountPrefsToCloudIfEmpty)
+      .mockResolvedValue({ status: 'skipped' });
     jest
       .mocked(syncRemotePetProfileIfNeeded)
+      .mockResolvedValue({ status: 'skipped' });
+    jest.mocked(restoreRemoteAccountDataIfNeeded).mockResolvedValue({
+      status: 'restored',
+      accountPulled: true,
+      petPulled: true,
+      eventCount: 2,
+    });
+    jest
+      .mocked(pullRemoteAccountProfileIfNeeded)
       .mockResolvedValue({ status: 'skipped' });
   });
 
   it('skips when remote auth is not configured', async () => {
     jest.mocked(getAuthProvider).mockReturnValue({
       isConfigured: () => false,
-    } as ReturnType<typeof getAuthProvider>);
+    } as unknown as ReturnType<typeof getAuthProvider>);
 
     await expect(completeEmailAccountConnection()).resolves.toEqual({
       status: 'skipped',
     });
   });
 
-  it('syncs profile and pet for a linked account', async () => {
+  it('restores cloud data and seeds empty profile fields for a linked account', async () => {
     await expect(completeEmailAccountConnection()).resolves.toEqual({
       status: 'completed',
     });
 
-    expect(syncRemoteAccountProfile).toHaveBeenCalledWith({
-      preferredLocale: 'en',
-      preferredTheme: 'light',
-      preferredFontStyle: 'system',
+    expect(restoreRemoteAccountDataIfNeeded).toHaveBeenCalledWith({
+      force: true,
     });
+    expect(seedLocalAccountPrefsToCloudIfEmpty).toHaveBeenCalled();
     expect(syncRemotePetProfileIfNeeded).toHaveBeenCalled();
+    expect(pullRemoteAccountProfileIfNeeded).not.toHaveBeenCalled();
+  });
+
+  it('refreshes account profile when restore is skipped', async () => {
+    jest.mocked(restoreRemoteAccountDataIfNeeded).mockResolvedValue({
+      status: 'skipped',
+    });
+    jest
+      .mocked(pullRemoteAccountProfileIfNeeded)
+      .mockResolvedValue({ status: 'pulled', profile: {} as never });
+
+    await expect(completeEmailAccountConnection()).resolves.toEqual({
+      status: 'completed',
+    });
+
+    expect(pullRemoteAccountProfileIfNeeded).toHaveBeenCalled();
   });
 
   it('returns partial when ensure-current-user fails', async () => {

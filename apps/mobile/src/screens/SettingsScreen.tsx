@@ -24,6 +24,7 @@ import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
 import {
   formatAccountSettingsLabel,
   logoutRemoteAccount,
+  resetLocalDeviceData,
   setAppFontStyleAndSyncProfile,
   setAppLocaleAndSyncProfile,
   setAppThemeAndSyncProfile,
@@ -175,6 +176,7 @@ export function SettingsScreen() {
     useRemoteAccountProfile();
   const authGate = useAuthGate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isResettingLocalData, setIsResettingLocalData] = useState(false);
   const styles = useThemedStyles(createSettingsStyles);
   const showLogout = account.isConfigured && account.isLinked;
 
@@ -219,6 +221,41 @@ export function SettingsScreen() {
       ],
     );
   }, [account, authGate]);
+
+  const handleResetLocalData = useCallback(() => {
+    Alert.alert(
+      t('settings.resetLocalDataConfirmTitle'),
+      t('settings.resetLocalDataConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.resetLocalDataLabel'),
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setIsResettingLocalData(true);
+
+              try {
+                await resetLocalDeviceData();
+                navigation.finishSignInToTimeline();
+                await authGate.refresh();
+                await account.refresh();
+              } catch (error) {
+                Alert.alert(
+                  t('settings.resetLocalDataFailedTitle'),
+                  error instanceof Error
+                    ? error.message
+                    : t('settings.resetLocalDataFailedMessage'),
+                );
+              } finally {
+                setIsResettingLocalData(false);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  }, [account, authGate, navigation]);
 
   const shouldSyncProfile =
     account.isConfigured && !account.isLoading && account.isLinked;
@@ -276,38 +313,28 @@ export function SettingsScreen() {
     [handlePreferenceSyncResult, shouldSyncProfile],
   );
 
-  const languageOptions = useMemo(
-    () => [
-      { value: 'en' as const, label: t('settings.languages.english') },
-      {
-        value: 'zh-Hans' as const,
-        label: t('settings.languages.simplifiedChinese'),
-      },
-    ],
-    [locale],
-  );
+  const languageOptions = [
+    { value: 'en' as const, label: t('settings.languages.english') },
+    {
+      value: 'zh-Hans' as const,
+      label: t('settings.languages.simplifiedChinese'),
+    },
+  ];
 
-  const themeOptions = useMemo(
-    () => [
-      { value: 'light' as AppTheme, label: t('settings.themes.light') },
-      { value: 'dark' as AppTheme, label: t('settings.themes.dark') },
-    ],
-    [locale, theme],
-  );
+  const themeOptions = [
+    { value: 'light' as AppTheme, label: t('settings.themes.light') },
+    { value: 'dark' as AppTheme, label: t('settings.themes.dark') },
+  ];
 
-  const fontStyleOptions = useMemo(
-    () =>
-      APP_FONT_STYLES.map((value) => ({
-        value,
-        label: t(FONT_STYLE_LABEL_KEYS[value]),
-        labelStyle: {
-          fontFamily: getFontFamilyForStyle(value, '600'),
-          fontSize: 16,
-          fontWeight: '600' as const,
-        },
-      })),
-    [locale],
-  );
+  const fontStyleOptions = APP_FONT_STYLES.map((value) => ({
+    value,
+    label: t(FONT_STYLE_LABEL_KEYS[value]),
+    labelStyle: {
+      fontFamily: getFontFamilyForStyle(value, '600'),
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+  }));
 
   const selectedFontLabelStyle = useMemo(
     () => ({
@@ -332,7 +359,7 @@ export function SettingsScreen() {
     }
 
     if (!account.isLinked) {
-      return t('userProfile.settingsRowLabel');
+      return t('userProfile.settingsRowLabelAnonymous');
     }
 
     if (profileDisplayName) {
@@ -391,7 +418,12 @@ export function SettingsScreen() {
           description={accountDescription}
           label={accountLabel}
           styles={styles}
-          onPress={() => navigation.push('AccountSettings')}
+          onPress={() =>
+            navigation.push(
+              'AccountSettings',
+              account.isLinked ? undefined : { mode: 'link' },
+            )
+          }
         />
       </SettingsSection>
 
@@ -432,6 +464,21 @@ export function SettingsScreen() {
           onSelect={handleFontStyleSelect}
         />
       </SettingsSection>
+
+      {__DEV__ ? (
+        <SettingsSection
+          styles={styles}
+          title={t('settings.sections.developer')}
+        >
+          <SettingsRow
+            description={t('settings.resetLocalDataDescription')}
+            isLast
+            label={t('settings.resetLocalDataLabel')}
+            styles={styles}
+            onPress={isResettingLocalData ? undefined : handleResetLocalData}
+          />
+        </SettingsSection>
+      ) : null}
 
       {showLogout ? (
         <View style={styles.logoutFooter}>

@@ -1,8 +1,8 @@
 /** Account upgrade copy (email linking). */
 export const accountMessages = {
-  saveMemoriesLink: 'Save your memories',
-  title: 'Save your memories',
-  body: 'Add an email to keep your pet profile and moments if you get a new phone. Tailo only syncs moments you save — not your whole photo library.',
+  saveMemoriesLink: 'Create account',
+  title: 'Create your account',
+  body: 'Link an email to save your memories and unlock more.',
   createTitle: 'Create your account',
   createBody:
     'Use your email to create a Tailo account while you get started. Your pet profile and saved moments stay connected to you on this device.',
@@ -10,7 +10,7 @@ export const accountMessages = {
     'Your Tailo account is ready on this device. You can add a password now or come back later.',
   emailLabel: 'Email',
   emailPlaceholder: 'you@example.com',
-  sendCode: 'Send verification code',
+  sendCode: 'Send code',
   sendingCode: 'Sending...',
   codeLabel: 'Verification code',
   codePlaceholder: '8-digit code',
@@ -19,7 +19,7 @@ export const accountMessages = {
   passwordSetupBody:
     'A password is optional. Add one now for faster sign-in later, or come back to this anytime in Account settings.',
   passwordLabel: 'Password',
-  passwordPlaceholder: 'At least 8 characters',
+  passwordPlaceholder: 'At least 8 chars, upper & lower, number, symbol',
   confirmPasswordLabel: 'Confirm password',
   confirmPasswordPlaceholder: 'Enter your password again',
   verifyCode: 'Verify email',
@@ -63,8 +63,12 @@ export const accountMessages = {
   unavailableBody: 'Cloud sync is not configured on this build.',
   errors: {
     invalidEmail: 'Enter a valid email address.',
+    codeRequired: 'Enter the full 8-digit code.',
+    displayNameRequired: 'Enter a display name.',
     passwordMismatch: 'Those passwords do not match.',
     passwordTooShort: 'Use at least {{min}} characters for your password.',
+    passwordWeak:
+      'Use at least 8 characters with uppercase, lowercase, a number, and a special character.',
     unavailable: 'Account linking is not available right now.',
     profileSyncFailed:
       'Could not save your profile to the cloud. Check your connection and try again.',

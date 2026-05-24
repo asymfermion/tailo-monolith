@@ -1,6 +1,9 @@
 import type * as SQLite from 'expo-sqlite';
 
+import { getNewestPromotedEventTimestamp } from '@/db/localEvents';
+
 import { resolveIncrementalScanCreatedAfterMs } from './incrementalScan';
+import { getLastScanTimestamp } from './scanState';
 
 jest.mock('@/db/localEvents', () => ({
   getNewestPromotedEventTimestamp: jest.fn(),
@@ -9,10 +12,6 @@ jest.mock('@/db/localEvents', () => ({
 jest.mock('./scanState', () => ({
   getLastScanTimestamp: jest.fn(),
 }));
-
-import { getNewestPromotedEventTimestamp } from '@/db/localEvents';
-
-import { getLastScanTimestamp } from './scanState';
 
 const mockedGetNewestPromotedEventTimestamp =
   getNewestPromotedEventTimestamp as jest.MockedFunction<

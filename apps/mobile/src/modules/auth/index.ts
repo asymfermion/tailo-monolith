@@ -31,7 +31,15 @@ export {
 } from './accountEmailLink';
 export type { AuthProvider } from './authProvider';
 export {
+  ensureAnonymousCloudAccountIfNeeded,
+  prepareAppRemoteAuth,
+  shouldBootstrapRemoteAuthAtStartup,
+  type EnsureAnonymousCloudAccountResult,
+  type PrepareAppRemoteAuthResult,
+} from './anonymousCloudAccount';
+export {
   bootstrapAuthSession,
+  ensureRemoteAuthSession,
   finalizeConnectedSignIn,
   getAuthAccessToken,
   getAuthSession,
@@ -76,9 +84,13 @@ export {
   type EnsureCurrentUserIfNeededResult,
 } from './ensureCurrentUser';
 export {
+  applyRemoteAccountProfile,
   fetchRemoteAccountProfile,
   loadRemoteAccountProfile,
+  pullRemoteAccountProfileIfNeeded,
+  seedLocalAccountPrefsToCloudIfEmpty,
   syncRemoteAccountProfile,
+  type PullRemoteAccountProfileResult,
   type RemoteAccountProfile,
   type SyncRemoteAccountProfilePatch,
   type SyncRemoteAccountProfileResult,
@@ -105,6 +117,7 @@ export {
   loadOnboardingState,
   mergeOnboardingState,
   ONBOARDING_STATE_KEY,
+  resetOnboardingForAccountSignInIntent,
   saveOnboardingState,
   type OnboardingCompletedFlags,
   type OnboardingState,
@@ -114,9 +127,11 @@ export {
 export { secureStorage, type SecureStorage } from './secureStorage';
 export {
   INSTALL_ID_KEY,
+  clearSecureUserData,
   reconcileInstallIdentity,
   type InstallReconcileResult,
 } from './installIdentity';
+export { resetLocalDeviceData } from './resetLocalDeviceData';
 export {
   useOnboardingSession,
   type OnboardingSessionState,

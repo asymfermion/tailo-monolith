@@ -9,7 +9,7 @@ export type LocalEventTombstoneRow = {
 
 export async function tombstoneLocalEvents(
   db: SQLite.SQLiteDatabase,
-  events: Array<{ localEventId: string; remoteEventId: string | null }>,
+  events: { localEventId: string; remoteEventId: string | null }[],
   timelineGeneration: number,
   wipedAt: string,
 ): Promise<number> {

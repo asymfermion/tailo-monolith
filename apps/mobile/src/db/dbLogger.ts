@@ -67,6 +67,18 @@ export function isForeignKeyConstraintError(error: unknown): boolean {
   return /foreign key constraint failed/i.test(message);
 }
 
+export function isClosedDatabaseError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? `${error.message} ${error.cause instanceof Error ? error.cause.message : ''}`
+      : String(error);
+
+  return (
+    /access to closed resource/i.test(message) ||
+    (error as Error & { code?: string }).code === 'ERR_ACCESS_CLOSED_RESOURCE'
+  );
+}
+
 function summarizeSql(sql: string): string {
   return sql.replace(/\s+/g, ' ').trim().slice(0, 600);
 }

@@ -1,7 +1,8 @@
 import type * as SQLite from 'expo-sqlite';
 import { UPLOAD_MAX_ASSETS_PER_EVENT } from '@tailo/shared';
 
-import { logTailo } from '@/lib/tailoLogger';
+import { getDatabase, invalidateDatabaseConnection } from '@/db';
+import { formatDbError, isClosedDatabaseError } from '@/db/dbLogger';
 import { getLocalAssetUploadSourcesByIds } from '@/db/localAssets';
 import { getLocalEventById } from '@/db/localEvents';
 import {
@@ -17,6 +18,10 @@ import {
   isRemoteAuthConfigured,
 } from '@/modules/auth/authService';
 import { loadLocalPetProfile } from '@/modules/pets/petProfile';
+
+import { logTailo } from '@/lib/tailoLogger';
+
+import { prepareCloudUploadPrerequisites } from './prepareCloudUploadPrerequisites';
 
 import { createUploadUrls } from './createUploadUrls';
 import { groupUploadQueueByEvent } from './groupUploadQueueByEvent';
@@ -43,7 +48,7 @@ type PreparedAssetUpload = {
 };
 
 export async function runUploadQueueWorker(
-  database: SQLite.SQLiteDatabase,
+  databaseArg?: SQLite.SQLiteDatabase,
 ): Promise<RunUploadQueueWorkerResult> {
   if (!isRemoteAuthConfigured()) {
     logTailo('Upload', 'Cloud upload worker skipped', {
@@ -57,6 +62,7 @@ export async function runUploadQueueWorker(
     };
   }
 
+  const prepared = await prepareCloudUploadPrerequisites();
   const session = await getAuthSession();
 
   if (!session) {
@@ -71,9 +77,10 @@ export async function runUploadQueueWorker(
     };
   }
 
-  const petProfile = await loadLocalPetProfile();
+  const remotePetId =
+    prepared.remotePetId ?? (await loadLocalPetProfile())?.remotePetId ?? null;
 
-  if (!petProfile?.remotePetId) {
+  if (!remotePetId) {
     logTailo('Upload', 'Cloud upload worker skipped', {
       reason: 'missing_remote_pet',
     });
@@ -84,6 +91,8 @@ export async function runUploadQueueWorker(
       skippedReason: 'missing_remote_pet',
     };
   }
+
+  const database = databaseArg ?? (await resolveUploadWorkerDatabase());
 
   await resetStuckUploadingQueueItems(database);
 
@@ -113,7 +122,7 @@ export async function runUploadQueueWorker(
       database,
       batch.localEventId,
       batch.items,
-      petProfile.remotePetId,
+      remotePetId,
     );
 
     processedBatches += batchResult.processed ? 1 : 0;
@@ -340,5 +349,21 @@ async function failQueueItems(
       nextRetryCount,
       nextAttemptAt,
     );
+  }
+}
+
+async function resolveUploadWorkerDatabase(): Promise<SQLite.SQLiteDatabase> {
+  try {
+    return await getDatabase();
+  } catch (error) {
+    if (isClosedDatabaseError(error)) {
+      logTailo('Upload', 'Retrying upload worker database open after close', {
+        error: formatDbError(error),
+      });
+      await invalidateDatabaseConnection();
+      return getDatabase();
+    }
+
+    throw error;
   }
 }

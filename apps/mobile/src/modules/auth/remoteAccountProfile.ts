@@ -5,22 +5,23 @@ import {
   setAppFontStyle,
   type AppFontStyle,
 } from '@/lib/appFontStyle';
-import {
-  getAppTheme,
-  isAppTheme,
-  setAppTheme,
-  type AppTheme,
-} from '@/lib/appTheme';
-import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
+import { getAppTheme, isAppTheme, setAppTheme } from '@/lib/appTheme';
+import type { AppTheme } from '@/constants/theme';
 import { getAppLocale, setAppLocale, type AppLocale } from '@/i18n/locale';
 import {
   getAuthSession,
   isRemoteAuthConfigured,
 } from '@/modules/auth/authService';
 import { isLinkedRemoteAccount } from '@/modules/auth/authTypes';
-import { saveLocalAccountProfile } from '@/modules/auth/localAccountProfile';
 import {
+  loadLocalAccountProfile,
+  saveLocalAccountProfile,
+} from '@/modules/auth/localAccountProfile';
+import {
+  isGetAccountProfileResponse,
+  normalizeRemoteAccountProfileSummary,
   normalizeUpsertAccountProfileResponse,
+  type RemoteAccountProfileSummary,
   type UpsertAccountProfileResponse,
 } from '@tailo/shared';
 
@@ -45,6 +46,19 @@ export type SyncRemoteAccountProfileResult =
   | { status: 'synced'; response: UpsertAccountProfileResponse }
   | { status: 'error'; message: string };
 
+export type PullRemoteAccountProfileResult =
+  | { status: 'skipped' }
+  | { status: 'no_profile' }
+  | { status: 'pulled'; profile: RemoteAccountProfile }
+  | { status: 'error'; message: string };
+
+type AccountProfileAppearance = {
+  display_name: string | null;
+  preferred_locale: string | null;
+  preferred_theme: string | null;
+  preferred_font_style: string | null;
+};
+
 function parsePreferredLocale(value: string | null): AppLocale | null {
   if (value === 'en' || value === 'zh-Hans') {
     return value;
@@ -61,34 +75,163 @@ function parsePreferredFontStyle(value: string | null): AppFontStyle | null {
   return isAppFontStyle(value) ? value : null;
 }
 
-async function applyRemoteProfileFromServer(
-  payload: UpsertAccountProfileResponse,
+function toRemoteAccountProfile(
+  appUserId: string,
+  snapshot: AccountProfileAppearance,
+): RemoteAccountProfile {
+  return {
+    appUserId,
+    displayName: snapshot.display_name,
+    preferredLocale: parsePreferredLocale(snapshot.preferred_locale),
+    preferredTheme: parsePreferredTheme(snapshot.preferred_theme),
+    preferredFontStyle: parsePreferredFontStyle(snapshot.preferred_font_style),
+  };
+}
+
+export async function applyRemoteAccountProfile(
+  snapshot: AccountProfileAppearance,
 ): Promise<void> {
   await saveLocalAccountProfile({
-    displayName: payload.display_name ?? null,
+    displayName: snapshot.display_name ?? null,
   });
 
-  const locale = parsePreferredLocale(payload.preferred_locale);
+  const locale = parsePreferredLocale(snapshot.preferred_locale);
 
   if (locale) {
     await setAppLocale(locale);
   }
 
-  const theme = parsePreferredTheme(payload.preferred_theme);
+  const theme = parsePreferredTheme(snapshot.preferred_theme);
 
   if (theme) {
     await setAppTheme(theme);
   }
 
-  const fontStyle = parsePreferredFontStyle(payload.preferred_font_style);
+  const fontStyle = parsePreferredFontStyle(snapshot.preferred_font_style);
 
   if (fontStyle) {
     await setAppFontStyle(fontStyle);
   }
 }
 
+async function fetchRemoteAccountProfileSummary(): Promise<
+  RemoteAccountProfileSummary | null | 'error'
+> {
+  const result = await invokeTailoApi('get-account-profile');
+
+  if ('error' in result) {
+    return 'error';
+  }
+
+  if (!result.ok) {
+    return 'error';
+  }
+
+  if (!isGetAccountProfileResponse(result.payload)) {
+    return 'error';
+  }
+
+  if (!result.payload.profile) {
+    return null;
+  }
+
+  return normalizeRemoteAccountProfileSummary(result.payload.profile);
+}
+
+/**
+ * Downloads the account profile from the server and applies it locally
+ * (display name, locale, theme, font).
+ */
+export async function pullRemoteAccountProfileIfNeeded(): Promise<PullRemoteAccountProfileResult> {
+  if (!isRemoteAuthConfigured()) {
+    return { status: 'skipped' };
+  }
+
+  const session = await getAuthSession();
+
+  if (!session?.appUserId || !isLinkedRemoteAccount(session)) {
+    return { status: 'skipped' };
+  }
+
+  const summary = await fetchRemoteAccountProfileSummary();
+
+  if (summary === 'error') {
+    return {
+      status: 'error',
+      message: 'Could not load account profile from cloud.',
+    };
+  }
+
+  if (!summary) {
+    return { status: 'no_profile' };
+  }
+
+  await applyRemoteAccountProfile(summary);
+
+  return {
+    status: 'pulled',
+    profile: toRemoteAccountProfile(session.appUserId, summary),
+  };
+}
+
+/**
+ * Pushes device-only preferences to the server when cloud fields are still empty
+ * (e.g. first account link on the device that created the data).
+ */
+export async function seedLocalAccountPrefsToCloudIfEmpty(): Promise<SyncRemoteAccountProfileResult> {
+  if (!isRemoteAuthConfigured()) {
+    return { status: 'skipped' };
+  }
+
+  const session = await getAuthSession();
+
+  if (!session || !isLinkedRemoteAccount(session)) {
+    return { status: 'not_linked' };
+  }
+
+  const summary = await fetchRemoteAccountProfileSummary();
+  const localProfile = await loadLocalAccountProfile();
+  const patch: SyncRemoteAccountProfilePatch = {};
+
+  if (summary === 'error') {
+    return {
+      status: 'error',
+      message: 'Could not read account profile before seeding.',
+    };
+  }
+
+  const cloud = summary ?? {
+    display_name: null,
+    preferred_locale: null,
+    preferred_theme: null,
+    preferred_font_style: null,
+  };
+
+  if (cloud.display_name == null && localProfile?.displayName) {
+    patch.displayName = localProfile.displayName;
+  }
+
+  if (cloud.preferred_locale == null) {
+    patch.preferredLocale = getAppLocale();
+  }
+
+  if (cloud.preferred_theme == null) {
+    patch.preferredTheme = getAppTheme();
+  }
+
+  if (cloud.preferred_font_style == null) {
+    patch.preferredFontStyle = getAppFontStyle();
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return { status: 'skipped' };
+  }
+
+  return syncRemoteAccountProfile(patch);
+}
+
 export async function fetchRemoteAccountProfile(): Promise<RemoteAccountProfile | null> {
-  if (!isRemoteAuthConfigured() || !isSupabaseConfigured()) {
+  if (!isRemoteAuthConfigured()) {
     return null;
   }
 
@@ -98,39 +241,27 @@ export async function fetchRemoteAccountProfile(): Promise<RemoteAccountProfile 
     return null;
   }
 
-  const { data, error } = await getSupabaseClient()
-    .from('account_profiles')
-    .select(
-      'app_user_id, display_name, preferred_locale, preferred_theme, preferred_font_style',
-    )
-    .eq('app_user_id', session.appUserId)
-    .maybeSingle();
+  const summary = await fetchRemoteAccountProfileSummary();
 
-  if (error || !data) {
+  if (summary === 'error') {
+    return null;
+  }
+
+  if (!summary) {
+    const localProfile = await loadLocalAccountProfile();
+
     return {
       appUserId: session.appUserId,
-      displayName: null,
+      displayName: localProfile?.displayName ?? null,
       preferredLocale: getAppLocale(),
       preferredTheme: getAppTheme(),
       preferredFontStyle: getAppFontStyle(),
     };
   }
 
-  const profile: RemoteAccountProfile = {
-    appUserId: data.app_user_id,
-    displayName: data.display_name,
-    preferredLocale:
-      parsePreferredLocale(data.preferred_locale) ?? getAppLocale(),
-    preferredTheme: parsePreferredTheme(data.preferred_theme) ?? getAppTheme(),
-    preferredFontStyle:
-      parsePreferredFontStyle(data.preferred_font_style) ?? getAppFontStyle(),
-  };
+  await applyRemoteAccountProfile(summary);
 
-  await saveLocalAccountProfile({
-    displayName: profile.displayName,
-  });
-
-  return profile;
+  return toRemoteAccountProfile(session.appUserId, summary);
 }
 
 export async function loadRemoteAccountProfile(): Promise<RemoteAccountProfile | null> {
@@ -200,7 +331,7 @@ export async function syncRemoteAccountProfile(
       };
     }
 
-    await applyRemoteProfileFromServer(response);
+    await applyRemoteAccountProfile(response);
 
     return { status: 'synced', response };
   } catch (error) {

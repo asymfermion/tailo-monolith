@@ -12,11 +12,18 @@ export {
 } from './runPendingCloudSync';
 export { pollEventUpdates, hasPendingAiEvents } from './pollEventUpdates';
 export { useEventUpdatesPoll } from './useEventUpdatesPoll';
-export { SyncStatusIndicator } from './components/SyncStatusIndicator';
-export { useSyncStatus } from './useSyncStatus';
 export { useBackgroundSync } from './useBackgroundSync';
 export {
   runCloudSyncPass,
   type RunCloudSyncPassResult,
 } from './runCloudSyncPass';
+export {
+  restoreRemoteAccountDataIfNeeded,
+  type RestoreRemoteAccountDataResult,
+} from './restoreRemoteAccountData';
+export {
+  hydrateCloudTimelineIfNeeded,
+  getCloudHydratedEventCount,
+  type HydrateCloudTimelineResult,
+} from './hydrateCloudTimeline';
 export { deleteEvent } from './deleteEvent';

@@ -1,30 +1,62 @@
 # Tailo — AI Agent Instructions
 
-This file is the **entry point for all AI coding agents** (Cursor, Claude, Codex, etc.) working in this repository. Read it before making changes.
+This file is the entry point for AI coding agents working in this repository, including Cursor, Claude, Codex, and similar tools.
 
-**Tailo-specific agent rules live here** — not in separate `.cursor/rules/` files. Cursor loads this file as workspace context; duplicating the same guidance in `.mdc` rules causes drift. (Third-party or personal always-on rules, e.g. general coding behavior, may stay outside the repo if you use them.)
+Tailo-specific rules live here. Do not duplicate Tailo product, architecture, testing, or workflow rules in `.cursor/rules/`; duplication causes drift and wastes context. Personal or third-party behavior rules may live outside the repo, but this file is the project source of truth.
 
-For full product and architecture detail, see **[Tailo_Agent_Coding_Guidelines_v2.md](./Tailo_Agent_Coding_Guidelines_v2.md)**.
+For deeper product and architecture detail, see [`Tailo_Agent_Coding_Guidelines_v2.md`](./Tailo_Agent_Coding_Guidelines_v2.md) only when the current task requires it.
 
 ---
 
-## Project
+## Instruction priority
 
-**Tailo** is a passive pet memory app: scan recent photos → detect pet moments → group into events → show a calm timeline. AI captions stay invisible; the product should feel like it remembers automatically.
+When instructions conflict, use this order:
 
-| Path               | Purpose                                   |
-| ------------------ | ----------------------------------------- |
-| `apps/mobile/`     | React Native + Expo (primary client)      |
-| `packages/shared/` | Shared TypeScript types and constants     |
-| `packages/ai/`     | AI prompts and response schemas (later)   |
-| `supabase/`        | Backend (Phase 2 — scaffold + migrations) |
-| `docs/`            | Developer guide, tasks, **architecture**  |
+1. The user's current request
+2. This `AGENTS.md`
+3. Relevant docs under `docs/`
+4. Existing code style and tests
+5. General Cursor/user rules
+
+If a lower-priority instruction conflicts with Tailo product scope, follow Tailo scope and mention the conflict briefly.
+
+---
+
+## Project summary
+
+Tailo is a passive pet memory app.
+
+Core flow:
+
+1. Scan recent photos locally.
+2. Detect pet-related moment candidates.
+3. Group candidates into timeline events.
+4. Show a calm, memory-like timeline.
+
+Product feel:
+
+- Passive-first, not manual logging-first.
+- AI should feel invisible.
+- Use language like “moments” and “memories”, not “AI assistant”.
+- Sharing, when added, should be export-based, not a social feed.
+
+---
+
+## Repository map
+
+| Path | Purpose |
+| --- | --- |
+| `apps/mobile/` | React Native + Expo mobile app |
+| `packages/shared/` | Shared TypeScript types, constants, contracts, schemas |
+| `packages/ai/` | AI prompts and response schemas when needed |
+| `supabase/` | Backend, migrations, storage, and Edge Functions for Phase 2+ |
+| `docs/` | Developer guide, task plan, and architecture docs |
 
 ---
 
 ## Current default phase
 
-Unless the user says otherwise, assume the project is in **Phase 0 / Phase 1 mobile-first implementation**.
+Unless the user says otherwise, assume Tailo is in Phase 0 / Phase 1 mobile-first implementation.
 
 Default work should focus on:
 
@@ -33,146 +65,387 @@ Default work should focus on:
 - Local media scan
 - Local event candidate creation
 - Timeline UI
+- SQLite/local-first state
 - Local unit tests
 
-Phase 2 backend work (Supabase, sync, uploads, Edge Functions) is in scope when the user requests it. Do not add OpenAI or cloud AI until sync/upload foundations exist unless explicitly requested.
+Phase 2 backend work is in scope only when the user asks for backend, sync, uploads, auth, Supabase, Edge Functions, or cloud work.
+
+Do not add OpenAI, cloud AI, sync, uploads, login, or paywall flows unless explicitly requested or already part of the selected task.
 
 ---
 
-## Required reading
+## Required reading by task type
 
-1. **[docs/MOBILE_TASKS.md](./docs/MOBILE_TASKS.md)** — pick the next unchecked task
-2. **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** — phase architecture (update when implementing something new)
-3. **[docs/DEVELOPER.md](./docs/DEVELOPER.md)** — setup, run commands, troubleshooting
-4. **[Tailo_Agent_Coding_Guidelines_v2.md](./Tailo_Agent_Coding_Guidelines_v2.md)** — full reference when needed
+Read only what is needed for the task. Do not load every doc by default.
 
-Expo SDK 54 docs: https://docs.expo.dev/versions/v54.0.0/
+| Task type | Read first |
+| --- | --- |
+| Pick next mobile task | `docs/MOBILE_TASKS.md` |
+| Understand architecture boundary | `docs/ARCHITECTURE.md` |
+| Run/setup/debug commands | `docs/DEVELOPER.md` |
+| Phase-specific implementation | matching file in `docs/architecture/` |
+| Full product/agent reference | `Tailo_Agent_Coding_Guidelines_v2.md` |
+| Expo API behavior | Expo SDK 54 docs |
+
+Prefer focused reading over broad context loading.
+
+---
+
+## AI context discipline
+
+Keep agent context small and task-specific.
+
+Before broad search:
+
+- Read the user's request carefully.
+- Prefer exact files named by the user.
+- Search the relevant module first.
+- Use broad codebase search only for discovery, not by default.
+
+When implementing:
+
+- Identify the smallest relevant file set.
+- Do not load unrelated docs.
+- Do not summarize long files unless needed.
+- Do not rewrite large files for small changes.
+- Prefer targeted diffs over full-file replacement.
+
+When finishing:
+
+- Summarize changed files.
+- State what was verified.
+- State any skipped checks honestly.
+- Keep explanations short unless the user asks for detail.
+
+---
+
+## Default implementation loop
+
+For normal coding tasks:
+
+1. Locate the smallest relevant file set.
+2. Read existing implementation and tests.
+3. Make a brief plan for non-trivial changes.
+4. Implement the minimal change.
+5. Add or update unit tests for changed logic.
+6. Run the smallest relevant checks first.
+7. Update docs only when architecture, behavior, or task status changed.
+
+Do not perform unrelated cleanup.
+Do not commit or push unless the user explicitly asks.
 
 ---
 
 ## How to work
 
-1. **Follow the task plan** — next open item in `docs/MOBILE_TASKS.md` unless the user specifies otherwise. Tasks are tracked as [GitHub issues](https://github.com/asymfermion/tailo-monolith/issues?q=label%3Amobile-tasks+is%3Aopen) on the [mobile project board](https://github.com/users/asymfermion/projects/2); see [guidelines §5.6](./Tailo_Agent_Coding_Guidelines_v2.md#56-github-issue--project-workflow).
-2. **Plan with an issue, code with an issue, close when done** — create or pick an issue (on the project board) before coding; move status on the board while working; close the issue and check off `MOBILE_TASKS.md` when complete.
-3. **Update architecture docs** — when implementing something new, update the relevant doc under `docs/architecture/` (see below).
-4. **Reuse before rewrite** — search the repo first; extract shared logic instead of copying (see below).
-5. **Respect boundaries** — mobile in `apps/mobile`; contracts in `packages/shared` / `packages/ai`.
-6. **Stay focused** — no drive-by refactors or scope creep (architecture doc updates are required, not optional scope).
-7. **Match existing style** — calm UI copy (moments/memories, not “AI assistant”).
+1. Follow the task plan in `docs/MOBILE_TASKS.md` unless the user specifies a different task.
+2. Use GitHub issues/project-board workflow when the task requires it.
+3. Update architecture docs when implementing a new module, pipeline stage, table, API boundary, or major behavior change.
+4. Reuse existing code before writing new code.
+5. Keep mobile code in `apps/mobile`, shared contracts in `packages/shared` / `packages/ai`, and backend code under the backend packages/adapters.
+6. Match existing style.
+7. Avoid scope creep and drive-by refactors.
+
+Every changed line should trace directly to the user's request or the selected task.
 
 ---
 
-## Architecture documentation (required)
+## Product scope guardrails
 
-When you implement something **new** (module, pipeline stage, table, API boundary, or major behavior change):
+Do not add new product features unless requested.
 
-1. Update **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** if phase scope or monorepo boundaries change.
-2. Update the matching **phase doc** in `docs/architecture/` (e.g. [phase-0-local-spike.md](./docs/architecture/phase-0-local-spike.md), [phase-1-local-mvp.md](./docs/architecture/phase-1-local-mvp.md)).
-3. Add a short row to that doc’s **Change log** (date + what changed).
+Do not add by default:
 
-Keep updates concise: flow, modules, data model, thresholds — not a duplicate of every PR.
-
-Do **not** create extra architecture files unless starting a new phase or major subsystem.
-
----
-
-## Product scope rule
-
-Do **not** add new product features unless requested.
-
-Do **not** add:
-
-- Social features
+- Social networking features
 - Dashboards
 - Gamification
-- Medical/health scoring
+- Medical or health scoring
 - Complex onboarding
 - Multi-pet UI
-- Login/paywall flows
+- Login or paywall flows
+- Full-library cloud upload
 
-When unsure, implement the **smallest version** that supports the current task.
+When unsure, implement the smallest version that supports the current task.
+
+---
+
+## Product language and privacy
+
+Tailo should not sound like a visible AI tool.
+
+Acceptable copy:
+
+- “Tailo looks for pet moments on your device.”
+- “Only selected moments are saved.”
+- “A quiet memory from today.”
+
+Avoid copy such as:
+
+- “Upload your library”
+- “Analyze all your photos”
+- “AI assistant”
+- “Medical assessment”
+- “Diagnosis”
+
+Never upload the full camera roll. Filter and select on device first.
+
+---
+
+## Architecture documentation
+
+When implementing something new, update docs concisely.
+
+Update `docs/ARCHITECTURE.md` if phase scope or monorepo boundaries change.
+
+Update the matching phase doc under `docs/architecture/`, for example:
+
+- `phase-0-local-spike.md`
+- `phase-1-local-mvp.md`
+- `phase-2-backend-mvp.md`
+
+Add a short change-log row with date and what changed.
+
+If adding, renaming, editing, or removing a Supabase migration under `supabase/migrations/`, update `docs/architecture/database-schema-ledger.md` in the same change.
+
+Do not create extra architecture files unless starting a new phase or a major subsystem.
 
 ---
 
 ## Reuse over duplication
 
-**Prefer one implementation used in many places.**
+Prefer one implementation used in many places.
 
-| Scope                    | Location                          |
-| ------------------------ | --------------------------------- |
-| Mobile + backend (later) | `packages/shared`                 |
-| AI prompts/schemas       | `packages/ai`                     |
-| Mobile-only, shared      | `apps/mobile/src/lib/`            |
-| Single feature           | `apps/mobile/src/modules/<name>/` |
+| Scope | Location |
+| --- | --- |
+| Mobile + backend shared logic | `packages/shared` |
+| AI prompts/schemas | `packages/ai` |
+| Mobile-only shared logic | `apps/mobile/src/lib/` |
+| Single mobile feature | `apps/mobile/src/modules/<name>/` |
 
-Before writing new code: search `packages/shared`, `src/lib/`, and relevant `src/modules/*`. If you would copy more than a few lines, extract and test once.
+Before writing new code, search:
 
-Do not duplicate: types in `@tailo/shared`, DB mappers, clustering/scoring, caption parsing, permission/retry patterns.
+- `packages/shared`
+- `apps/mobile/src/lib/`
+- relevant `apps/mobile/src/modules/*`
+
+Do not duplicate:
+
+- shared types
+- DB mappers
+- clustering/scoring logic
+- caption parsing
+- permission/retry patterns
+- validation helpers
+- sync/upload contracts
+
+If copying more than a few lines, consider extracting and testing shared logic.
 
 ---
 
-## Backend portability (Phase 2+)
+## Mobile code organization
 
-Supabase is the **current** adapter, not a permanent platform choice. Design so we can move auth, storage, or hosting later without rewriting the mobile app or domain rules.
+```txt
+apps/mobile/src/
+  modules/      auth, mediaScanner, eventBuilder, timeline, capture, ...
+  components/   shared UI components
+  screens/      screen-level components
+  lib/          mobile-only shared helpers
+  db/           SQLite and persistence
+  types/        mobile-only types
+  constants/    theme and app constants
+```
 
-### Rules
+Rules:
 
-1. **Local-first** — SQLite and the on-device pipeline remain the source of truth; cloud is sync/enrichment only.
-2. **Business logic stays portable** — sync merge, idempotency, AI job rules, and validation live in `packages/backend-core` and `packages/shared`, not in Edge Function bodies or screens.
-3. **Thin adapters** — `supabase/functions/*` only parse HTTP, read auth context, call use cases, and talk to Postgres/Storage.
-4. **HTTP contracts over SDK sprawl** — mobile sync/upload should call Tailo APIs (`fetch` + shared Zod schemas), not `supabase.from(...)` across feature code.
-5. **Single SDK choke points** — Supabase client usage belongs in adapter modules (`modules/auth/providers/`, future `modules/sync/`), never in screens or timeline UI.
-6. **Provider interfaces on mobile** — use `AuthProvider` / `authService` for sessions and tokens; do not import `@/lib/supabase` outside `modules/auth/providers/` and future sync adapters.
-7. **Postgres schema is SQL** — migrations in `supabase/migrations/` can move to another host; replace `auth.uid()` RLS when auth platform changes.
-8. **No secrets in the app** — anon/publishable key only; service role and DB password stay server/CLI-side.
+- Timeline is event-centric, not a photo grid.
+- Core MVP value should not require registration.
+- UI may be single-pet for now.
+- Data models should include pet identifiers where needed for future multi-pet support.
 
-See [docs/architecture/phase-2-backend-mvp.md](./docs/architecture/phase-2-backend-mvp.md) for the full split (`backend-core` vs `supabase/functions`).
+---
+
+## Styling and layout
+
+The Expo app uses React Native `StyleSheet`, not CSS files.
+
+Do not add:
+
+- `.css` files
+- CSS Modules
+- Tailwind/NativeWind
+- web-only styling libraries
+- global theme providers
+
+Use `apps/mobile/src/constants/theme.ts` for shared visual constants such as colors and spacing.
+
+Rules:
+
+- Co-locate `StyleSheet.create(...)` at the bottom of the component file by default.
+- Extract `ScreenName.styles.ts` only when the style block becomes hard to scan.
+- Do not use inline style objects for static layout.
+- Inline styles are acceptable for genuinely dynamic values.
+- Reuse shared components before duplicating style definitions.
+- Keep UI calm: off-white backgrounds, muted text, one accent, generous spacing.
+
+Responsive layout is required for compact phones, large phones, and tablets.
+
+Use existing helpers such as:
+
+- `useDialogMaxWidth()`
+- `getTabScreenTopPadding()`
+- `getModalHeaderHeight()`
+- `MIN_TOUCH_TARGET`
+- `useTabBarContentInset()`
+
+Before finishing UI work, check narrow and wide layouts where practical.
+
+---
+
+## React hooks and effects
+
+Avoid infinite render/update loops.
+
+Rules:
+
+1. Do not put whole hook return objects in dependency arrays.
+2. Depend on stable primitives and memoized callbacks.
+3. Wrap composite hook returns in `useMemo` when identity stability matters.
+4. Do not drive timeline refresh from high-frequency scan/progress counters.
+5. Break feedback loops between remote polling, apply callbacks, and UI refresh.
+6. Import concrete files in low-level modules; avoid barrels that create require cycles.
+
+Before finishing hook/effect work:
+
+- Check new effects for object/array dependencies.
+- Confirm the screen does not log repeated update-depth errors.
+- Trace poll/apply/refresh loops if sync or timeline refresh changed.
+
+---
+
+## User input validation
+
+Every screen or flow that accepts user input must validate before acting.
+
+Client rules:
+
+1. Disable primary actions until required fields are valid.
+2. Validate again on submit.
+3. Use shared validation helpers for email, OTP, password, pet name, birthdays, and similar rules.
+4. For `AuthFormTextInput` + `valueRef` fields, use `onValueChange` or controlled state so readiness updates as the user types.
+5. Normalize before send: trim emails, parse dates, reject empty required strings.
+
+Server/contract rules:
+
+1. Parse and validate API bodies with Zod or shared parsers.
+2. Reject invalid input with stable error codes/messages.
+3. Validate mobile sync/upload payloads before enqueue and again at the API boundary.
+
+Add unit tests for validation helpers and parsers.
 
 ---
 
 ## AI contracts
 
-AI request/response schemas must live in **`packages/shared`** or **`packages/ai`**.
+AI request and response schemas must live in `packages/shared` or `packages/ai`.
 
 Do not define ad-hoc AI response shapes inside screens or feature components.
 
-All AI outputs must be **parsed and validated** before use.
+All AI outputs must be parsed and validated before use.
+
+Do not add OpenAI or cloud AI usage unless explicitly requested or required by the active task.
 
 ---
 
-## Privacy consistency
+## Local-first identity and sync boundaries
 
-Do not write UI copy that implies Tailo uploads or analyzes the **entire photo library** in the cloud.
+Tailo is local-first.
 
-**Acceptable:**
+Local state and cloud identity are related, but not the same thing.
 
-- “Tailo looks for pet moments on your device.”
-- “Only selected moments are saved.”
+Rules:
 
-**Avoid:**
+1. Do not switch SQLite databases during anonymous-to-cloud bootstrap.
+2. Local IDs stay device-scoped.
+3. Cloud IDs are metadata for sync.
+4. Account state comes from auth/session metadata, not DB filenames.
+5. Do not add account switching unless explicitly requested and designed.
 
-- “Upload your library”
-- “Analyze all your photos”
+When backend work is active, Supabase is the current adapter, not a permanent platform choice.
 
-Never upload the full camera roll — filter and select on device only.
+Backend portability rules:
+
+- SQLite/on-device pipeline remains the source of truth.
+- Business logic belongs in portable packages, not Edge Function bodies or screens.
+- Supabase functions should be thin adapters.
+- Mobile should call Tailo APIs via shared contracts rather than scattering Supabase SDK calls.
+- Secrets must never be committed or shipped in the app.
 
 ---
 
-## Unit tests (required)
+## SecureStore and reinstall safety
 
-Every feature or logic change must include unit tests.
+Treat install identity reconciliation as security-sensitive.
 
-| Must test       | Examples                                                  |
-| --------------- | --------------------------------------------------------- |
-| Pure logic      | Clustering, scoring, mappers, validation, caption parsing |
-| Shared packages | `packages/shared` constants and schemas                   |
-| Optional        | Full RN screens — prefer logic extraction + unit tests    |
+Rules:
 
-- **Framework:** Jest (`jest-expo`) in `apps/mobile`; Vitest (`environment: 'node'`) in `packages/shared`.
-- **Files:** `*.test.ts` next to the module or in `__tests__/`.
-- Mock Expo/native APIs at the boundary.
+1. Fresh SQLite plus stale SecureStore must clear stale identity/session/workspace state before continuing.
+2. Do not preserve global auth for legacy workspaces if local DB is fresh.
+3. Test stale-store cleanup and normal existing-data preservation when changing install identity, auth storage, reset, logout, or SecureStore keys.
+4. Do not silently wipe data except in explicit reset, logout/login-gate, or stale-install reconciliation flows.
 
-**Before finishing a task:**
+Document the reason in code/tests when clearing identity-related state.
+
+---
+
+## Background async work
+
+Every fire-and-forget async task needs an error boundary.
+
+Rules:
+
+- Wrap `void task()`, `.then(...)`, app-state listeners, timers, background sync, post-onboarding work, and similar tasks in `try/catch` or equivalent error handling.
+- Use structured Tailo logging such as `logTailo` / `logAuth`.
+- Extract background runners so success/failure paths can be unit-tested.
+- Avoid stale DB handles in long-lived workers; resolve the current DB close to execution time.
+
+---
+
+## Compatibility APIs and naming
+
+Names should describe current behavior.
+
+Rules:
+
+- Avoid functions named `set*`, `switch*`, `migrate*`, or `reset*` unless they really perform that action.
+- Mark legacy compatibility paths clearly in names or short comments.
+- Prefer removal over shims for unshipped branch-only behavior.
+
+---
+
+## Unit tests
+
+Every feature or logic change must include unit tests where practical.
+
+Test pure logic such as:
+
+- clustering
+- scoring
+- mappers
+- validation
+- caption parsing
+- shared constants
+- schemas
+- install identity behavior
+- sync/upload contracts
+
+Frameworks:
+
+- `jest-expo` in `apps/mobile`
+- Vitest with node environment in `packages/shared`
+
+Prefer logic extraction plus unit tests over brittle full-screen tests.
+
+Before finishing a task, run the smallest relevant checks first. For complete verification, use:
 
 ```bash
 npm run mobile:typecheck
@@ -181,219 +454,60 @@ npm test
 npm run format:check
 ```
 
-Pre-commit hook runs **lint** (with one auto-fix pass) and **tests**.
+Run `npm run format` after edits when formatting may have changed.
 
 ---
 
-## Formatting (required)
+## Security and dependencies
 
-Run `npm run format` after edits. Verify with `npm run format:check`. Config: [`.prettierrc`](./.prettierrc).
-
----
-
-## Security vulnerabilities
-
-**Required when dependencies or lockfiles change** (`package.json`, `package-lock.json`), not on every unrelated task.
+When dependency or lockfiles change, run:
 
 ```bash
 npm audit
-npm audit fix          # safe fixes only — never --force without user approval
 ```
 
-After dependency changes, re-run `npm test`, `npm run mobile:typecheck`, and `npm run lint`.
+Use safe fixes only:
 
-- Fix **critical/high** in the same task when possible without breaking the app.
-- Prefer Expo-aligned bumps: `npx expo install` in `apps/mobile`.
-- Document unfixed issues with no upstream patch in task notes.
-- Root **`overrides`** exist for known transitive issues — do not remove without checking `npm audit`.
-
----
-
-## Code organization (mobile)
-
-```txt
-apps/mobile/src/
-  modules/     auth, mediaScanner, eventBuilder, timeline, capture, …
-  components/  screens/  lib/  db/  types/
+```bash
+npm audit fix
 ```
 
-- **Events over files** — timeline is event-centric, not a photo grid.
-- **No registration required** for core MVP value.
-- **One pet in UI**; include `pet_id` in data models for later multi-pet.
+Do not use `npm audit fix --force` without user approval.
+
+After dependency changes, rerun relevant tests, typecheck, and lint.
+
+Prefer Expo-aligned dependency updates with `npx expo install` inside `apps/mobile` when applicable.
+
+Never commit secrets, service-role keys, database passwords, private tokens, or `.env` files.
 
 ---
 
-## React hooks (mobile) — avoid infinite loops
+## Git rules
 
-These rules prevent **“Maximum update depth exceeded”** and runaway re-fetch/sync loops. Apply them whenever you add or change `useEffect`, custom hooks, or screen-level refresh keys.
+Do not commit unless the user asks.
+Do not push unless the user asks.
+Do not rewrite history unless the user explicitly asks and understands the impact.
 
-### `useEffect` dependencies
+When summarizing work, mention:
 
-1. **Never put a whole hook return object in a dependency array.**  
-   Custom hooks such as `usePhotoAccess()` return a **new object every render** (`{ ...state, startScan, … }`). Depending on `photoAccess` re-runs the effect every render → `setState` in the effect → infinite loop.
-
-   **Do:** depend on stable primitives and memoized callbacks only:
-
-   ```tsx
-   // Bad
-   useEffect(() => {
-     void photoAccess.startScan();
-   }, [photoAccess, step]);
-
-   // Good
-   useEffect(() => {
-     void photoAccess.startScan();
-   }, [
-     step,
-     photoAccess.initialScanCompleted,
-     photoAccess.permissionStatus,
-     photoAccess.startScan,
-   ]);
-   ```
-
-2. **Same rule for any object/array built inline** — `options`, `config`, `style` objects, and `timeline` state bags are not stable unless wrapped in `useMemo` with correct deps.
-
-3. **Do not call `setState` in an effect if the effect’s deps change on every render** because of (1) or (2). If you need to react to “something finished”, depend on a **boolean or counter that only changes when the transition happens** (e.g. pipeline was active → now idle).
-
-### Custom hooks that return objects
-
-4. **If a hook returns a composite object, wrap it in `useMemo`** so referential identity is stable when underlying state and callbacks are unchanged:
-
-   ```tsx
-   return useMemo(
-     () => ({ ...state, requestAccess, startScan }),
-     [state, requestAccess, startScan],
-   );
-   ```
-
-5. **Prefer returning a tuple or separate values** when consumers only need one field — easier to use safely in effects.
-
-### Refresh keys and polling
-
-6. **Do not drive `useTimelineEvents({ refreshKey })` from high-frequency pipeline progress** (scan counts, clustering counts, etc.). Those change many times per second and will hammer SQLite and promotion. Refresh when:
-   - capture completes,
-   - a sync/poll **actually merged** remote changes,
-   - or the pipeline **transitions** from active → idle.
-
-7. **Break feedback loops between poll and UI refresh:** remote apply → `onApplied` → timeline refresh → must **not** re-trigger poll via a shared `refreshKey`. Poll on mount, app resume, and interval when `pending_ai` only.
-
-8. **`applyRemoteEventUpdates` (and similar) must only count/write when merged data differs** from local — do not increment “applied” on no-op merges.
-
-### Module imports (require cycles)
-
-9. **Do not import from barrel `index.ts` inside low-level modules** (`db/`, `installIdentity`, `petProfile`, `uploadQueueWorker`, `scanState`). Import the concrete file (`authService`, `secureStorage`, `petProfile`, `uploadQueueWorker`) so Metro does not create `A → B → index → A` cycles (warnings and subtle init bugs).
-
-10. **Screens may use `@/modules/<name>` barrels; hooks/services used during DB open or sync should not.**
-
-### Before finishing hook/effect work
-
-- Grep new effects for deps that are **objects** (`photoAccess`, `timeline`, `options`, whole hook results).
-- Reload the screen once in the simulator — confirm no repeated **Maximum update depth exceeded** logs.
-- If adding sync poll + timeline refresh, trace the loop: poll → apply → callback → refresh → poll.
-
----
-
-## Styling (mobile)
-
-The Expo app uses **React Native `StyleSheet`**, not CSS files. Do not add `.css` files or web-only styling libraries (e.g. CSS Modules, Tailwind/NativeWind) unless the user explicitly requests them.
-
-### Tokens (required)
-
-- Put shared visual constants in **[`apps/mobile/src/constants/theme.ts`](./apps/mobile/src/constants/theme.ts)** — `colors`, `spacing`, and typography when added.
-- Reference `colors.*` and `spacing.*` in styles; do not hardcode hex values or spacing literals in screens unless there is a one-off exception.
-
-### Where styles live
-
-| Scope              | Location                                                                                                |
-| ------------------ | ------------------------------------------------------------------------------------------------------- |
-| Design tokens      | `src/constants/theme.ts`                                                                                |
-| Screen/feature UI  | `StyleSheet.create(...)` at the **bottom** of the same `.tsx` file                                      |
-| Large style blocks | Extract to `ScreenName.styles.ts` next to the screen (only when the block is hard to scan, ~150+ lines) |
-| Reused UI          | `src/components/` — extract before copying the same style object twice                                  |
-
-### Rules
-
-1. **Co-locate by default** — keep `StyleSheet.create` in the component file that uses it; name the export `styles`.
-2. **No inline style objects in JSX** for static layout — use `styles.foo`. Inline is OK only for truly dynamic values (e.g. `{ width: progress }`).
-3. **Reuse components** — prefer shared buttons, rows, and bands in `src/components/` over duplicating style definitions across screens.
-4. **Calm UI** — off-white backgrounds, muted text, one accent; generous spacing from `theme.ts`. Match existing screens (`HomeScreen`, `OnboardingScreen`).
-5. **Do not** introduce global style frameworks or theme providers without an explicit task — the project standard is `theme.ts` + `StyleSheet`.
-
-### Example
-
-```tsx
-import { colors, spacing } from '@/constants/theme';
-
-export function Example() {
-  return <View style={styles.container} />;
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.lg,
-  },
-});
-```
-
----
-
-## Responsive layout (mobile, required)
-
-Every screen and shared UI component must remain usable across **compact phones, large phones, and tablets** (portrait-first; landscape may stay locked unless a task says otherwise).
-
-### Layout rules
-
-1. **Flex-first** — use `flex: 1`, `flexGrow` / `flexShrink`, and `minWidth: 0` on rows so text and chips wrap instead of overflowing. Avoid fixed widths for main content; percentage widths only when necessary.
-2. **Safe areas** — use `react-native-safe-area-context` (`useSafeAreaInsets`, `getTabScreenTopPadding`, `getModalHeaderHeight` in `src/navigation/modalHeaderInset.ts`). Do not rely on a non-scrolling `paddingTop` on `AppShell` for tab content — put top inset on scrollable headers.
-3. **Scroll overflow** — long copy, forms, and lists belong in `ScrollView` / `FlatList` with bottom inset for the floating tab bar (`useTabBarContentInset`). Set list/scroll `backgroundColor` to `colors.background` so overscroll does not flash white.
-4. **Width-aware overlays** — menus and dialogs use helpers in [`apps/mobile/src/lib/responsive.ts`](./apps/mobile/src/lib/responsive.ts) (`useDialogMaxWidth`, `getContentWidth`), not hardcoded `maxWidth` literals.
-5. **Touch targets** — interactive controls should be at least **44×44pt** (`MIN_TOUCH_TARGET` in `responsive.ts`) unless nested in a larger pressable row.
-6. **Images** — prefer `width: '100%'` with `aspectRatio`; never assume a single phone width in px.
-7. **Tab / modal shell** — horizontal tab pager must size pages from `onLayout` width; modals use measured container width for swipe-back.
-
-### Text and accessibility
-
-- App startup calls `configureTextAccessibility()` in [`apps/mobile/App.tsx`](./apps/mobile/App.tsx) so `Text` / `TextInput` respect system font size with a capped multiplier (`MAX_FONT_SIZE_MULTIPLIER`).
-- Do not disable `allowFontScaling` on body copy. Titles may use `numberOfLines` / wrapping where needed.
-
-### Helpers (reuse, do not duplicate)
-
-| Helper                     | Use                                      |
-| -------------------------- | ---------------------------------------- |
-| `useDialogMaxWidth()`      | Action menus, centered sheets            |
-| `getTabScreenTopPadding()` | Tab screen scroll header top inset       |
-| `getModalHeaderHeight()`   | Modal scroll padding under fixed toolbar |
-| `MIN_TOUCH_TARGET`         | Buttons, icon hit areas                  |
-
-### Before finishing UI work
-
-- Check **narrow** (~320pt width) and **wide** (~768pt tablet) in the simulator or Expo preview.
-- Confirm header rows wrap, nothing clips under the status bar or tab bar, and pull-to-refresh does not show a white band.
-- Add or update unit tests for pure layout helpers in `responsive.test.ts`.
-
-`supportsTablet` is **true** in `app.json`; tablet layouts may remain phone-like until a dedicated tablet task, but must not clip or overlap.
-
----
-
-## Product guardrails
-
-- Passive-first: automatic scan/group over manual logging.
-- AI is invisible in copy and UI.
-- No medical/diagnostic language in captions or UI.
-
----
-
-## Git
-
-- **Do not commit** or **push** unless the user asks.
-- Never commit secrets (`.env`, keys).
+- files changed
+- tests/checks run
+- tests/checks not run
+- follow-up risks or TODOs
 
 ---
 
 ## When unsure
 
-- Prefer the guidelines and task doc over inventing architecture.
-- Ask before backend work or large dependency additions.
-- Note decisions in `docs/MOBILE_TASKS.md` under the phase “notes & decisions” section.
+Prefer existing docs, code style, and tests over inventing architecture.
+
+Ask before:
+
+- backend work not already requested
+- large dependency additions
+- major architecture changes
+- account/auth model changes
+- data deletion behavior
+- product features outside the current scope
+
+If the task can proceed safely with a small local decision, make the smallest reasonable choice and state it in the summary.

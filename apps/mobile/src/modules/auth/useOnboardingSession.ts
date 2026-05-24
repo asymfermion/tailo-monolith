@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { getDatabase } from '@/db';
-import { logTailo } from '@/lib/tailoLogger';
-import { runCloudSyncPass } from '@/modules/sync/runCloudSyncPass';
-
 import { logAuth } from './authLogger';
-import { getOrCreateAnonymousUserId } from './identity';
-import { getAuthSession, isRemoteAuthConfigured } from './authService';
+import {
+  ensureOnboardingCloudIdentity,
+  schedulePostOnboardingCloudSync,
+} from './onboardingCloudSetup';
+import { ensureRemoteAuthSession, isRemoteAuthConfigured } from './authService';
+import { resolveOnboardingIdentityId } from './onboardingIdentity';
 import { isLinkedRemoteAccount } from './authTypes';
 import { subscribeAuthSessionChanged } from './authSessionEvents';
 import { loadResolvedOnboardingState } from './resolveOnboardingAfterLoad';
@@ -28,6 +28,7 @@ function onboardingStatesEqual(
   return (
     left.completed === right.completed &&
     left.step === right.step &&
+    left.completionSource === right.completionSource &&
     left.completedFlags.identityCreated ===
       right.completedFlags.identityCreated &&
     left.completedFlags.scanStarted === right.completedFlags.scanStarted &&
@@ -77,20 +78,14 @@ export function useOnboardingSession(): OnboardingSessionState {
 
       try {
         const session = isRemoteAuthConfigured()
-          ? await getAuthSession()
+          ? await ensureRemoteAuthSession()
           : null;
-        const nextAnonymousUserId = isRemoteAuthConfigured()
-          ? (session?.userId ?? null)
-          : await getOrCreateAnonymousUserId();
+        const nextAnonymousUserId = await resolveOnboardingIdentityId(session);
         const storedOnboardingState = await loadOnboardingState();
         const resolvedOnboardingState = await loadResolvedOnboardingState(
           mergeOnboardingState(storedOnboardingState, {
             completedFlags: { identityCreated: true },
           }),
-          {
-            allowCompletedWithoutLocalPet:
-              isLinkedRemoteAccount(session) && storedOnboardingState.completed,
-          },
         );
         await saveOnboardingState(resolvedOnboardingState);
 
@@ -137,7 +132,7 @@ export function useOnboardingSession(): OnboardingSessionState {
           let silent = onboardingStateRef.current.completed;
 
           if (!silent && isRemoteAuthConfigured()) {
-            const session = await getAuthSession();
+            const session = await ensureRemoteAuthSession();
             silent = isLinkedRemoteAccount(session);
           }
 
@@ -171,21 +166,16 @@ export function useOnboardingSession(): OnboardingSessionState {
   );
 
   const completeOnboarding = useCallback(async () => {
+    await ensureOnboardingCloudIdentity();
+
     await updateOnboardingState({
       step: 'complete',
       completed: true,
+      completionSource: 'local_setup',
       completedFlags: { profilePhotoSuggested: true },
     });
 
-    try {
-      const database = await getDatabase();
-      logTailo('Sync', 'Onboarding complete — starting cloud sync pass');
-      await runCloudSyncPass(database);
-    } catch (error) {
-      logTailo('Sync', 'Onboarding cloud sync pass failed', {
-        message: error instanceof Error ? error.message : 'Unknown sync error.',
-      });
-    }
+    schedulePostOnboardingCloudSync();
   }, [updateOnboardingState]);
 
   return {

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -19,6 +19,11 @@ import {
   useThemedStyles,
   type AppearanceContextValue,
 } from '@/lib/appearance';
+import {
+  isAuthEmailSubmitReady,
+  isAuthOtpSubmitReady,
+  isAuthPasswordSubmitReady,
+} from '@/lib/authFormReadiness';
 import { ModalBackButton } from '@/navigation/components/ModalBackButton';
 import {
   getModalHeaderTopInset,
@@ -141,12 +146,28 @@ export function LoginScreen({
   const passwordRef = useRef('');
   const codeRef = useRef('');
   const [codeEmail, setCodeEmail] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [codeInput, setCodeInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const signInInFlightRef = useRef(false);
   const passwordInputRef = useRef<TextInput>(null);
   const { colors } = useAppearance();
   const styles = useThemedStyles(createLoginScreenStyles);
+  const handleEmailChange = useCallback((value: string) => {
+    setEmailInput(value);
+  }, []);
+  const handlePasswordChange = useCallback((value: string) => {
+    setPasswordInput(value);
+  }, []);
+  const handleCodeChange = useCallback((value: string) => {
+    setCodeInput(value);
+  }, []);
+  const isPasswordStepReady =
+    isAuthEmailSubmitReady(emailInput) &&
+    (prefersCodeSignIn || isAuthPasswordSubmitReady(passwordInput));
+  const isCodeStepReady = isAuthOtpSubmitReady(codeInput);
 
   async function handleSendCode() {
     setErrorMessage(null);
@@ -190,7 +211,7 @@ export function LoginScreen({
 
     const password = passwordRef.current;
 
-    if (!password) {
+    if (!isAuthPasswordSubmitReady(password)) {
       setErrorMessage(t('signIn.errors.passwordRequired'));
       return;
     }
@@ -241,6 +262,12 @@ export function LoginScreen({
     setErrorMessage(null);
     const email = emailRef.current;
     const code = codeRef.current;
+
+    if (!isAuthOtpSubmitReady(code)) {
+      setErrorMessage(t('account.errors.codeRequired'));
+      return;
+    }
+
     signInInFlightRef.current = true;
     setIsSubmitting(true);
 
@@ -318,6 +345,7 @@ export function LoginScreen({
             returnKeyType={prefersCodeSignIn ? 'done' : 'next'}
             style={styles.input}
             valueRef={emailRef}
+            onValueChange={handleEmailChange}
             onSubmitEditing={() => {
               if (prefersCodeSignIn) {
                 void handleSendCode();
@@ -329,7 +357,9 @@ export function LoginScreen({
           />
           {prefersCodeSignIn ? null : (
             <>
-              <Text style={styles.fieldLabel}>{t('account.passwordLabel')}</Text>
+              <Text style={styles.fieldLabel}>
+                {t('account.passwordLabel')}
+              </Text>
               <AuthFormTextInput
                 ref={passwordInputRef}
                 kind="password"
@@ -338,13 +368,14 @@ export function LoginScreen({
                 returnKeyType="done"
                 style={styles.input}
                 valueRef={passwordRef}
+                onValueChange={handlePasswordChange}
                 onSubmitEditing={() => void handlePasswordSignIn()}
               />
             </>
           )}
           {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
           <PrimaryButton
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isPasswordStepReady}
             label={
               isSubmitting
                 ? prefersCodeSignIn
@@ -355,7 +386,9 @@ export function LoginScreen({
                   : t('signIn.signIn')
             }
             onPress={() =>
-              void (prefersCodeSignIn ? handleSendCode() : handlePasswordSignIn())
+              void (prefersCodeSignIn
+                ? handleSendCode()
+                : handlePasswordSignIn())
             }
           />
           <SocialSignInPlaceholders />
@@ -366,6 +399,7 @@ export function LoginScreen({
             onPress={() => {
               setErrorMessage(null);
               passwordRef.current = '';
+              setPasswordInput('');
 
               if (prefersCodeSignIn) {
                 setPrefersCodeSignIn(false);
@@ -405,10 +439,11 @@ export function LoginScreen({
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             valueRef={codeRef}
+            onValueChange={handleCodeChange}
           />
           {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
           <PrimaryButton
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isCodeStepReady}
             label={
               isSubmitting ? t('account.verifying') : t('signIn.verifyCode')
             }
@@ -421,6 +456,7 @@ export function LoginScreen({
               setStep('password');
               setPrefersCodeSignIn(false);
               codeRef.current = '';
+              setCodeInput('');
               setErrorMessage(null);
             }}
           >

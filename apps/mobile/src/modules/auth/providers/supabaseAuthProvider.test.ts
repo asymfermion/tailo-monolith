@@ -62,15 +62,27 @@ describe('createSupabaseAuthProvider', () => {
       },
       error: null,
     });
-    const updateUser = jest.fn().mockResolvedValue({ error: null });
+    const updateUser = jest.fn().mockResolvedValue({
+      data: { user: { id: 'user-new', is_anonymous: true } },
+      error: null,
+    });
+    const getSession = jest
+      .fn()
+      .mockResolvedValueOnce({
+        data: { session: null },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          session: { user: { id: 'user-new', is_anonymous: true } },
+        },
+        error: null,
+      });
 
     jest.mocked(isSupabaseConfigured).mockReturnValue(true);
     jest.mocked(getSupabaseClient).mockReturnValue({
       auth: {
-        getSession: jest.fn().mockResolvedValue({
-          data: { session: null },
-          error: null,
-        }),
+        getSession,
         signInAnonymously,
         updateUser,
       },
@@ -236,7 +248,7 @@ describe('createSupabaseAuthProvider', () => {
 
     const provider = createSupabaseAuthProvider();
 
-    await expect(provider.setPassword('hunter22')).resolves.toEqual({
+    await expect(provider.setPassword('Hunter22!')).resolves.toEqual({
       status: 'updated',
       session: {
         userId: 'user-1',
@@ -245,7 +257,25 @@ describe('createSupabaseAuthProvider', () => {
         emailConfirmed: true,
       },
     });
-    expect(updateUser).toHaveBeenCalledWith({ password: 'hunter22' });
+    expect(updateUser).toHaveBeenCalledWith({ password: 'Hunter22!' });
+  });
+
+  it('rejects weak passwords before calling Supabase', async () => {
+    const updateUser = jest.fn();
+
+    jest.mocked(isSupabaseConfigured).mockReturnValue(true);
+    jest.mocked(getSupabaseClient).mockReturnValue({
+      auth: { updateUser },
+    } as never);
+
+    const provider = createSupabaseAuthProvider();
+
+    await expect(provider.setPassword('hunter22')).resolves.toEqual({
+      status: 'error',
+      message:
+        'Use at least 8 characters with uppercase, lowercase, a number, and a special character.',
+    });
+    expect(updateUser).not.toHaveBeenCalled();
   });
 
   it('verifies sign-in OTP and returns a linked session', async () => {

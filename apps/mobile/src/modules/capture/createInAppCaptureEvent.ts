@@ -71,7 +71,7 @@ export async function createInAppCaptureEvent(
     records.event.localEventId,
     records.event.selectedAssetIds,
   );
-  void runUploadQueueWorker(database);
+  void runUploadQueueWorker();
 
   return {
     localEventId: records.event.localEventId,

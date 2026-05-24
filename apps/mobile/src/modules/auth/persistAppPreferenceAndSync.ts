@@ -1,5 +1,6 @@
 import { setAppFontStyle, type AppFontStyle } from '@/lib/appFontStyle';
-import { setAppTheme, type AppTheme } from '@/lib/appTheme';
+import type { AppTheme } from '@/constants/theme';
+import { setAppTheme } from '@/lib/appTheme';
 import { setAppLocale, type AppLocale } from '@/i18n/locale';
 
 import {

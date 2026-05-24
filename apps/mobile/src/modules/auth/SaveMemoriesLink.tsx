@@ -60,7 +60,11 @@ export function SaveMemoriesLink() {
   const account = useAuthAccountStatus();
   const styles = useThemedStyles(createSaveMemoriesLinkStyles);
 
-  if (account.isLoading || !account.isConfigured || !account.isAnonymous) {
+  if (
+    account.isLoading ||
+    !account.isConfigured ||
+    !account.session?.isAnonymous
+  ) {
     return null;
   }
 
@@ -73,7 +77,7 @@ export function SaveMemoriesLink() {
       <Pressable
         accessibilityRole="button"
         style={styles.button}
-        onPress={() => navigation.openSettings({ section: 'account' })}
+        onPress={() => navigation.push('AccountSettings', { mode: 'link' })}
       >
         <Text style={styles.buttonText}>{t('account.saveMemoriesLink')}</Text>
       </Pressable>

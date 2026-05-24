@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { logAuth } from './authLogger';
-import { getAuthSession, isRemoteAuthConfigured } from './authService';
+import { ensureRemoteAuthSession, isRemoteAuthConfigured } from './authService';
 import { subscribeAuthSessionChanged } from './authSessionEvents';
 import { isAuthRequireLogin } from './authRequireLogin';
 import type { AuthSession } from './authTypes';
@@ -29,7 +29,7 @@ export async function resolveAuthGateSnapshot(): Promise<{
 
   return {
     requiresLogin: false,
-    session: await getAuthSession(),
+    session: await ensureRemoteAuthSession(),
   };
 }
 

@@ -116,6 +116,7 @@ If validation fails (checked on the **primary** image only), the server sets `pe
 - `last_scan_timestamp` in SecureStore, set after each successful scan batch (`scanner.ts`).
 - On app open / foreground (`usePhotoAccess` + `autoResumeOnMount`): delta scan uses `createdAfter` = max(newest promoted `local_events.timestamp`, `last_scan_timestamp`); first launch still uses the 28-day window when the library is empty.
 - Interrupted scans persist `scan.created_after_ms` in `sync_state` so resume keeps the same cutoff.
+- Passive camera-roll detection is intentionally quiet: onboarding and incremental scans promote at most **one auto-detected moment per UTC day per detected pet type**. When multiple clusters qualify for the same day/pet, the highest-confidence cluster wins, then larger cluster, then latest timestamp. Explicit in-app capture is not capped by this passive rule.
 
 ### Module additions (Phase 1.2)
 
@@ -220,6 +221,7 @@ Camera permission is **separate** from photo library — capture works when libr
 | Date       | Change                                                                                                                                                            |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-05-19 | Incremental photo scan on app open/foreground: `createdAfter` from newest timeline moment + `last_scan_timestamp`; initial empty library still uses 28-day window |
+| 2026-05-24 | Passive onboarding/incremental detection now promotes at most one auto-detected moment per UTC day per detected pet type; future paid tiers may relax this limit  |
 | 2026-05-20 | Added on-device locale switching: English default + Simplified Chinese option in Settings, backed by `src/i18n/` and local persisted app locale                   |
 | 2026-05-19 | Cloud pet validation in `process-ai-job`; rejected events omitted from `get-event-updates` (local moments kept on pull)                                           |
 | 2026-05-18 | Phase 1 architecture doc created; documents 1.1 onboarding/identity and 1.2 `local_events`, processing state, promotion, shared mapper, scan timestamp            |

@@ -1,8 +1,9 @@
 import { parsePetBirthdayIso } from '@tailo/shared';
 
+import { getDatabase } from '@/db';
+import { logTailo } from '@/lib/tailoLogger';
 import { type SecureStorage } from '@/modules/auth/secureStorage';
 import { workspaceSecureStorage } from '@/modules/auth/localWorkspace';
-import { getDatabase } from '@/db';
 import { LOCAL_PET_PROFILE_KEY } from './keys';
 
 export type LocalPetType = 'dog' | 'cat';
@@ -86,8 +87,8 @@ export async function saveSelectedPetType(
   await storage.setItemAsync(LOCAL_PET_PROFILE_KEY, JSON.stringify(profile));
 
   const database = await getDatabase();
-  const { rebuildPipelineForProfilePetType } =
-    require('@/modules/eventBuilder/rebuildPipelineForProfilePetType') as typeof import('@/modules/eventBuilder/rebuildPipelineForProfilePetType');
+  const rebuildPipelineForProfilePetType =
+    loadRebuildPipelineForProfilePetType();
   await rebuildPipelineForProfilePetType(database, type);
 
   return profile;
@@ -120,18 +121,36 @@ export async function saveLocalPetProfile(
 
   if (shouldRebuildPipeline) {
     const database = await getDatabase();
-    const { rebuildPipelineForProfilePetType } =
-      require('@/modules/eventBuilder/rebuildPipelineForProfilePetType') as typeof import('@/modules/eventBuilder/rebuildPipelineForProfilePetType');
+    const rebuildPipelineForProfilePetType =
+      loadRebuildPipelineForProfilePetType();
     await rebuildPipelineForProfilePetType(database, input.type);
   }
 
-  if (profile.name.trim()) {
-    const { syncRemotePetProfileIfNeeded } =
-      require('./remotePetSync') as typeof import('./remotePetSync');
-    void syncRemotePetProfileIfNeeded();
+  if (isLocalPetProfileReady(profile)) {
+    scheduleCloudUploadAfterPetProfileSave();
   }
 
   return profile;
+}
+
+function scheduleCloudUploadAfterPetProfileSave(): void {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const { prepareCloudUploadPrerequisites } =
+    require('@/modules/sync/prepareCloudUploadPrerequisites') as typeof import('@/modules/sync/prepareCloudUploadPrerequisites');
+  const { runUploadQueueWorker } =
+    require('@/modules/sync/uploadQueueWorker') as typeof import('@/modules/sync/uploadQueueWorker');
+  /* eslint-enable @typescript-eslint/no-require-imports */
+
+  void (async () => {
+    try {
+      await prepareCloudUploadPrerequisites();
+      void runUploadQueueWorker();
+    } catch (error) {
+      logTailo('Sync', 'Background cloud upload prep failed after pet save', {
+        message: error instanceof Error ? error.message : 'Unknown error.',
+      });
+    }
+  })();
 }
 
 export async function saveLocalPetProfileWithRemoteId(
@@ -155,6 +174,15 @@ export async function saveLocalPetProfileWithRemoteId(
 function generateLocalPetId(): string {
   const randomPart = Math.random().toString(36).slice(2, 10);
   return `local_pet_${Date.now().toString(36)}_${randomPart}`;
+}
+
+function loadRebuildPipelineForProfilePetType(): (typeof import('@/modules/eventBuilder/rebuildPipelineForProfilePetType'))['rebuildPipelineForProfilePetType'] {
+  // Lazy load avoids a runtime cycle: rebuild imports event clustering, which can read the pet profile.
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const { rebuildPipelineForProfilePetType } =
+    require('@/modules/eventBuilder/rebuildPipelineForProfilePetType') as typeof import('@/modules/eventBuilder/rebuildPipelineForProfilePetType');
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  return rebuildPipelineForProfilePetType;
 }
 
 function normalizeLocalPetProfile(value: unknown): LocalPetProfile | null {

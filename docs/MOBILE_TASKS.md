@@ -77,6 +77,7 @@ Task plan for the mobile app. Work top-to-bottom within each phase; later phases
 - [x] **0.4.2** Persist candidates with `timestamp`, `source: camera_roll`, `candidate_status`, `selected_asset_ids`
 - [x] **0.4.3** Continue scanning older photos in background after first partial timeline render
 - [x] **0.4.4** Deduplicate near-identical assets before clustering (basic hash / time+size heuristic)
+- [x] **0.4.5** Limit passive auto-detection to one promoted moment per UTC day per detected pet type for onboarding and incremental scans
 
 ### 0.5 Best image selection (`eventBuilder`)
 
@@ -107,6 +108,7 @@ Task plan for the mobile app. Work top-to-bottom within each phase; later phases
 - 2026-05-17: Pet detection uses a `PetDetector` abstraction. The iOS local Expo module (`TailoPetClassifier`) uses a bundled Core ML model when present, otherwise Apple Vision on-device animal detection, with heuristic fallback when native is unavailable. `detected_pet_type` is persisted for `dog | cat | null`.
 - 2026-05-18: **0.3a.6** — dog/cat detection validated on a real iPhone photo library with an Expo dev client build (native path + confidence threshold; timeline reflects pet photos only).
 - 2026-05-17: Event clustering groups same-day pet candidates within a 20-minute window, dedupes near-identical time/dimension matches, persists stable local candidate IDs, and starts a bounded older-photo scan after the first local pipeline pass.
+- 2026-05-24: Passive camera-roll detection now keeps at most one auto-detected moment per UTC day per detected pet type for both onboarding and incremental scans; in-app capture remains explicit and can still create additional moments.
 - 2026-05-17: Best-image selection scores event media with deterministic local heuristics for sharpness/brightness/subject visibility/uniqueness, caps selected media at 5, and writes primary-image flags to `local_media_scores`.
 - 2026-05-17: Timeline UI now loads scored local candidates newest-first and renders event rows with a primary image, secondary image strip, placeholder caption, timestamp, event type, and calm loading/empty states.
 
@@ -198,6 +200,12 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [x] **2.3.2** Poll `get-event-updates` (~30s when pending AI); merge per [field matrix](./architecture/phase-2-backend-mvp.md#field-merge-matrix) — do not overwrite user-edited caption/type
 - [x] **2.3.3** Background sync when network returns
 - [x] **2.3.4** UI: subtle sync status (no “Uploading assets…” technical copy)
+- [ ] **2.3.5** Hydrate unknown remote events from other devices: when poll sees an event missing locally, fetch media/signed thumbnails and insert it into SQLite
+- [ ] **2.3.6** Add cross-device timeline backfill after first restore so later or paged cloud moments are not missed once any hydrated event exists
+- [ ] **2.3.7** Cache or refresh restored cloud thumbnails instead of relying indefinitely on expiring signed URLs
+- [ ] **2.3.8** Add media fingerprints/hashes to upload + sync contracts and server schema for cross-device duplicate-image detection
+- [ ] **2.3.9** Server-side merge for duplicate moments from multiple devices: match by account, media fingerprint, and timestamp window before creating a new cloud event
+- [ ] **2.3.10** Tests: Device A uploads, Device B restores, Device A uploads later, Device B polls/inserts; duplicate image uploads collapse to one cloud moment
 
 ### 2.4 AI presentation (`ai`)
 
@@ -220,7 +228,7 @@ This phase now tracks both the mobile client work and the backend work needed to
 
 ### 2.6 Backend schema & RLS (`supabase/migrations`)
 
-- [x] **B2.1.1** `profiles` — `user_id` PK, `created_at`
+- [x] **B2.1.1** `profiles` — legacy Supabase auth mirror, dropped after `app_users` / `user_identities` became canonical
 - [x] **B2.1.2** `anonymous_id_links` — unique `anonymous_user_id`, FK `user_id`; reject insert if legacy id maps to different user
 - [x] **B2.1.3** `pets` — include `source_local_pet_id` unique per `user_id`
 - [x] **B2.1.4** `events` — unique `(user_id, source_local_event_id)`; `user_edited_caption`, `user_edited_event_type`, `sync_version`, `updated_at`, `caption_source` (minimal migration for uploads)
@@ -371,7 +379,7 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 ### Phase 2 — notes & decisions
 
 - 2026-05-18: **2.3 / 2.4** — After upload batch completes, `runEventSyncForLocalEvent` posts `sync-event`; `useEventUpdatesPoll` + `useBackgroundSync` poll `get-event-updates` and merge without overwriting user-edited fields. Timeline captions use `resolveDisplayCaption` from `@tailo/ai`. Edge AI defaults to `AI_PROVIDER=stub` until GCP Vertex secrets are set.
-- 2026-05-18: **2.1.3** — `linkLegacyAnonymousUserIfNeeded()` after auth bootstrap; Edge Function `link-anonymous-user`; migration `profiles` + `anonymous_id_links`; `resolveLinkAnonymousUser` in `@tailo/backend-core`. Deploy: `npx supabase db push` + `npx supabase functions deploy link-anonymous-user`.
+- 2026-05-18: **2.1.3** — `linkLegacyAnonymousUserIfNeeded()` after auth bootstrap; Edge Function `link-anonymous-user`; migration `profiles` + `anonymous_id_links`; `resolveLinkAnonymousUser` in `@tailo/backend-core`. Deploy: `npx supabase db push` + `npx supabase functions deploy link-anonymous-user`. `profiles` was later dropped once `app_users` / `user_identities` became canonical.
 - 2026-05-18: **Auth decouple** — `AuthProvider` + `authService` (`modules/auth/`); Supabase isolated in `providers/supabaseAuthProvider.ts`. Portability rules in [AGENTS.md](../AGENTS.md#backend-portability-phase-2).
 - 2026-05-18: **2.1.2** — `bootstrapAuthSession()` on app launch (reuse persisted session or `signInAnonymously()`); skips when env unset; does not block local SQLite if auth fails.
 - 2026-05-18: **B0 / 2.1.1** — Dev project `sgxtyxvithlmuuofkzlk`; `supabase/` scaffold + [SETUP.md](../supabase/SETUP.md); mobile `getSupabaseClient()` with SecureStore session (`apps/mobile/src/lib/supabase.ts`). Postgres URI is CLI-only; mobile uses API URL + anon key.
@@ -432,6 +440,7 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - [ ] **3.2.7** AI caption localisation: translate AI-generated captions for the current app language on device, but never translate user-authored or user-edited captions; if a user edits an AI caption, flip the source to `user` and stop automatic translation for that caption
 - [ ] **3.2.8** Cache translated AI captions per event + locale locally, and invalidate them when the source caption changes
 - [ ] **3.2.9** Fallback rules for caption localisation: show the original AI caption when on-device translation is unavailable, model download is pending, or translation fails
+- [ ] **3.2.10** Paid tier: support multiple passive auto-detected moments per day per pet, with product limits and sync/dedupe rules that preserve the free one-per-day behavior
 
 ### 3.3 Reliability & edge cases
 

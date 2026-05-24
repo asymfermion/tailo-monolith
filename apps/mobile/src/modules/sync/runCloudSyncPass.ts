@@ -25,7 +25,7 @@ export async function runCloudSyncPass(
   const petResult = await syncRemotePetProfileIfNeeded();
   logTailo('Sync', 'Remote pet sync finished', { status: petResult.status });
 
-  const upload = await runUploadQueueWorker(database);
+  const upload = await runUploadQueueWorker();
   const pendingEdits = await runPendingCloudSync(database);
   await pollEventUpdates(database);
 

@@ -57,6 +57,9 @@ describe('getTailoApiFunctionForAction', () => {
     expect(getTailoApiFunctionForAction('upsert-account-profile')).toBe(
       'api-account',
     );
+    expect(getTailoApiFunctionForAction('get-account-profile')).toBe(
+      'api-account',
+    );
     expect(getTailoApiFunctionForAction('sync-event')).toBe('api-events');
   });
 });

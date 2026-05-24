@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -18,6 +18,12 @@ import {
   useThemedStyles,
   type AppearanceContextValue,
 } from '@/lib/appearance';
+import {
+  getAuthPasswordResetBlockReason,
+  isAuthEmailSubmitReady,
+  isAuthOtpSubmitReady,
+  isAuthPasswordResetSubmitReady,
+} from '@/lib/authFormReadiness';
 import { ModalBackButton } from '@/navigation/components/ModalBackButton';
 import { useNavigation } from '@/navigation/NavigationContext';
 import { getModalHeaderTopInset } from '@/navigation/modalHeaderInset';
@@ -30,8 +36,6 @@ import {
   setAccountPassword,
   verifyPasswordResetOtp,
 } from '@/modules/auth';
-
-const MIN_PASSWORD_LENGTH = 8;
 
 type FormStep = 'email' | 'code' | 'password';
 
@@ -137,12 +141,34 @@ export function ForgotPasswordScreen({
   const passwordRef = useRef('');
   const confirmPasswordRef = useRef('');
   const [codeEmail, setCodeEmail] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [codeInput, setCodeInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const passwordInputRef = useRef<TextInput>(null);
   const confirmPasswordInputRef = useRef<TextInput>(null);
   const { colors } = useAppearance();
   const styles = useThemedStyles(createForgotPasswordScreenStyles);
+  const handleEmailChange = useCallback((value: string) => {
+    setEmailInput(value);
+  }, []);
+  const handleCodeChange = useCallback((value: string) => {
+    setCodeInput(value);
+  }, []);
+  const handlePasswordChange = useCallback((value: string) => {
+    setPasswordInput(value);
+  }, []);
+  const handleConfirmPasswordChange = useCallback((value: string) => {
+    setConfirmPasswordInput(value);
+  }, []);
+  const isEmailStepReady = isAuthEmailSubmitReady(emailInput);
+  const isCodeStepReady = isAuthOtpSubmitReady(codeInput);
+  const isPasswordStepReady = isAuthPasswordResetSubmitReady(
+    passwordInput,
+    confirmPasswordInput,
+  );
 
   async function handleSendCode() {
     setErrorMessage(null);
@@ -175,6 +201,12 @@ export function ForgotPasswordScreen({
     setErrorMessage(null);
     const email = emailRef.current;
     const code = codeRef.current;
+
+    if (!isAuthOtpSubmitReady(code)) {
+      setErrorMessage(t('account.errors.codeRequired'));
+      return;
+    }
+
     setIsSubmitting(true);
 
     const result = await verifyPasswordResetOtp(email, code);
@@ -200,26 +232,28 @@ export function ForgotPasswordScreen({
     const password = passwordRef.current;
     const confirmPassword = confirmPasswordRef.current;
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
+    if (!isAuthPasswordResetSubmitReady(password, confirmPassword)) {
+      const blockReason = getAuthPasswordResetBlockReason(
+        password,
+        confirmPassword,
+      );
+
       setErrorMessage(
-        t('account.errors.passwordTooShort', {
-          min: MIN_PASSWORD_LENGTH,
-        }),
+        blockReason === 'mismatch'
+          ? t('account.errors.passwordMismatch')
+          : t('account.errors.passwordWeak'),
       );
       return;
     }
 
-    if (password !== confirmPassword) {
-      setErrorMessage(t('account.errors.passwordMismatch'));
-      return;
-    }
+    const trimmedPassword = password.trim();
 
     setIsSubmitting(true);
     logAuth('Forgot password: saving new password', {
       email: normalizeAccountEmail(email),
     });
 
-    const setResult = await setAccountPassword(password);
+    const setResult = await setAccountPassword(trimmedPassword);
 
     if (setResult.status === 'skipped') {
       setIsSubmitting(false);
@@ -279,11 +313,12 @@ export function ForgotPasswordScreen({
             returnKeyType="done"
             style={styles.input}
             valueRef={emailRef}
+            onValueChange={handleEmailChange}
             onSubmitEditing={() => void handleSendCode()}
           />
           {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
           <PrimaryButton
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isEmailStepReady}
             label={
               isSubmitting
                 ? t('account.sendingCode')
@@ -304,10 +339,11 @@ export function ForgotPasswordScreen({
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             valueRef={codeRef}
+            onValueChange={handleCodeChange}
           />
           {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
           <PrimaryButton
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isCodeStepReady}
             label={
               isSubmitting
                 ? t('account.verifying')
@@ -321,6 +357,7 @@ export function ForgotPasswordScreen({
             onPress={() => {
               setStep('email');
               codeRef.current = '';
+              setCodeInput('');
               setErrorMessage(null);
             }}
           >
@@ -341,6 +378,7 @@ export function ForgotPasswordScreen({
             returnKeyType="done"
             style={styles.input}
             valueRef={passwordRef}
+            onValueChange={handlePasswordChange}
             onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
           />
           <Text style={styles.fieldLabel}>
@@ -354,11 +392,12 @@ export function ForgotPasswordScreen({
             returnKeyType="done"
             style={styles.input}
             valueRef={confirmPasswordRef}
+            onValueChange={handleConfirmPasswordChange}
             onSubmitEditing={() => void handleSavePassword()}
           />
           {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
           <PrimaryButton
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isPasswordStepReady}
             label={
               isSubmitting
                 ? t('signIn.forgotPasswordSaving')

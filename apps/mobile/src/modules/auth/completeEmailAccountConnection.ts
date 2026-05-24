@@ -1,14 +1,15 @@
-import { getAppFontStyle } from '@/lib/appFontStyle';
-import { getAppTheme } from '@/lib/appTheme';
-import { getAppLocale } from '@/i18n/locale';
 import { syncRemotePetProfileIfNeeded } from '@/modules/pets';
+import { restoreRemoteAccountDataIfNeeded } from '@/modules/sync/restoreRemoteAccountData';
 
 import { logAuth } from './authLogger';
 import { isLinkedRemoteAccount } from './authTypes';
 import { getAuthProvider } from './authProviderInstance';
 import { ensureCurrentUserIfNeeded } from './ensureCurrentUser';
 import { linkLegacyAnonymousUserIfNeeded } from './legacyAnonymousLink';
-import { syncRemoteAccountProfile } from './remoteAccountProfile';
+import {
+  pullRemoteAccountProfileIfNeeded,
+  seedLocalAccountPrefsToCloudIfEmpty,
+} from './remoteAccountProfile';
 
 export type CompleteEmailAccountConnectionResult =
   | { status: 'skipped' }
@@ -47,20 +48,45 @@ export async function completeEmailAccountConnection(): Promise<CompleteEmailAcc
     return { status: 'completed' };
   }
 
-  const profileResult = await syncRemoteAccountProfile({
-    preferredLocale: getAppLocale(),
-    preferredTheme: getAppTheme(),
-    preferredFontStyle: getAppFontStyle(),
+  const restoreResult = await restoreRemoteAccountDataIfNeeded({
+    force: true,
   });
-  logAuth('Remote account profile sync finished', {
-    status: profileResult.status,
+  logAuth('Remote account restore finished', {
+    status: restoreResult.status,
+    ...(restoreResult.status === 'restored'
+      ? {
+          eventCount: restoreResult.eventCount,
+          accountPulled: restoreResult.accountPulled,
+          petPulled: restoreResult.petPulled,
+        }
+      : {}),
+    ...(restoreResult.status === 'error'
+      ? { message: restoreResult.message }
+      : {}),
   });
 
-  if (profileResult.status === 'error') {
-    logAuth('Email account bootstrap partial (profile sync failed)', {
-      message: profileResult.message,
+  if (restoreResult.status === 'error') {
+    return { status: 'partial', message: restoreResult.message };
+  }
+
+  if (restoreResult.status === 'skipped') {
+    const profilePull = await pullRemoteAccountProfileIfNeeded();
+    logAuth('Remote account profile refresh finished', {
+      status: profilePull.status,
     });
-    return { status: 'partial', message: profileResult.message };
+
+    if (profilePull.status === 'error') {
+      return { status: 'partial', message: profilePull.message };
+    }
+  }
+
+  const seedResult = await seedLocalAccountPrefsToCloudIfEmpty();
+  logAuth('Remote account profile seed finished', {
+    status: seedResult.status,
+  });
+
+  if (seedResult.status === 'error') {
+    return { status: 'partial', message: seedResult.message };
   }
 
   await syncRemotePetProfileIfNeeded();

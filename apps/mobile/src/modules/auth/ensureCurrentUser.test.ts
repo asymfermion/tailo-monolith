@@ -4,6 +4,8 @@ import {
   isRemoteAuthConfigured,
 } from '@/modules/auth/authService';
 import { secureStorage } from '@/modules/auth/secureStorage';
+import { getAuthProvider } from '@/modules/auth/authProviderInstance';
+
 import {
   APP_USER_ID_KEY,
   clearTailoAppUserIdCache,
@@ -32,10 +34,32 @@ jest.mock('@/modules/auth/secureStorage', () => ({
   },
 }));
 
+jest.mock('@/modules/auth/authProviderInstance', () => ({
+  getAuthProvider: jest.fn(),
+}));
+
+jest.mock('@/modules/auth/localWorkspace', () => ({
+  buildAnonymousWorkspaceId: (id: string) => `anon_${id}`,
+  buildAppUserWorkspaceId: (id: string) => `app_${id}`,
+  getCurrentLocalWorkspaceId: jest.fn().mockResolvedValue('app_user-1'),
+}));
+
+jest.mock('@/modules/auth/workspaceUserDataMigration', () => ({
+  migrateWorkspaceUserData: jest.fn().mockResolvedValue(undefined),
+}));
+
 describe('ensureCurrentUserIfNeeded', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     global.fetch = jest.fn();
+    jest.mocked(getAuthProvider).mockReturnValue({
+      getSession: jest.fn().mockResolvedValue({
+        userId: 'user-1',
+        isAnonymous: false,
+        email: 'user@example.com',
+        emailConfirmed: true,
+      }),
+    } as never);
     void clearTailoAppUserIdCache();
   });
 

@@ -1,5 +1,6 @@
 import type { getDatabase } from '@/db';
 import {
+  type LocalAssetDetectionInput,
   countLocalPetCandidates,
   countPendingLocalAssetsForDetection,
   getPendingLocalAssetsForDetection,

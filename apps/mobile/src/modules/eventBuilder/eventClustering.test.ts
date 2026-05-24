@@ -36,10 +36,10 @@ describe('clusterLocalPetEvents', () => {
 
     expect(result).toEqual({
       petCandidateCount: 2,
-      eventCandidateCount: 1,
-      persistedCount: 1,
+      eventCandidateCount: 2,
+      persistedCount: 2,
     });
-    expect(runAsync).toHaveBeenCalledTimes(1);
+    expect(runAsync).toHaveBeenCalledTimes(2);
     expect(onProgress).toHaveBeenCalledWith(result);
   });
 });

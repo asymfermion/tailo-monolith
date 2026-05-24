@@ -24,6 +24,8 @@ function createMockProvider(
     getAccessToken: jest.fn(),
     requestEmailLink: jest.fn(),
     verifyEmailLink: jest.fn(),
+    requestEmailSignUp: jest.fn(),
+    verifyEmailSignUp: jest.fn(),
     setPassword: jest.fn(),
     requestSignInOtp: jest.fn(),
     verifySignInOtp: jest.fn(),

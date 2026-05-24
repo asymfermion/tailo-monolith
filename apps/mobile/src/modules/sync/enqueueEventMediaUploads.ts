@@ -60,7 +60,7 @@ export async function enqueueEventMediaUploads(
     requestedAssetCount: uniqueAssetIds.length,
     enqueuedItemCount: enqueued,
     reason:
-      'Runs after local promotion; worker uploads when signed in with remote pet',
+      'Runs after local promotion; worker ensures anonymous account + remote pet when profile is ready',
   });
 
   return enqueued;

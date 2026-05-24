@@ -34,7 +34,9 @@ describe('getDropdownMenuPlacement', () => {
 
 describe('resolveDropdownMenuFrame', () => {
   it('uses a minimum width when the anchor measured zero width', () => {
-    expect(resolveDropdownMenuFrame({ x: 24, y: 100, width: 0, height: 44 })).toEqual({
+    expect(
+      resolveDropdownMenuFrame({ x: 24, y: 100, width: 0, height: 44 }),
+    ).toEqual({
       left: 24,
       width: 220,
     });

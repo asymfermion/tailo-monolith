@@ -13,6 +13,7 @@ import {
 import { loadLocalPetProfile } from '@/modules/pets/petProfile';
 import { createUploadUrls } from './createUploadUrls';
 import { prepareEventMediaUpload } from './prepareEventMediaUpload';
+import { prepareCloudUploadPrerequisites } from './prepareCloudUploadPrerequisites';
 import { runUploadQueueWorker } from './uploadQueueWorker';
 import { runPendingCloudSyncForEvent } from './runPendingCloudSync';
 import { uploadToSignedUrl } from './uploadToSignedUrl';
@@ -24,6 +25,10 @@ jest.mock('@/modules/auth/authService', () => ({
 
 jest.mock('@/modules/pets/petProfile', () => ({
   loadLocalPetProfile: jest.fn(),
+}));
+
+jest.mock('./prepareCloudUploadPrerequisites', () => ({
+  prepareCloudUploadPrerequisites: jest.fn(),
 }));
 
 jest.mock('./createUploadUrls', () => ({
@@ -82,16 +87,34 @@ describe('runUploadQueueWorker', () => {
       name: 'Miso',
       type: 'cat',
       gender: null,
+      birthday: null,
       profilePhotoLocalAssetId: null,
       profilePhotoUri: null,
       remotePetId: 'pet-remote-1',
       createdAt: '2026-05-18T00:00:00.000Z',
       updatedAt: '2026-05-18T00:00:00.000Z',
     });
+    jest.mocked(prepareCloudUploadPrerequisites).mockResolvedValue({
+      remotePetId: 'pet-remote-1',
+    });
+  });
+
+  it('prepares cloud upload prerequisites before checking remote pet id', async () => {
+    jest.mocked(loadLocalPetProfile).mockResolvedValue(null);
+    jest.mocked(prepareCloudUploadPrerequisites).mockResolvedValue({
+      remotePetId: null,
+    });
+
+    await runUploadQueueWorker(database);
+
+    expect(prepareCloudUploadPrerequisites).toHaveBeenCalledTimes(1);
   });
 
   it('skips when remote pet id is missing', async () => {
     jest.mocked(loadLocalPetProfile).mockResolvedValue(null);
+    jest.mocked(prepareCloudUploadPrerequisites).mockResolvedValue({
+      remotePetId: null,
+    });
 
     await expect(runUploadQueueWorker(database)).resolves.toEqual({
       processedBatches: 0,
@@ -133,6 +156,9 @@ describe('runUploadQueueWorker', () => {
       userEditedCaption: 0,
       userEditedEventType: 0,
       pendingAi: 0,
+      syncLockOwner: null,
+      pendingCloudSync: 0,
+      deletedAt: null,
     });
     jest.mocked(getLocalAssetUploadSourcesByIds).mockResolvedValue([
       {

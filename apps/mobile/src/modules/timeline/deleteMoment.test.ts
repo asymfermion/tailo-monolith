@@ -119,8 +119,9 @@ describe('deleteMoment', () => {
     jest.mocked(isRemoteAuthConfigured).mockReturnValue(true);
     jest.mocked(getAuthSession).mockResolvedValue({
       userId: 'user-1',
-      accessToken: 'token',
       isAnonymous: true,
+      email: null,
+      emailConfirmed: false,
     });
     jest.mocked(deleteEvent).mockResolvedValue({
       status: 'success',

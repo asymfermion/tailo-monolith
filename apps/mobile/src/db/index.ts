@@ -1,7 +1,10 @@
 import * as SQLite from 'expo-sqlite';
 
 import { reconcileInstallIdentity } from '@/modules/auth/installIdentity';
-import { getCurrentLocalWorkspaceId } from '@/modules/auth/localWorkspace';
+import {
+  getCurrentLocalWorkspaceId,
+  resetLocalWorkspaceForTests,
+} from '@/modules/auth/localWorkspace';
 
 import { logDbInfo } from './dbLogger';
 import { CURRENT_SCHEMA_VERSION, migrateDatabase } from './migrations';
@@ -42,6 +45,11 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return databasePromise;
 }
 
+/** Closes the open connection so the next `getDatabase()` opens the active workspace. */
+export async function invalidateDatabaseConnection(): Promise<void> {
+  await closeDatabaseForWorkspaceSwitch();
+}
+
 async function closeDatabaseForWorkspaceSwitch(): Promise<void> {
   const currentDatabase = database;
 
@@ -61,25 +69,46 @@ function databaseNameForWorkspace(workspaceId: string): string {
 }
 
 async function openAndMigrateDatabase(
-  workspaceId: string,
+  initialWorkspaceId: string,
 ): Promise<SQLite.SQLiteDatabase> {
-  if (!database) {
-    const databaseName = databaseNameForWorkspace(workspaceId);
-    logDbInfo('Opening database', { name: databaseName, workspaceId });
-    const rawDatabase = await SQLite.openDatabaseAsync(databaseName);
-    const schemaVersion = await migrateDatabase(rawDatabase);
-    const install = await reconcileInstallIdentity(rawDatabase);
-    database = createSerializedDatabase(rawDatabase);
-    logDbInfo('Database ready', {
+  let workspaceId = initialWorkspaceId;
+  let databaseName = databaseNameForWorkspace(workspaceId);
+  logDbInfo('Opening database', { name: databaseName, workspaceId });
+  let rawDatabase = await SQLite.openDatabaseAsync(databaseName);
+  let schemaVersion = await migrateDatabase(rawDatabase);
+  let install = await reconcileInstallIdentity(rawDatabase, undefined, {
+    workspaceId,
+  });
+
+  if (install.clearedStaleSecureStore) {
+    await rawDatabase.closeAsync();
+    resetLocalWorkspaceForTests();
+    workspaceId = await getCurrentLocalWorkspaceId();
+
+    databaseName = databaseNameForWorkspace(workspaceId);
+    logDbInfo('Reopening database after stale secure store clear', {
       name: databaseName,
       workspaceId,
-      schemaVersion,
-      expectedSchemaVersion: CURRENT_SCHEMA_VERSION,
-      installId: install.installId,
-      clearedStaleSecureStore: install.clearedStaleSecureStore,
+    });
+    rawDatabase = await SQLite.openDatabaseAsync(databaseName);
+    schemaVersion = await migrateDatabase(rawDatabase);
+    install = await reconcileInstallIdentity(rawDatabase, undefined, {
+      workspaceId,
     });
   }
-  return database;
+
+  const serializedDatabase = createSerializedDatabase(rawDatabase);
+  database = serializedDatabase;
+  logDbInfo('Database ready', {
+    name: databaseName,
+    workspaceId,
+    schemaVersion,
+    expectedSchemaVersion: CURRENT_SCHEMA_VERSION,
+    installId: install.installId,
+    clearedStaleSecureStore: install.clearedStaleSecureStore,
+  });
+
+  return serializedDatabase;
 }
 
 export { migrateDatabase };

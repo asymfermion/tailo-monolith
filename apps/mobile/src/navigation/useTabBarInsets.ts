@@ -1,12 +1,6 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { spacing } from '@/constants/theme';
-
-import {
-  TAB_BAR_BOTTOM_MARGIN,
-  TAB_BAR_HEIGHT,
-  getTabBarContentInset,
-} from './tabBarLayout';
+import { TAB_BAR_BOTTOM_MARGIN, getTabBarContentInset } from './tabBarLayout';
 
 /** Distance from screen bottom to tab bar pill (above home indicator). */
 export function useTabBarBottomOffset(): number {

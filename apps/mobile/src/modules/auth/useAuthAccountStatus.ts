@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AuthSession } from './authTypes';
 import { isLinkedRemoteAccount } from './authTypes';
 import { getAuthSession, isRemoteAuthConfigured } from './authService';
+import { subscribeAuthSessionChanged } from './authSessionEvents';
 
 export type AuthAccountStatusState = {
   isLoading: boolean;
@@ -37,6 +38,8 @@ export function useAuthAccountStatus(): AuthAccountStatusState {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => subscribeAuthSessionChanged(refresh), [refresh]);
 
   return {
     isLoading,

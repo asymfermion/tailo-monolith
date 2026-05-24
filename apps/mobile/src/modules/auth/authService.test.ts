@@ -1,6 +1,7 @@
 import type { AuthProvider } from './authProvider';
 import {
   bootstrapAuthSession,
+  ensureRemoteAuthSession,
   getAuthAccessToken,
   getAuthSession,
   isRemoteAuthConfigured,
@@ -37,6 +38,27 @@ jest.mock('./completeEmailAccountConnection', () => ({
 
 jest.mock('./completeOnboardingForReturningLinkedUser', () => ({
   completeOnboardingForReturningLinkedUser: jest.fn().mockResolvedValue(false),
+  EXPLICIT_RETURNING_SIGN_IN_SOURCES: new Set([
+    'sign_in_with_password',
+    'verify_sign_in_otp',
+    'password_reset',
+  ]),
+}));
+
+jest.mock('./anonymousCloudAccount', () => ({
+  ensureAnonymousCloudAccountIfNeeded: jest.fn(),
+}));
+
+const mockEnsureAnonymousCloudAccountIfNeeded = jest.mocked(
+  (
+    jest.requireMock('./anonymousCloudAccount') as {
+      ensureAnonymousCloudAccountIfNeeded: jest.Mock;
+    }
+  ).ensureAnonymousCloudAccountIfNeeded,
+);
+
+jest.mock('@/modules/pets/petProfile', () => ({
+  hasReadyLocalPetProfile: jest.fn(),
 }));
 
 const mockNotifyAuthSessionChanged = jest.fn();
@@ -156,6 +178,48 @@ describe('authService', () => {
     expect(provider.bootstrapSession).toHaveBeenCalledTimes(1);
   });
 
+  it('bootstraps when ensureRemoteAuthSession is called with a ready pet profile', async () => {
+    mockEnsureAnonymousCloudAccountIfNeeded.mockResolvedValue({
+      status: 'ready',
+      session: {
+        userId: 'anon-1',
+        isAnonymous: true,
+        email: null,
+        emailConfirmed: false,
+      },
+      createdSession: true,
+    });
+
+    const provider = createMockProvider({
+      getSession: jest.fn().mockResolvedValue(null),
+    });
+    setAuthProvider(provider);
+
+    await expect(ensureRemoteAuthSession()).resolves.toEqual({
+      userId: 'anon-1',
+      isAnonymous: true,
+      email: null,
+      emailConfirmed: false,
+    });
+    expect(provider.getSession).toHaveBeenCalledTimes(1);
+    expect(mockEnsureAnonymousCloudAccountIfNeeded).toHaveBeenCalledTimes(1);
+    expect(provider.bootstrapSession).not.toHaveBeenCalled();
+  });
+
+  it('does not bootstrap anonymous session before pet profile exists', async () => {
+    mockEnsureAnonymousCloudAccountIfNeeded.mockResolvedValue({
+      status: 'no_pet',
+    });
+
+    const provider = createMockProvider({
+      getSession: jest.fn().mockResolvedValue(null),
+    });
+    setAuthProvider(provider);
+
+    await expect(ensureRemoteAuthSession()).resolves.toBeNull();
+    expect(mockEnsureAnonymousCloudAccountIfNeeded).toHaveBeenCalledTimes(1);
+  });
+
   it('returns logged_out when login is required without bootstrapping', async () => {
     mockIsAuthRequireLogin.mockResolvedValue(true);
     const provider = createMockProvider();
@@ -192,6 +256,7 @@ describe('authService', () => {
       status: 'code_sent',
     });
     expect(provider.requestEmailLink).toHaveBeenCalledWith('user@example.com');
+    expect(mockClearAuthRequireLogin).not.toHaveBeenCalled();
   });
 
   it('delegates email verification', async () => {
@@ -217,7 +282,7 @@ describe('authService', () => {
     const provider = createMockProvider();
     setAuthProvider(provider);
 
-    await expect(setAccountPassword('hunter22')).resolves.toEqual({
+    await expect(setAccountPassword('Hunter22!')).resolves.toEqual({
       status: 'updated',
       session: {
         userId: 'user-1',
@@ -226,7 +291,7 @@ describe('authService', () => {
         emailConfirmed: true,
       },
     });
-    expect(provider.setPassword).toHaveBeenCalledWith('hunter22');
+    expect(provider.setPassword).toHaveBeenCalledWith('Hunter22!');
   });
 
   it('delegates sign-in OTP requests', async () => {
@@ -281,7 +346,7 @@ describe('authService', () => {
     expect(mockNotifyAuthSessionChanged).toHaveBeenCalled();
   });
 
-  it('returns from sign-in before deferred bootstrap finishes', async () => {
+  it('awaits account bootstrap before notifying session listeners', async () => {
     let resolveBootstrap: (() => void) | undefined;
     const bootstrapGate = new Promise<void>((resolve) => {
       resolveBootstrap = resolve;
@@ -295,21 +360,19 @@ describe('authService', () => {
     const provider = createMockProvider();
     setAuthProvider(provider);
 
-    await expect(
-      signInWithPassword('user@example.com', 'hunter22'),
-    ).resolves.toMatchObject({ status: 'signed_in' });
+    const signInPromise = signInWithPassword('user@example.com', 'hunter22');
 
-    expect(completeEmailAccountConnection).toHaveBeenCalledTimes(1);
-    expect(mockNotifyAuthSessionChanged).toHaveBeenCalled();
-
-    resolveBootstrap?.();
     await new Promise<void>((resolve) => {
       setImmediate(resolve);
     });
 
-    expect(
-      mockNotifyAuthSessionChanged.mock.calls.length,
-    ).toBeGreaterThanOrEqual(2);
+    expect(completeEmailAccountConnection).toHaveBeenCalledTimes(1);
+    expect(mockNotifyAuthSessionChanged).not.toHaveBeenCalled();
+
+    resolveBootstrap?.();
+    await signInPromise;
+
+    expect(mockNotifyAuthSessionChanged).toHaveBeenCalledTimes(1);
   });
 
   it('delegates sign out', async () => {

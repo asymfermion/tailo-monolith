@@ -9,9 +9,8 @@ truncate table public.event_media cascade;
 truncate table public.events cascade;
 truncate table public.pets cascade;
 
--- Legacy bridge + profiles (Supabase auth subject rows)
+-- Legacy Phase 1 bridge
 delete from public.anonymous_id_links;
-delete from public.profiles;
 
 -- Tailo identity layer (re-created on next ensure-current-user)
 delete from public.account_profiles;

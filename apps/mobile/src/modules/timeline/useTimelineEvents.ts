@@ -2,12 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getDatabase } from '@/db';
 import { t } from '@/i18n';
-import { pruneLocalTimelineForProfilePetType } from '@/db/localEvents';
-import { getTimelineEvents } from '@/db/timelineEvents';
-import { getSyncStateValue, SYNC_STATE_KEYS } from '@/db/syncState';
-import { rebuildPipelineForProfilePetType } from '@/modules/eventBuilder/rebuildPipelineForProfilePetType';
 import { loadLocalPetProfile } from '@/modules/pets/petProfile';
 import type { TimelineEvent } from '@/types';
+
+import { loadTimelineForDisplay } from './loadTimelineForDisplay';
 
 export type UseTimelineEventsOptions = {
   refreshKey?: number;
@@ -29,9 +27,13 @@ export function useTimelineEvents(
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const eventsRef = useRef(events);
+  const refreshGenerationRef = useRef(0);
   eventsRef.current = events;
 
   const refresh = useCallback(async () => {
+    const generation = refreshGenerationRef.current + 1;
+    refreshGenerationRef.current = generation;
+
     if (eventsRef.current.length === 0) {
       setIsLoading(true);
     }
@@ -41,17 +43,8 @@ export function useTimelineEvents(
       const database = await getDatabase();
       const profile = await loadLocalPetProfile();
 
-      if (profile?.type) {
-        const filterApplied = await getSyncStateValue(
-          database,
-          SYNC_STATE_KEYS.PROFILE_PET_FILTER_APPLIED,
-        );
-
-        if (filterApplied !== profile.type) {
-          await rebuildPipelineForProfilePetType(database, profile.type);
-        } else {
-          await pruneLocalTimelineForProfilePetType(database, profile.type);
-        }
+      if (generation !== refreshGenerationRef.current) {
+        return;
       }
 
       if (!profile?.type) {
@@ -59,19 +52,30 @@ export function useTimelineEvents(
         return;
       }
 
-      const nextEvents = await getTimelineEvents(database, {
+      const nextEvents = await loadTimelineForDisplay(database, {
         favoritesOnly,
         profilePetType: profile.type,
       });
+
+      if (generation !== refreshGenerationRef.current) {
+        return;
+      }
+
       setEvents(nextEvents);
     } catch (error) {
+      if (generation !== refreshGenerationRef.current) {
+        return;
+      }
+
       setErrorMessage(
         error instanceof Error
           ? error.message
           : t('errors.couldNotLoadMoments'),
       );
     } finally {
-      setIsLoading(false);
+      if (generation === refreshGenerationRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [favoritesOnly]);
 

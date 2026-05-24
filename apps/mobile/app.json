@@ -46,9 +46,7 @@
           "photosPermission": "Tailo scans your recent photos to find pet moments for your timeline.",
           "savePhotosPermission": "Tailo can save photos you capture in the app to your photo library.",
           "isAccessMediaLocationEnabled": true,
-          "granularPermissions": [
-            "photo"
-          ]
+          "granularPermissions": ["photo"]
         }
       ],
       [

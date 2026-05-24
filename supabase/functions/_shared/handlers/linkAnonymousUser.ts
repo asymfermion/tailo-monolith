@@ -4,7 +4,11 @@ import { parseLinkAnonymousUserRequest } from '../../../../packages/shared/src/c
 import { getServiceRoleClient, jsonResponse } from '../http.ts';
 import type { ApiHandler } from './types.ts';
 
-export const handleLinkAnonymousUser: ApiHandler = async ({ user, log, payload }) => {
+export const handleLinkAnonymousUser: ApiHandler = async ({
+  user,
+  log,
+  payload,
+}) => {
   const body = parseLinkAnonymousUserRequest(payload);
 
   if (!body) {
@@ -67,18 +71,13 @@ export const handleLinkAnonymousUser: ApiHandler = async ({ user, log, payload }
 
   if (!decision.ok) {
     const status = decision.code === 'conflict' ? 409 : 400;
-    return jsonResponse({ error: decision.message, code: decision.code }, status);
+    return jsonResponse(
+      { error: decision.message, code: decision.code },
+      status,
+    );
   }
 
   if (decision.created) {
-    const { error: profileError } = await adminClient
-      .from('profiles')
-      .upsert({ user_id: user.id }, { onConflict: 'user_id' });
-
-    if (profileError) {
-      return jsonResponse({ error: profileError.message }, 500);
-    }
-
     const { error: insertError } = await adminClient
       .from('anonymous_id_links')
       .insert({

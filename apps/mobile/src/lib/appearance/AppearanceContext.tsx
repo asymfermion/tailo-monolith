@@ -73,10 +73,9 @@ export function useThemedStyles<T extends StyleSheet.NamedStyles<T>>(
   factory: ThemedStyleFactory<T>,
 ): T {
   const appearance = useAppearance();
-  const { colors, fontStyle, theme } = appearance;
 
   return useMemo(
     () => StyleSheet.create(factory(appearance)),
-    [appearance, colors, factory, fontStyle, theme],
+    [appearance, factory],
   );
 }

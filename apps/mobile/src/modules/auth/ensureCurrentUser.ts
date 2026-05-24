@@ -4,7 +4,6 @@ import {
   isRemoteAuthConfigured,
 } from '@/modules/auth/authService';
 import { secureStorage } from '@/modules/auth/secureStorage';
-import { setCurrentLocalWorkspaceForAppUser } from '@/modules/auth/localWorkspace';
 import {
   isEnsureCurrentUserResponse,
   type EnsureCurrentUserResponse,
@@ -38,7 +37,6 @@ export async function clearTailoAppUserIdCache(): Promise<void> {
 async function persistTailoAppUserId(appUserId: string): Promise<void> {
   memoryAppUserId = appUserId;
   await secureStorage.setItemAsync(APP_USER_ID_KEY, appUserId);
-  await setCurrentLocalWorkspaceForAppUser(appUserId);
 }
 
 /**

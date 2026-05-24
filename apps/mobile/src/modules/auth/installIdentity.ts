@@ -14,9 +14,27 @@ import { clearSupabaseAuthStorage } from '@/lib/supabaseAuthStorage';
 
 import { LOCAL_ACCOUNT_PROFILE_KEY } from './keys';
 import { ANONYMOUS_USER_ID_KEY } from './identity';
-import { createWorkspaceSecureStorage } from './localWorkspace';
+import { APP_USER_ID_KEY } from './ensureCurrentUser';
+import {
+  clearCurrentLocalWorkspace,
+  createWorkspaceSecureStorage,
+  getCurrentLocalWorkspaceId,
+} from './localWorkspace';
 import { ONBOARDING_STATE_KEY } from './onboardingState';
 import { secureStorage, type SecureStorage } from './secureStorage';
+
+const DEFAULT_LOCAL_WORKSPACE_ID = 'device_default';
+
+const WORKSPACE_SCOPED_SECURE_KEYS = [
+  ONBOARDING_STATE_KEY,
+  LOCAL_PET_PROFILE_KEY,
+  LOCAL_ACCOUNT_PROFILE_KEY,
+  LAST_SCAN_TIMESTAMP_KEY,
+] as const;
+
+function workspaceStorageKey(workspaceId: string, key: string): string {
+  return `tailo.workspace.${workspaceId}.${key}`;
+}
 
 export const INSTALL_ID_KEY = 'tailo.install_id';
 
@@ -37,7 +55,10 @@ export type InstallReconcileResult = {
 export async function reconcileInstallIdentity(
   db: SQLite.SQLiteDatabase,
   storage: SecureStorage = secureStorage,
+  options: { workspaceId?: string } = {},
 ): Promise<InstallReconcileResult> {
+  const workspaceId =
+    options.workspaceId ?? (await getCurrentLocalWorkspaceId(storage));
   const dbInstallId = await getSyncStateValue(
     db,
     SYNC_STATE_KEYS.APP_INSTALL_ID,
@@ -50,6 +71,13 @@ export async function reconcileInstallIdentity(
 
     if (!hasLocalData && hasStaleSecureData) {
       await clearSecureUserData(storage, db);
+      const installId = generateInstallId();
+      await persistInstallId(db, storage, installId);
+      return { installId, clearedStaleSecureStore: true };
+    }
+
+    if (!hasLocalData && workspaceId !== DEFAULT_LOCAL_WORKSPACE_ID) {
+      await clearCurrentLocalWorkspace(storage);
       const installId = generateInstallId();
       await persistInstallId(db, storage, installId);
       return { installId, clearedStaleSecureStore: true };
@@ -81,17 +109,28 @@ export async function clearSecureUserData(
   storage: SecureStorage = secureStorage,
   db?: SQLite.SQLiteDatabase,
 ): Promise<void> {
-  const workspaceStorage = createWorkspaceSecureStorage(storage);
+  const workspaceId = await getCurrentLocalWorkspaceId(storage);
 
   await Promise.all([
     clearSupabaseAuthStorage(db),
     storage.deleteItemAsync(INSTALL_ID_KEY),
     storage.deleteItemAsync(ANONYMOUS_USER_ID_KEY),
-    workspaceStorage.deleteItemAsync(ONBOARDING_STATE_KEY),
-    workspaceStorage.deleteItemAsync(LOCAL_PET_PROFILE_KEY),
-    workspaceStorage.deleteItemAsync(LOCAL_ACCOUNT_PROFILE_KEY),
-    workspaceStorage.deleteItemAsync(LAST_SCAN_TIMESTAMP_KEY),
+    storage.deleteItemAsync(APP_USER_ID_KEY),
+    clearWorkspaceScopedUserData(workspaceId, storage),
   ]);
+
+  await Promise.all([clearCurrentLocalWorkspace(storage)]);
+}
+
+export async function clearWorkspaceScopedUserData(
+  workspaceId: string,
+  storage: SecureStorage = secureStorage,
+): Promise<void> {
+  await Promise.all(
+    WORKSPACE_SCOPED_SECURE_KEYS.map((key) =>
+      storage.deleteItemAsync(workspaceStorageKey(workspaceId, key)),
+    ),
+  );
 }
 
 async function hasSecureUserData(storage: SecureStorage): Promise<boolean> {

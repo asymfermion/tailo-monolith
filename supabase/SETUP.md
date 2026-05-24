@@ -24,15 +24,15 @@ Tailo’s mobile app expects **8-digit codes** in email, not link-only messages.
 
 Quick reference:
 
-| App flow | Paste this file into dashboard template |
-| -------- | ---------------------------------------- |
-| Save memories / Create account (email link) | [email_change.html](./templates/email_change.html) → **Change email address** |
-| Sign in with code | [magic_link.html](./templates/magic_link.html) → **Magic Link** |
-| Forgot password | [recovery.html](./templates/recovery.html) → **Reset password** |
-| Direct signup (future) | [confirmation.html](./templates/confirmation.html) → **Confirm signup** |
-| Admin invite (optional) | [invite.html](./templates/invite.html) → **Invite user** |
-| Reauthentication (optional) | [reauthentication.html](./templates/reauthentication.html) → **Reauthentication** |
-| Password changed notice | [password_changed_notification.html](./templates/password_changed_notification.html) → notification |
+| App flow                                    | Paste this file into dashboard template                                                             |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Save memories / Create account (email link) | [email_change.html](./templates/email_change.html) → **Change email address**                       |
+| Sign in with code                           | [magic_link.html](./templates/magic_link.html) → **Magic Link**                                     |
+| Forgot password                             | [recovery.html](./templates/recovery.html) → **Reset password**                                     |
+| Direct signup (future)                      | [confirmation.html](./templates/confirmation.html) → **Confirm signup**                             |
+| Admin invite (optional)                     | [invite.html](./templates/invite.html) → **Invite user**                                            |
+| Reauthentication (optional)                 | [reauthentication.html](./templates/reauthentication.html) → **Reauthentication**                   |
+| Password changed notice                     | [password_changed_notification.html](./templates/password_changed_notification.html) → notification |
 
 - **Local stack:** all paths and subjects are in [config.toml](./config.toml) (`otp_length = 8`).
 - **Hosted:** `npm run push:supabase:email-templates` (linked CLI) or paste HTML into **Authentication → Email Templates** for each row above.
@@ -89,7 +89,7 @@ Functions deployed:
 
 - `api-auth` — `ensure-current-user`, `link-anonymous-user`
 - `api-pet` — `upsert-pet`
-- `api-account` — `upsert-account-profile`
+- `api-account` — `upsert-account-profile`, `get-account-profile`
 - `api-events` — `create-upload-urls`, `sync-event`, `get-event-updates`, `delete-event`
 - `process-ai-job` — internal AI worker (cron + service invoke from `sync-event`)
 
@@ -132,13 +132,17 @@ Upgraded devices (Phase 1 `anon_*` in SecureStore) call `link-anonymous-user` on
 
 Mobile email flows use **8-digit codes** (`verifyOtp`), not magic links. In the Supabase Dashboard (**Authentication → Email Templates**), align templates for `dev` and `prod`:
 
-| Template | Used for | Body must include |
-| -------- | -------- | ----------------- |
-| **Confirm sign up** | Direct create account (`signInWithOtp` / signup OTP) | `{{ .Token }}` (8-digit code) |
-| **Change email address** | Anonymous upgrade + email change (`updateUser` + `email_change`) | `{{ .Token }}` |
-| **Reset password** | Forgot password (`resetPasswordForEmail` + `recovery`) | `{{ .Token }}` |
+| Template                 | Used for                                                         | Body must include             |
+| ------------------------ | ---------------------------------------------------------------- | ----------------------------- |
+| **Confirm sign up**      | Direct create account (`signInWithOtp` / signup OTP)             | `{{ .Token }}` (8-digit code) |
+| **Change email address** | Anonymous upgrade + email change (`updateUser` + `email_change`) | `{{ .Token }}`                |
+| **Reset password**       | Forgot password (`resetPasswordForEmail` + `recovery`)           | `{{ .Token }}`                |
 
-Disable link-only templates if they conflict with in-app code entry. After changes, smoke-test: create account, link email from Settings, forgot password.
+For anonymous email linking, keep **Secure email change / double confirm email changes** disabled. Tailo links the first real email onto an anonymous session, so the OTP should go only to the new email address.
+
+Turn **Confirm email** **on** (`auth.email.enable_confirmations = true` in [config.toml](./config.toml)) so Supabase does not auto-confirm addresses without an OTP. Push config + templates: `npm run push:supabase:email-templates`. See [templates/README.md](./templates/README.md).
+
+Disable link-only templates if they conflict with in-app code entry. After changes, smoke-test: create account, link email from Settings, forgot password — user must enter the code before the app finishes linking.
 
 ## Known limitation: session loss (B2.6.9)
 

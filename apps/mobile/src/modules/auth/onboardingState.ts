@@ -29,6 +29,7 @@ export type OnboardingCompletedFlags = {
 export type OnboardingState = {
   step: OnboardingStep;
   completed: boolean;
+  completionSource?: 'local_setup' | 'returning_account';
   completedFlags: OnboardingCompletedFlags;
 };
 
@@ -80,6 +81,38 @@ export async function saveOnboardingState(
   await storage.setItemAsync(ONBOARDING_STATE_KEY, JSON.stringify(state));
 }
 
+/**
+ * Clears in-progress device onboarding (e.g. after "Start on this device" + back)
+ * so signing in to an existing account takes priority over partial local setup.
+ */
+export async function resetOnboardingForAccountSignInIntent(
+  storage: SecureStorage = workspaceSecureStorage,
+): Promise<void> {
+  const stored = await loadOnboardingState(storage);
+
+  if (stored.completed) {
+    return;
+  }
+
+  await saveOnboardingState(
+    mergeOnboardingState(stored, {
+      step: 'welcome',
+      completed: false,
+      completedFlags: {
+        photoPermissionHandled: false,
+        scanStarted: false,
+        timelinePreviewSeen: false,
+        petNameSet: false,
+        petSelected: false,
+        petTypeSet: false,
+        petGenderSet: false,
+        profilePhotoSuggested: false,
+      },
+    }),
+    storage,
+  );
+}
+
 export function mergeOnboardingState(
   currentState: OnboardingState,
   nextState: OnboardingStatePatch,
@@ -107,6 +140,11 @@ function normalizeOnboardingState(value: unknown): OnboardingState {
       typeof value.completed === 'boolean'
         ? value.completed
         : initialOnboardingState.completed,
+    completionSource:
+      value.completionSource === 'local_setup' ||
+      value.completionSource === 'returning_account'
+        ? value.completionSource
+        : undefined,
     completedFlags: {
       ...initialOnboardingState.completedFlags,
       ...(isObject(value.completedFlags) ? value.completedFlags : {}),

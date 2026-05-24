@@ -163,6 +163,8 @@ flowchart TD
 
 **After successful `sync-event`:** clear `pending_cloud_sync`, release user sync lock, store `remote_event_id` and `server_sync_version`.
 
+**Local/remote IDs:** mobile UI and the local pipeline keep using device-local IDs (`local_event_id`, local pet id, local asset id). Cloud-created IDs are stored as metadata (`app_user_id`, `remote_pet_id`, `remote_event_id`, remote media ids) and are the only IDs used for cross-device sync, merge, and delete semantics. Anonymous → cloud bootstrap does not switch SQLite database files.
+
 **Foreground pass order** (`useBackgroundSync`): `runUploadQueueWorker` → `runPendingCloudSync` → `pollEventUpdates`.
 
 ---
@@ -236,6 +238,7 @@ Pull-to-refresh today reloads **SQLite only**; it does not call `get-event-updat
 **Merge rules** (`mergeRemoteEventUpdate` / `applyRemoteEventUpdates`):
 
 - Match on `source_local_event_id`.
+- Current implementation only updates rows that already exist in SQLite. Remote events created on another device after initial bootstrap are skipped because `get-event-updates` does not include media rows or signed thumbnail URLs.
 - Do not overwrite caption/type when local `user_edited_*` is set.
 - Favorites: apply server value when `remote.sync_version >= local.server_sync_version`.
 - Only `UPDATE` when merged fields differ (avoids poll ↔ refresh loops).
@@ -245,6 +248,22 @@ Pull-to-refresh today reloads **SQLite only**; it does not call `get-event-updat
 - **Lock:** `sync_lock_owner = user` blocks merge; AI merge uses `sync_lock_owner IS NULL OR 'ai'`.
 
 **Display:** `getTimelineEvents` + `resolveDisplayCaption` (`@tailo/ai`) until AI caption arrives.
+
+### Cross-device restore and dedupe status
+
+Initial login on a new device is supported with MVP media limitations:
+
+1. `completeEmailAccountConnection()` runs after password, OTP, or password-reset sign-in.
+2. `restoreRemoteAccountDataIfNeeded({ force: true })` pulls account profile, pet profile, and `bootstrap-timeline`; this lets the cloud pet win over partial local onboarding state and backfills even when some cloud rows already exist locally.
+3. `bootstrap-timeline` pages existing cloud moments with signed thumbnail URLs into local SQLite using a composite `(timestamp, event_id)` cursor so same-timestamp moments are not skipped at page boundaries.
+4. `TimelineScreen` mounts `usePhotoAccess()`, so this device can continue local/incremental detection once photo permission is available.
+
+Unfinished cross-device work:
+
+- **Later remote-created moments:** polling currently returns metadata only, and `applyRemoteEventUpdates` skips unknown `source_local_event_id`s. Add event-with-media hydration for unknown remote events, either by extending `get-event-updates` or adding a targeted hydrate endpoint.
+- **Signed thumbnail expiry:** restored assets use signed thumbnail URLs as `local_assets.uri`. Add local thumbnail caching or signed URL refresh.
+- **Cross-device dedupe:** current dedupe is local-only (`created_at` + dimensions within a 2 s window). Add stable media fingerprints/hashes to upload/sync contracts and server schema so duplicate images uploaded from multiple devices merge into one account moment.
+- **Event merge by content:** server idempotency is `(app_user_id, source_local_event_id)`, which is device-local. Add hash/time-window matching before inserting a new cloud event so duplicate moments from different devices merge without overwriting user edits.
 
 ---
 
@@ -550,6 +569,7 @@ event-media/{app_user_id}/{pet_id}/{event_id}/{source_local_asset_id}/thumb.jpg
 - Unique constraint: `(app_user_id, source_local_event_id)` on `events`.
 - `sync-event` upserts by that key; repeated calls return same `event_id`.
 - `event_media` upsert by `(event_id, source_local_asset_id)`.
+- This is **device-local idempotency only**. It does not deduplicate the same image or moment uploaded from another device because media fingerprints are not part of the contract/schema yet.
 
 ### `sync_version` (monotonic)
 
@@ -697,6 +717,8 @@ pending → processing → done
 ## Proposed data model
 
 These are MVP backend entities, not the final full product schema.
+
+For the current table inventory and complete migration history, see [Database Schema Ledger](./database-schema-ledger.md).
 
 ### `app_users`
 
@@ -1017,13 +1039,14 @@ Full detail: [AI job specification](#ai-job-specification). Result shape in `pac
 
 ## Open questions
 
-| Topic                                    | MVP default                                                        | Revisit when          |
-| ---------------------------------------- | ------------------------------------------------------------------ | --------------------- |
-| Object storage                           | **Supabase Storage**                                               | Scale / R2 migration  |
-| Orphan storage objects after failed sync | Manual GC / Phase 2+ sweeper                                       | Production traffic    |
-| Realtime vs poll                         | **Poll** `get-event-updates` every 30s when pending AI             | UX need               |
-| Multi-device account sign-in             | **Deferred** — see [Auth edge-case policy](#auth-edge-case-policy) | Phase 2+              |
-| Session loss → new anonymous user        | Accept orphan cloud data for MVP                                   | Account recovery flow |
+| Topic                                    | MVP default                                                                       | Revisit when           |
+| ---------------------------------------- | --------------------------------------------------------------------------------- | ---------------------- |
+| Object storage                           | **Supabase Storage**                                                              | Scale / R2 migration   |
+| Orphan storage objects after failed sync | Manual GC / Phase 2+ sweeper                                                      | Production traffic     |
+| Realtime vs poll                         | **Poll** `get-event-updates` every 30s when pending AI                            | UX need                |
+| Multi-device account sign-in             | **MVP:** `get-pet` + `bootstrap-timeline` on sign-in; ongoing `get-event-updates` | Cross-device restore   |
+| Cross-device duplicate images            | Not yet deduped; local-only near-identical dedupe                                 | Media hash/fingerprint |
+| Session loss → new anonymous user        | Accept orphan cloud data for MVP                                                  | Account recovery flow  |
 
 ## Future — user edit moment (capabilities)
 
@@ -1033,6 +1056,11 @@ Full detail: [AI job specification](#ai-job-specification). Result shape in `pac
 
 | Date       | Change                                                                                                                                                                                                                                            |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-24 | Mobile keeps local SQLite stable during anonymous → cloud bootstrap; cloud IDs are stored on local rows/profiles and drive cross-device sync instead of switching database files.                                                                 |
+| 2026-05-24 | Upload worker calls `prepareCloudUploadPrerequisites` (anonymous account + `upsert-pet`) before draining queue; `saveLocalPetProfile` triggers upload when pet profile becomes ready.                                                             |
+| 2026-05-24 | Returning-account sign-in now forces cloud restore/backfill; cloud pet wins over partial local pet state, and `bootstrap-timeline` uses composite `(timestamp, event_id)` pagination to avoid same-timestamp gaps.                                |
+| 2026-05-20 | **Cross-device restore:** `get-account-profile` + `get-pet` + `bootstrap-timeline`; mobile `restoreRemoteAccountDataIfNeeded` hydrates user profile, pet, and cloud moments; `seedLocalAccountPrefsToCloudIfEmpty` only fills empty cloud fields  |
+| 2026-05-24 | Documented cross-device sync gaps: unknown remote events need media hydration/backfill, restored thumbnails need refresh/cache, and duplicate cross-device uploads need media fingerprint dedupe.                                                 |
 | 2026-05-20 | Pet profile **birthday** (`pets.birthday` date column); `upsert-pet` + local profile JSON; Pet tab editor auto-saves name, type, gender, birthday                                                                                                 |
 | 2026-05-20 | **Onboarding cloud sync:** `runCloudSyncPass` upserts remote pet, drains `upload_queue`, runs `sync-event` for promoted moments when onboarding completes; also on authenticated app mount and foreground resume                                  |
 | 2026-05-19 | User Edge Functions grouped by domain: `api-auth`, `api-pet`, `api-account`, `api-events` (`POST` `{ action, ... }`); shared handlers; `process-ai-job` separate; mobile `invokeTailoApi` routes by action                                        |
@@ -1044,6 +1072,7 @@ Full detail: [AI job specification](#ai-job-specification). Result shape in `pac
 | 2026-05-20 | **B2.4.3a** Integration test: Storage signed PUT returns `415 invalid_mime_type` for non-`image/jpeg` `Content-Type` (`npm run test:supabase:upload`)                                                                                             |
 | 2026-05-20 | **B2.1.10** RLS smoke: `supabase/tests/rls_cross_user_smoke.sql` + `npm run test:supabase:rls` (JWT impersonation; all user-owned tables)                                                                                                         |
 | 2026-05-20 | **B2.5.7** AI sweep: `pg_cron` + `setup:ai-job-cron`; lease recovery; `process-ai-job` sweep mode (`max_jobs` cap 10)                                                                                                                             |
+| 2026-05-24 | Drop legacy `profiles` table after `app_users` / `user_identities` became canonical; Edge Functions now resolve users through `ensure_app_user_for_auth` and keep editable account fields in `account_profiles`                                   |
 | 2026-05-19 | Planned **B2.12** pet identity validation: embedding gallery from profile + validated events; reject wrong individual before caption                                                                                                              |
 | 2026-05-19 | `app_user_id` ownership: migrate `pets`/`events`, RLS + storage policies on `current_app_user_id()`, storage paths `{app_user_id}/…`, `upsert-account-profile` API + mobile profile editing                                                       |
 | 2026-05-20 | Phase 1 identity: `app_users`, `user_identities`, `account_profiles`, `current_app_user_id()`, `ensure-current-user` Edge Function; mobile resolves `app_user_id` after auth bootstrap; `link-anonymous-user` returns `app_user_id`               |

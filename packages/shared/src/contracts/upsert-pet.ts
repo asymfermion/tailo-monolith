@@ -50,7 +50,10 @@ export function parseUpsertPetRequest(body: unknown): UpsertPetRequest | null {
   }
 
   if (birthday !== undefined && birthday !== null) {
-    if (typeof birthday !== 'string' || parsePetBirthdayIso(birthday) === null) {
+    if (
+      typeof birthday !== 'string' ||
+      parsePetBirthdayIso(birthday) === null
+    ) {
       return null;
     }
   }

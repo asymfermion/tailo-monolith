@@ -304,7 +304,7 @@ npx supabase functions serve      # local edge functions
 npx supabase start                # optional full local stack
 ```
 
-**RLS smoke (B2.1.10):** `supabase/tests/rls_cross_user_smoke.sql` seeds two test users, impersonates user B via JWT claims, and asserts B cannot read or write user A’s rows on `profiles`, `anonymous_id_links`, `pets`, `events`, `event_media`, and `ai_jobs`. The script runs in a transaction and rolls back (no leftover data). Requires `npx supabase link` or `DATABASE_URL` in `supabase/.env.local` (with `psql` on PATH).
+**RLS smoke (B2.1.10):** `supabase/tests/rls_cross_user_smoke.sql` seeds two test users, impersonates user B via JWT claims, and asserts B cannot read or write user A’s rows on `anonymous_id_links`, `pets`, `events`, `event_media`, and `ai_jobs`. The script runs in a transaction and rolls back (no leftover data). Requires `npx supabase link` or `DATABASE_URL` in `supabase/.env.local` (with `psql` on PATH).
 
 Scaffold lives in `supabase/` (`config.toml`, `migrations/`, `functions/`).
 

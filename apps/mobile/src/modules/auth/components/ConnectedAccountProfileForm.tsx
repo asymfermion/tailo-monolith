@@ -8,6 +8,14 @@ import { getAppLocale } from '@/i18n/locale';
 import { t } from '@/i18n';
 import { getAppFontStyle } from '@/lib/appFontStyle';
 import { getAppTheme } from '@/lib/appTheme';
+import {
+  canSaveAccountProfileDraft,
+  normalizeAccountProfileDisplayName,
+} from '@/lib/accountProfileReadiness';
+import {
+  getAuthPasswordResetBlockReason,
+  isAuthPasswordResetSubmitReady,
+} from '@/lib/authFormReadiness';
 import { useAppearance, useThemedStyles } from '@/lib/appearance';
 import {
   isLinkedRemoteAccount,
@@ -19,8 +27,6 @@ import { useRemoteAccountProfile } from '@/modules/auth/useRemoteAccountProfile'
 
 import { UserProfileHeader } from './UserProfileHeader';
 import { createAccountSettingsStyles } from './accountSettingsStyles';
-
-const MIN_PASSWORD_LENGTH = 8;
 
 type ProfileSubview = 'profile' | 'password';
 
@@ -52,14 +58,27 @@ export function ConnectedAccountProfileForm({
 
   const session = account.session;
   const isLinked = isLinkedRemoteAccount(session);
+  const profileDisplayName = profile?.displayName ?? '';
+  const profileAppUserId = profile?.appUserId ?? null;
+  const canSavePassword = isAuthPasswordResetSubmitReady(
+    password,
+    confirmPassword,
+  );
+  const profileDraft = {
+    displayName,
+    preferredLocale: getAppLocale(),
+    preferredTheme: getAppTheme(),
+    preferredFontStyle: getAppFontStyle(),
+  };
+  const canSaveProfile = canSaveAccountProfileDraft(profileDraft, profile);
 
   useEffect(() => {
-    if (!profile) {
+    if (!profileAppUserId) {
       return;
     }
 
-    setDisplayName(profile.displayName ?? '');
-  }, [profile?.appUserId, profile?.displayName]);
+    setDisplayName(profileDisplayName);
+  }, [profileAppUserId, profileDisplayName]);
 
   useEffect(() => {
     if (preferPasswordSetup) {
@@ -70,10 +89,24 @@ export function ConnectedAccountProfileForm({
   async function handleSaveProfile() {
     setErrorMessage(null);
     setSuccessMessage(null);
+
+    if (!canSaveProfile) {
+      if (
+        profile &&
+        displayName.trim().length === 0 &&
+        normalizeAccountProfileDisplayName(displayName) !==
+          normalizeAccountProfileDisplayName(profile.displayName)
+      ) {
+        setErrorMessage(t('account.errors.displayNameRequired'));
+      }
+
+      return;
+    }
+
     setIsSubmitting(true);
 
     const result = await saveAccountProfile({
-      displayName: displayName.trim() || null,
+      displayName: normalizeAccountProfileDisplayName(displayName),
       preferredLocale: getAppLocale(),
       preferredTheme: getAppTheme(),
       preferredFontStyle: getAppFontStyle(),
@@ -113,22 +146,23 @@ export function ConnectedAccountProfileForm({
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
+    if (!isAuthPasswordResetSubmitReady(password, confirmPassword)) {
+      const blockReason = getAuthPasswordResetBlockReason(
+        password,
+        confirmPassword,
+      );
+
       setErrorMessage(
-        t('account.errors.passwordTooShort', {
-          min: MIN_PASSWORD_LENGTH,
-        }),
+        blockReason === 'mismatch'
+          ? t('account.errors.passwordMismatch')
+          : t('account.errors.passwordWeak'),
       );
       return;
     }
 
-    if (password !== confirmPassword) {
-      setErrorMessage(t('account.errors.passwordMismatch'));
-      return;
-    }
-
+    const trimmedPassword = password.trim();
     setIsSubmitting(true);
-    const result = await setAccountPassword(password);
+    const result = await setAccountPassword(trimmedPassword);
     setIsSubmitting(false);
 
     if (result.status === 'skipped') {
@@ -180,7 +214,7 @@ export function ConnectedAccountProfileForm({
           onChangeText={setConfirmPassword}
         />
         <PrimaryButton
-          disabled={isSubmitting}
+          disabled={isSubmitting || !canSavePassword}
           label={
             isSubmitting
               ? t('account.savingPassword')
@@ -243,7 +277,7 @@ export function ConnectedAccountProfileForm({
             onChangeText={setDisplayName}
           />
           <PrimaryButton
-            disabled={isSubmitting}
+            disabled={isSubmitting || !canSaveProfile}
             label={
               isSubmitting
                 ? t('account.savingProfile')

@@ -3,7 +3,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 
 import { getDatabase } from '@/db';
 import { t } from '@/i18n';
-import { formatDbError } from '@/db/dbLogger';
+import { formatDbError, isClosedDatabaseError } from '@/db/dbLogger';
 import { logTailo } from '@/lib/tailoLogger';
 import { redetectLocalPetPipeline } from '@/modules/eventBuilder/redetectPipeline';
 import type { BestImageSelectionProgress } from '@/modules/eventBuilder/bestImageSelection';
@@ -22,6 +22,7 @@ import {
   shouldRunIncrementalScan,
   shouldStartInitialScan,
 } from './pipelineResume';
+import { beginLocalPipeline, endLocalPipeline } from '@/db/localPipelineLock';
 import { resumeLocalPipeline, runLocalPipeline } from './runLocalPipeline';
 import {
   checkPhotoLibraryPermission,
@@ -182,6 +183,7 @@ export function usePhotoAccess(
       }
 
       pipelineInFlightRef.current = true;
+      beginLocalPipeline();
       setState((current) => ({
         ...current,
         errorMessage: null,
@@ -189,8 +191,26 @@ export function usePhotoAccess(
       }));
 
       try {
-        const database = await getDatabase();
-        await runner(database);
+        const runWithDatabase = async () => {
+          const database = await getDatabase();
+          await runner(database);
+        };
+
+        try {
+          await runWithDatabase();
+        } catch (error) {
+          if (isClosedDatabaseError(error)) {
+            logTailo(
+              'Pipeline',
+              'Retrying local pipeline after workspace database switch',
+              { error: formatDbError(error) },
+            );
+            await runWithDatabase();
+          } else {
+            throw error;
+          }
+        }
+
         logTailo('Pipeline', 'Local pipeline run finished');
         finishPipelineRun();
       } catch (error) {
@@ -211,6 +231,7 @@ export function usePhotoAccess(
         }));
       } finally {
         pipelineInFlightRef.current = false;
+        endLocalPipeline();
       }
     },
     [finishPipelineRun],

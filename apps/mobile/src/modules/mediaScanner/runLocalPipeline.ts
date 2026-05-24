@@ -18,7 +18,6 @@ import {
   type PetDetectionProgress,
 } from '@/modules/eventBuilder';
 
-import { resolveIncrementalScanCreatedAfterMs } from './incrementalScan';
 import type { PipelineResumePlan } from './pipelineResume';
 import {
   scanOlderPhotos,

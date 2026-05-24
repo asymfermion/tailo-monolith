@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { ActivityIndicator, Text, View } from 'react-native';
 
@@ -36,9 +36,14 @@ export function PetProfileEditor({
   profile,
   isLoading = false,
 }: PetProfileEditorProps) {
-  const locale = useAppLocale();
+  useAppLocale();
   const { colors } = useAppearance();
   const styles = useThemedStyles(createPetProfileEditorStyles);
+  const profilePetId = profile?.petId ?? null;
+  const profileName = profile?.name ?? '';
+  const profileType = profile?.type ?? null;
+  const profileGender = profile?.gender ?? null;
+  const profileBirthday = profile?.birthday ?? null;
   const skipAutoSaveRef = useRef(true);
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState<LocalPetType | null>(null);
@@ -49,7 +54,7 @@ export function PetProfileEditor({
   useEffect(() => {
     skipAutoSaveRef.current = true;
 
-    if (!profile) {
+    if (!profilePetId) {
       setPetName('');
       setPetType(null);
       setGender(null);
@@ -58,10 +63,10 @@ export function PetProfileEditor({
       return;
     }
 
-    setPetName(profile.name);
-    setPetType(profile.type);
-    setGender(profile.gender);
-    setBirthday(profile.birthday);
+    setPetName(profileName);
+    setPetType(profileType);
+    setGender(profileGender);
+    setBirthday(profileBirthday);
     setSaveStatus('idle');
 
     const frame = requestAnimationFrame(() => {
@@ -69,7 +74,7 @@ export function PetProfileEditor({
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [profile?.petId]);
+  }, [profileBirthday, profileGender, profileName, profilePetId, profileType]);
 
   const canSave = canSavePetProfileDraft({ name: petName, type: petType });
 
@@ -107,22 +112,16 @@ export function PetProfileEditor({
     return () => clearTimeout(timer);
   }, [petName, petType, gender, birthday, persistProfile, profile]);
 
-  const petTypeOptions = useMemo(
-    () =>
-      (['dog', 'cat'] as const).map((value) => ({
-        value,
-        label: formatPetType(value),
-      })),
-    [locale],
-  );
+  const petTypeOptions = (['dog', 'cat'] as const).map((value) => ({
+    value,
+    label: formatPetType(value),
+  }));
 
-  const genderOptions = useMemo(
-    () =>
-      (['female', 'male', 'unknown'] as const).map((value) => ({
-        value,
-        label: formatPetGenderLabel(value),
-      })),
-    [locale],
+  const genderOptions = (['female', 'male', 'unknown'] as const).map(
+    (value) => ({
+      value,
+      label: formatPetGenderLabel(value),
+    }),
   );
 
   const selectedGender = gender ?? 'unknown';

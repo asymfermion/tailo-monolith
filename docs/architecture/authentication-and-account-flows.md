@@ -84,24 +84,165 @@ Both paths should land on the same durable Tailo identity model:
 
 ## Process diagrams
 
+All flowcharts below use the same color legend as the install-to-registration tree:
+
+- **Green:** the user must make a choice or enter data on a Tailo screen.
+- **Blue:** Tailo performs the step automatically after the previous user action.
+- **Amber:** a decision point or group of options.
+- **Gray:** **no account** (local-only).
+- **Light blue:** **anonymous account** (cloud, no email).
+- **Pink:** **linked account** or stable timeline state.
+
+### Install-to-registration decision tree
+
+This tree describes the product behavior from first install through a completed account state. It is intentionally user-behavior oriented: the app should preserve the passive-first experience while still giving direct account paths to users who already know they want continuity.
+
+**Account states** (three layers the user moves through):
+
+| State                 | Meaning                                                          | Cloud identity                                                                           |
+| --------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **No account**        | First session before pet profile is saved; fully local-first.    | No Supabase session, no `app_user_id`. Device-local SQLite + `anon_*` device id only.    |
+| **Anonymous account** | Pet profile exists; memories can sync to cloud without email.    | Supabase `signInAnonymously()` + Tailo `app_user_id`. Session persists on return visits. |
+| **Linked account**    | Email (or future Apple/Google) connected to the same Tailo user. | Same `app_user_id`; provider identity in `user_identities`; not anonymous.               |
+
+Screen names are implementation names where they exist today.
+
+```mermaid
+flowchart TD
+  A["User: install and open Tailo"] --> B{"App: login-required gate set?"}
+
+  B -->|"Yes"| C["User: LoginScreen"]
+  C --> C1{"User option on LoginScreen"}
+  C1 -->|"Email + password"| D["User: enter email + password"]
+  C1 -->|"Use code instead"| E["User: enter email, request code"]
+  C1 -->|"Forgot password"| F["User: ForgotPasswordScreen"]
+  C1 -->|"Create account"| G["User: AccountSettingsScreen create mode"]
+  D --> H["App: sign in, ensure app_user_id"]
+  E --> I["User: enter OTP on LoginScreen"]
+  I --> H
+  F --> F1["User: request reset code, verify code, set new password"]
+  F1 --> H
+  H --> J["App: restore account profile, pet, and cloud timeline"]
+  J --> K["App: complete onboarding for returning account"]
+  K --> L1["Account state: LINKED ACCOUNT"]
+  L1 --> L["Timeline"]
+
+  B -->|"No"| M["User: OnboardingScreen welcome"]
+  M --> M1{"User option on welcome"}
+  M1 -->|"Start on this device"| N0["Account state: NO ACCOUNT"]
+  M1 -->|"Create account"| G
+  M1 -->|"Log in"| C
+
+  N0 --> P["User: OnboardingScreen photo permission"]
+  P --> Q["App: scan and build local moments"]
+  Q --> R["User: OnboardingScreen pet setup"]
+  R --> N1["App: create anonymous session + app_user_id"]
+  N1 --> N2["Account state: ANONYMOUS ACCOUNT"]
+  N2 --> S["Timeline — cloud sync starts"]
+
+  S --> T["User: Settings -> Account"]
+  T --> T1{"User option on AccountSettingsScreen"}
+  T1 -->|"Connect email"| U["User: enter email"]
+  U --> V["App: send 8-digit code"]
+  V --> W["User: enter code"]
+  W --> X["App: link email to same app_user_id"]
+  X --> Y["Account state: LINKED ACCOUNT"]
+  Y --> Y1{"User option"}
+  Y1 -->|"Set password now/later"| Z["User: password setup subview"]
+  Y1 -->|"Back"| S
+  Z --> AA["Registration complete"]
+  Y1 -->|"Keep OTP access"| AA
+
+  G --> AB["User: enter email"]
+  AB --> AC["App: send 8-digit code"]
+  AC --> AD["User: enter code"]
+  AD --> AE["App: create/resolve app_user_id and seed profile"]
+  AE --> L2["Account state: LINKED ACCOUNT"]
+  L2 --> P
+
+  classDef userAction fill:#e7f6ed,stroke:#2f7d4c,color:#173a27,stroke-width:1px
+  classDef appAction fill:#eaf2ff,stroke:#3570b7,color:#17365d,stroke-width:1px
+  classDef decision fill:#fff3d8,stroke:#b7791f,color:#4a2f08,stroke-width:1px
+  classDef noAccount fill:#f4f4f5,stroke:#71717a,color:#27272a,stroke-width:1px
+  classDef anonymousAccount fill:#dbeafe,stroke:#2563eb,color:#1e3a5f,stroke-width:1px
+  classDef linkedAccount fill:#ffeaf1,stroke:#b6476b,color:#5b1f34,stroke-width:1px
+  classDef timeline fill:#fce7f3,stroke:#db2777,color:#831843,stroke-width:1px
+
+  class A,C,D,E,F,F1,G,I,M,P,R,T,U,W,Y,Z,AB,AD userAction
+  class H,J,K,N1,Q,V,X,AC,AE appAction
+  class B,C1,M1,T1,Y1 decision
+  class N0 noAccount
+  class N2 anonymousAccount
+  class L1,L2,Y linkedAccount
+  class L,S,AA timeline
+```
+
+**Return visits (not shown as separate branches):**
+
+- **No account → still onboarding:** same **NO ACCOUNT** state; no cloud bootstrap until pet profile is saved.
+- **Anonymous account:** startup restores the existing Supabase anonymous session + `app_user_id`; user stays in **ANONYMOUS ACCOUNT** until they connect email.
+- **Linked account:** session restore or sign-in; user stays in **LINKED ACCOUNT**.
+
+Behavior rules:
+
+- `Get started` / `Start on this device` remains the default path; it must not require registration.
+- **Anonymous cloud identity is deferred** until the user saves a ready pet profile (name + type); until then the app uses local-only device identity.
+- `Create account` creates durable identity first, but does not skip device setup for a new account.
+- `Log in` is treated as a returning-account path; after auth, Tailo restores cloud profile, pet, and timeline data and can skip onboarding for an existing cloud account.
+- `Connect email` from an anonymous session preserves the same `app_user_id`; it must not create a separate account or lose local memories.
+- Password is useful for future password login, but email OTP remains a valid account access path when no password is set.
+
+### Screen options and back behavior
+
+| Screen / surface                            | User options                                                                                                                                                          | App-automatic actions after success                                                                                                          | Back / cancel behavior                                                                                                                       |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OnboardingScreen` welcome                  | `Start on this device` (primary when not linked), `Create account`, `Log in`; if **linked** account with existing local data, sign-in is emphasized over local start. | Local onboarding until pet profile; then anonymous cloud account + sync; sign-in restores cloud data for returning users.                    | No modal back on the welcome panel; account/login modals can be dismissed back to welcome when not login-gated.                              |
+| `AccountSettingsScreen` create mode         | Enter email, send code, enter code; after connected, edit display name or add password.                                                                               | Direct email sign-up verifies OTP, establishes session, ensures `app_user_id`, seeds account profile, then returns to onboarding.            | Back returns to the previous onboarding/login screen. When opened from Login with `signInPresentation: pop`, sign-in is revealed underneath. |
+| `AccountSettingsScreen` link mode           | Connect email for anonymous users; connected users can edit display name or set/change password.                                                                      | Email link verifies OTP, keeps the same `app_user_id`, runs account bootstrap, and refreshes account status.                                 | Back returns to Settings or the previous modal. Leaving before code verification keeps the user anonymous.                                   |
+| `LoginScreen`                               | Email + password sign-in, `Use code instead`, `Forgot password`, `Create account`, social placeholders.                                                               | Password/OTP success signs in, ensures `app_user_id`, restores profile/pet/timeline, clears login gate, marks returning onboarding complete. | If shown as a modal, back returns to the previous screen. If shown by logout/login-required gate, cancel is not available.                   |
+| `ForgotPasswordScreen`                      | Enter email, send recovery code, enter code, set new password.                                                                                                        | Recovery OTP activates the session; setting password finalizes connected sign-in and runs the same restore/bootstrap path as login.          | Back returns to `LoginScreen`; stepping back from code to email is available via `Use different email`.                                      |
+| `OnboardingScreen` photo / scan / pet setup | Grant photo access, continue after scan, select pet type, enter pet details/profile photo.                                                                            | Local scan builds moments; saving pet profile completes device onboarding and opens Timeline.                                                | Step back follows onboarding step order; direct account creation does not skip these screens for a new account.                              |
+| `Timeline` / `Settings` after onboarding    | Continue using Tailo, open `Settings -> Account`, connect email if still anonymous, add password if connected without one.                                            | Timeline refreshes from local SQLite; account actions sync profile/prefs/pet to cloud when connected.                                        | Normal tab navigation; account modal back returns to Settings.                                                                               |
+
 ### High-level auth map
 
 ```mermaid
 flowchart TD
   A[Open Tailo] --> B{Choose path}
-  B --> C[Get started]
+  B --> C[Start on this device]
   B --> D[Create account]
   B --> E[Log in]
-  C --> F[Create or restore anonymous session]
-  F --> G[Resolve or create Tailo app_user_id]
-  G --> H[Onboarding]
-  H --> I[Timeline]
+  C --> C0["No account — local only"]
+  C0 --> H[Onboarding: scan + pet setup]
+  H --> F[Anonymous account — session + app_user_id]
+  F --> I[Timeline]
   D --> J[Email / Apple / Google]
   J --> K[Verify or complete provider auth]
-  K --> G
-  E --> L[Email+password / Apple / Google]
-  L --> M[Resolve existing app_user_id]
+  K --> L["Linked account — app_user_id"]
+  L --> H
+  E --> M[Resolve existing app_user_id]
   M --> N[Load account profile and synced data]
+  N --> L2["Linked account"]
+  L2 --> I
+  I --> O{Connect email?}
+  O -->|Yes| P[Upgrade anonymous → linked]
+  P --> L
+
+  classDef userAction fill:#e7f6ed,stroke:#2f7d4c,color:#173a27,stroke-width:1px
+  classDef appAction fill:#eaf2ff,stroke:#3570b7,color:#17365d,stroke-width:1px
+  classDef decision fill:#fff3d8,stroke:#b7791f,color:#4a2f08,stroke-width:1px
+  classDef noAccount fill:#f4f4f5,stroke:#71717a,color:#27272a,stroke-width:1px
+  classDef anonymousAccount fill:#dbeafe,stroke:#2563eb,color:#1e3a5f,stroke-width:1px
+  classDef linkedAccount fill:#ffeaf1,stroke:#b6476b,color:#5b1f34,stroke-width:1px
+  classDef timeline fill:#fce7f3,stroke:#db2777,color:#831843,stroke-width:1px
+
+  class A,C,D,E,H,J,K userAction
+  class M,N,P appAction
+  class B,O decision
+  class C0 noAccount
+  class F anonymousAccount
+  class L,L2 linkedAccount
+  class I timeline
 ```
 
 ### Anonymous-to-connected upgrade
@@ -122,25 +263,148 @@ flowchart TD
   J --> K
   K --> L[Create or update account profile]
   L --> M[Show connected account profile]
+
+  classDef userAction fill:#e7f6ed,stroke:#2f7d4c,color:#173a27,stroke-width:1px
+  classDef appAction fill:#eaf2ff,stroke:#3570b7,color:#17365d,stroke-width:1px
+  classDef decision fill:#fff3d8,stroke:#b7791f,color:#4a2f08,stroke-width:1px
+  classDef anonymousAccount fill:#dbeafe,stroke:#2563eb,color:#1e3a5f,stroke-width:1px
+  classDef linkedAccount fill:#ffeaf1,stroke:#b6476b,color:#5b1f34,stroke-width:1px
+
+  class A anonymousAccount
+  class B,D,E,F,H,I,J userAction
+  class G,K,L appAction
+  class C decision
+  class M linkedAccount
 ```
 
 ### Email registration, login, and recovery
 
+All email flows use an **8-digit OTP** on mobile (no link-only verification in the core path). Password is **optional** for create/link; OTP sign-in works without a password once email is connected.
+
+| Flow                      | Entry                             | Supabase OTP type                                   | After verify                                                                             | Password                           |
+| ------------------------- | --------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------- |
+| **Direct create account** | Welcome or Login → Create account | `email` (`signInWithOtp`, `shouldCreateUser: true`) | New linked user + `ensure-current-user`; seed empty cloud profile; **device onboarding** | Optional later in Account settings |
+| **Connect email**         | Settings → Account (`mode: link`) | `email_change` (`updateUser` on anonymous session)  | Same `app_user_id`; pull/seed profile                                                    | Optional later                     |
+| **Log in (password)**     | LoginScreen                       | — (`signInWithPassword`)                            | Force cloud restore; skip onboarding if returning account                                | Required for this path             |
+| **Log in (OTP fallback)** | LoginScreen → Use code instead    | `email` (`shouldCreateUser: false`)                 | Same bootstrap as password sign-in                                                       | Not used on this path              |
+| **Forgot password**       | ForgotPasswordScreen              | `recovery`                                          | Recovery session → set password → same bootstrap as sign-in                              | New password required              |
+
+**Create vs connect:** direct **Create account** creates a **new** Supabase email user (and signs out any anonymous session first). **Connect email** upgrades the existing anonymous user in place — use this after the anonymous path.
+
+#### 1. Direct create account
+
+Welcome or Login → **Create account**. Ends **linked**; device onboarding still required.
+
 ```mermaid
 flowchart TD
-  A[Create account] --> B[Enter email]
-  B --> C[Send 8-digit code]
-  C --> D[Verify code]
-  D --> E[Set password]
-  E --> F[Create account profile]
-  F --> G[Continue to onboarding or app]
-  H[Log in] --> I[Enter email + password]
-  I --> J[Resolve app_user_id and load account]
-  K[Forgot password] --> L[Enter email]
-  L --> M[Verify recovery code]
-  M --> N[Set new password]
-  N --> H
+  A[Enter email] --> B[Send code]
+  B --> C[Enter 8-digit code]
+  C --> D[Verify — OTP type email]
+  D --> E[Linked account]
+  E --> F[ensure-current-user]
+  F --> G[Seed cloud profile]
+  G --> H[Device onboarding]
+  H --> I[Timeline]
+  I --> J[Password optional later]
+
+  classDef userAction fill:#e7f6ed,stroke:#2f7d4c,color:#173a27,stroke-width:1px
+  classDef appAction fill:#eaf2ff,stroke:#3570b7,color:#17365d,stroke-width:1px
+  classDef linkedAccount fill:#ffeaf1,stroke:#b6476b,color:#5b1f34,stroke-width:1px
+  classDef timeline fill:#fce7f3,stroke:#db2777,color:#831843,stroke-width:1px
+
+  class A,C,H,J userAction
+  class B,D,F,G appAction
+  class E linkedAccount
+  class I timeline
 ```
+
+#### 2. Connect email
+
+Settings → Account while **anonymous**. Keeps the same `app_user_id`.
+
+```mermaid
+flowchart TD
+  A[Enter email] --> B[Ensure anonymous session]
+  B --> C[updateUser — send code]
+  C --> D[Enter 8-digit code]
+  D --> E[Verify — OTP type email_change]
+  E --> F[Linked account]
+  F --> G[Pull / seed profile]
+  G --> H[Password optional later]
+
+  classDef userAction fill:#e7f6ed,stroke:#2f7d4c,color:#173a27,stroke-width:1px
+  classDef appAction fill:#eaf2ff,stroke:#3570b7,color:#17365d,stroke-width:1px
+  classDef anonymousAccount fill:#dbeafe,stroke:#2563eb,color:#1e3a5f,stroke-width:1px
+  classDef linkedAccount fill:#ffeaf1,stroke:#b6476b,color:#5b1f34,stroke-width:1px
+
+  class A,D,H userAction
+  class B,C,E,G appAction
+  class F linkedAccount
+```
+
+#### 3. Log in
+
+LoginScreen. Password or **Use code instead** (existing accounts only).
+
+```mermaid
+flowchart TD
+  A[Enter email] --> B{Method?}
+  B -->|Password| C[Enter email + password]
+  B -->|Use code| D[Send sign-in code]
+  D --> E[Enter 8-digit code]
+  E --> F[Verify — OTP type email]
+  C --> G[establishSignedInSession]
+  F --> G
+  G --> H[ensure-current-user]
+  H --> I[Force cloud restore]
+  I --> J{Returning account?}
+  J -->|Yes| K[Timeline]
+  J -->|No| L[Device onboarding]
+  L --> K
+
+  classDef userAction fill:#e7f6ed,stroke:#2f7d4c,color:#173a27,stroke-width:1px
+  classDef appAction fill:#eaf2ff,stroke:#3570b7,color:#17365d,stroke-width:1px
+  classDef decision fill:#fff3d8,stroke:#b7791f,color:#4a2f08,stroke-width:1px
+  classDef timeline fill:#fce7f3,stroke:#db2777,color:#831843,stroke-width:1px
+
+  class A,C,E,L userAction
+  class D,F,G,H,I appAction
+  class B,J decision
+  class K timeline
+```
+
+#### 4. Forgot password
+
+```mermaid
+flowchart TD
+  A[Enter email] --> B[Send recovery code]
+  B --> C[Enter 8-digit code]
+  C --> D[Verify — OTP type recovery]
+  D --> E[Set new password]
+  E --> F[finalizeConnectedSignIn]
+  F --> G[Same bootstrap as Log in]
+  G --> H{Returning account?}
+  H -->|Yes| I[Timeline]
+  H -->|No| J[Device onboarding]
+  J --> I
+
+  classDef userAction fill:#e7f6ed,stroke:#2f7d4c,color:#173a27,stroke-width:1px
+  classDef appAction fill:#eaf2ff,stroke:#3570b7,color:#17365d,stroke-width:1px
+  classDef decision fill:#fff3d8,stroke:#b7791f,color:#4a2f08,stroke-width:1px
+  classDef timeline fill:#fce7f3,stroke:#db2777,color:#831843,stroke-width:1px
+
+  class A,C,E userAction
+  class B,D,F,G appAction
+  class H decision
+  class I timeline
+  class J userAction
+```
+
+**Implementation notes:**
+
+- `verifyEmailSignUp`, `verifyEmailLink`, `verifySignInOtp`, and password reset each call `establishSignedInSession` (except recovery, which sets password first then `finalizeConnectedSignIn`).
+- `completeEmailAccountConnection` runs after linked sign-in/link: `ensure-current-user`, optional forced restore (`restoreRemoteAccountDataIfNeeded({ force: true })` on sign-in), pull/seed profile, pet sync.
+- Direct create does **not** skip device onboarding; returning **log in** can skip when `created_app_user: false` or cloud restore fills a ready timeline.
 
 ## Capability rules
 
@@ -191,26 +455,25 @@ Advanced editing can stay in the upgrade or future-feature bucket:
 ### Flow A — New user onboarding with anonymous account
 
 1. Open app
-2. Tap `Get started`
-3. App creates or restores anonymous session
+2. Tap `Start on this device`
+3. **No cloud account yet** — local workspace only
 4. User grants photo access
 5. User completes pet setup
-6. User lands in Timeline
-7. Later, user can connect email / Apple / Google from Settings or a soft reminder
+6. App creates anonymous Supabase session + `app_user_id`, then cloud sync
+7. User lands in Timeline
+8. Later, user can **connect email** (not Create account) from Settings or a soft reminder
 
 This remains the default Tailo experience.
 
 ### Flow B — Anonymous user connects email account
 
-1. User opens `Settings -> Account`
+1. User opens `Settings -> Account` (or timeline `SaveMemoriesLink`)
 2. Enters email
-3. App sends an **8-digit verification code**
-4. User enters the code
-5. Email identity is linked to the same Tailo user
-6. User sets a password if we require password-based email login
-7. App shows connected account profile
-
-**Rule:** if the app supports email + password login later, password setup should happen during or immediately after successful email verification.
+3. App ensures anonymous session, then `updateUser({ email })` and sends an **8-digit verification code**
+4. User enters the code (`verifyOtp` type `email_change`)
+5. Email identity is linked to the **same** Tailo `app_user_id`
+6. App pulls/seeds account profile from cloud
+7. User can set a password **optionally** later from Account settings (OTP access remains valid without one)
 
 ### Flow C — User directly registers with email
 
@@ -224,17 +487,20 @@ This remains the default Tailo experience.
 8. User lands on the timeline when onboarding completes
 9. Password can be added later from Account settings (optional)
 
-**Rule:** a linked account does **not** skip device onboarding. Cloud account identity and a local timeline are separate. `completeOnboardingForReturningLinkedUser` only auto-completes onboarding when a **ready local pet profile** already exists (returning user on this device).
+**Rule:** cloud account identity and local device setup are separate. New sign-ups and in-app email linking stay on onboarding until scan + pet setup finish. **Log-in** (`sign_in_with_password`, `verify_sign_in_otp`, password reset) auto-completes onboarding when `ensure-current-user` reports `created_app_user: false`, or when a **ready local pet profile** already exists on this device.
 
 This path should be quick and should not feel heavier than anonymous-first.
 
 ### Flow D — User logs in with email
 
 1. User chooses `Log in`
-2. Enters email + password
-3. App signs them in
+2. Enters email + password **or** uses **Use code instead** (OTP, existing accounts only)
+3. App signs them in via `establishSignedInSession`
 4. Backend resolves provider identity to `app_user_id`
-5. Tailo loads the connected account profile and synced data
+5. Tailo runs forced cloud restore (`get-account-profile`, `get-pet`, `bootstrap-timeline` when needed)
+6. Returning accounts skip device onboarding when `created_app_user: false`; otherwise device setup may still run
+
+**Cross-device restore limits (MVP):** bootstrap can hydrate existing cloud moments; ongoing `get-event-updates` is metadata-only for events already known locally. Moments first uploaded from another device may need a future hydration pass before they appear here.
 
 ### Flow E — Forgot password
 
@@ -245,7 +511,7 @@ Recommended mobile-first shape:
 3. App sends a verification code or reset flow email
 4. User verifies identity
 5. User sets a new password
-6. User returns to login
+6. Tailo finalizes the connected session and returns the user to the app/timeline
 
 **Recommendation:** use a short code flow on mobile rather than relying only on email links.
 
@@ -412,10 +678,10 @@ Current architecture direction also says:
 
 Local device direction also now says:
 
-- linked accounts should not share one device-local story by accident
-- local SQLite and workspace-scoped SecureStore state may be partitioned by `app_user_id`
-- multiple linked accounts on one device are supported at the storage layer for testing and future account switching
-- a first-class account switcher UX is still a separate feature from the storage foundation
+- first-run onboarding and anonymous → cloud bootstrap stay on one device-local SQLite database; cloud identity is stored as metadata (`app_user_id`, `remote_pet_id`, `remote_event_id`) instead of switching database files
+- local IDs remain device-scoped; cross-device merge and sync use remote IDs once they exist
+- existing workspace-scoped installs keep their stored workspace key for backwards compatibility, but auth/bootstrap no longer changes the active workspace
+- a first-class account switcher UX is still a separate feature; do not infer account switching from anonymous cloud bootstrap
 
 ---
 
@@ -437,15 +703,29 @@ Local device direction also now says:
 
 ## Change log
 
-| Date       | Change                                                                                                                                                |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-05-19 | Direct sign-up routes to **device onboarding** before timeline; returning linked sign-in skips onboarding only when a local pet profile exists.      |
-| 2026-05-19 | **Create account** uses direct email OTP signup (`requestEmailSignUp`); **Save/link memories** keeps anonymous `updateUser` + `email_change` OTP.     |
-| 2026-05-19 | `app_user_id` ownership migration: `pets`/`events`, RLS, storage paths, `upsert-account-profile`, Account settings profile fields.                    |
-| 2026-05-19 | Phase 1 identity foundation: `app_users`, `user_identities`, `account_profiles`, `ensure-current-user`, mobile `app_user_id` cache + dev diagnostics. |
-| 2026-05-19 | Phase 4 account profile: connected vs anonymous surfaces, sign-in methods list, profile editing, Settings summary for linked accounts.                |
-| 2026-05-19 | Phase 2 email flows complete: `completeEmailAccountConnection` after link/sign-in; `authEdgeCasePolicy` in `@tailo/backend-core`; B2.4.0 done.        |
-| 2026-05-20 | Mobile logout gate, password login, forgot-password reset flow, and auth loading hardening.                                                           |
+| Date       | Change                                                                                                                                                                                  |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-24 | Anonymous → cloud bootstrap no longer switches local SQLite workspaces; mobile persists cloud IDs onto existing local records and keeps local IDs device-scoped.                        |
+| 2026-05-24 | Stale SecureStore reconciliation clears global identity/auth state for fresh local databases, including legacy workspace installs, so Keychain leftovers do not resurrect old accounts. |
+| 2026-05-24 | All auth flow diagrams share install-to-registration color legend (user/app/decision/account-state).                                                                                    |
+| 2026-05-24 | Install-to-registration decision tree documents **no account**, **anonymous account**, and **linked account** states; deferred anonymous cloud until pet profile.                       |
+| 2026-05-24 | Anonymous Supabase session + `app_user_id` are created **after first pet profile**, not at app launch; startup restores session only when pet profile or prior session exists.          |
+| 2026-05-24 | Onboarding welcome: `Start on this device` stays primary for anonymous users (even with partial local data); sign-in is emphasized only when already linked.                            |
+| 2026-05-24 | Returning-account sign-in forces cloud restore/backfill; cloud pet wins over partial local pet state and bootstrap pagination uses `(timestamp, event_id)` boundaries.                  |
+| 2026-05-20 | Cross-device sign-in: `get-account-profile` + `get-pet` + `bootstrap-timeline` hydrate user profile, pet, and cloud moments; seed empty cloud prefs only after pull.                    |
+| 2026-05-19 | Cross-device sign-in: `get-pet` + `bootstrap-timeline` hydrate local pet profile and cloud moments on devices without local timeline data.                                              |
+| 2026-05-19 | Per-user workspace DBs align install ids without wiping Keychain; workspace is always `app_<app_user_id>` (not Supabase auth id).                                                       |
+| 2026-05-19 | Sign-in awaits workspace migration + legacy link before UI reload; per-user workspace DBs no longer wipe migrated SecureStore on first open.                                            |
+| 2026-05-19 | Log-in (`password` / OTP) skips onboarding for existing cloud accounts (`created_app_user: false`); workspace selection prefers Tailo `app_user_id`.                                    |
+| 2026-05-19 | Direct sign-up routes to **device onboarding** before timeline; returning linked sign-in skips onboarding only when a local pet profile exists.                                         |
+| 2026-05-19 | **Create account** uses direct email OTP signup (`requestEmailSignUp`); **Save/link memories** keeps anonymous `updateUser` + `email_change` OTP.                                       |
+| 2026-05-19 | `app_user_id` ownership migration: `pets`/`events`, RLS, storage paths, `upsert-account-profile`, Account settings profile fields.                                                      |
+| 2026-05-19 | Phase 1 identity foundation: `app_users`, `user_identities`, `account_profiles`, `ensure-current-user`, mobile `app_user_id` cache + dev diagnostics.                                   |
+| 2026-05-19 | Phase 4 account profile: connected vs anonymous surfaces, sign-in methods list, profile editing, Settings summary for linked accounts.                                                  |
+| 2026-05-19 | Phase 2 email flows complete: `completeEmailAccountConnection` after link/sign-in; `authEdgeCasePolicy` in `@tailo/backend-core`; B2.4.0 done.                                          |
+| 2026-05-20 | Mobile logout gate, password login, forgot-password reset flow, and auth loading hardening.                                                                                             |
+| 2026-05-24 | Forgot-password documentation now matches the mobile code: successful reset finalizes sign-in and returns to the app/timeline.                                                          |
+| 2026-05-24 | Documented cross-device sync gap: initial restore exists, but later remote-created moments need media hydration and cross-device dedupe work.                                           |
 
 ## Recommended implementation plan
 
@@ -494,7 +774,7 @@ Local device direction also now says:
 ### Mobile
 
 - `AppShell` shows onboarding when `onboarding.completed` is false (anonymous **or** linked); timeline only after device setup
-- `completeOnboardingForReturningLinkedUser` skips onboarding only when `hasReadyLocalPetProfile()` is true
+- `completeOnboardingForReturningLinkedUser` skips onboarding for explicit log-in when the cloud account already exists, or when `hasReadyLocalPetProfile()` is true
 - `Create account` closes the account modal after verify and continues onboarding on the main shell
 - onboarding entry points for `Get started`, `Create account`, `Log in`
 - email verification-code screens
@@ -512,6 +792,7 @@ Local device direction also now says:
 - provider resolution to `app_user_id`
 - email/password auth support
 - password reset support
+- remove legacy `profiles` table writes after `app_users` / `user_identities` became canonical
 
 ### Shared contracts
 

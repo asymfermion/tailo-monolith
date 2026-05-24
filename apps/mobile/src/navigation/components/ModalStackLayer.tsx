@@ -14,11 +14,15 @@ import {
   MODAL_PUSH_DURATION_MS,
   getModalDismissTargetX,
 } from '../modalSwipeBack';
+import {
+  pruneSeenModalKeys,
+  shouldAnimateModalEntry,
+} from '../modalStackAnimation';
 import { ModalSwipeBack } from './ModalSwipeBack';
 import { ModalShell } from '../ModalShell';
 
 type ModalStackLayerProps = {
-  activeModal: ModalRoute | undefined;
+  modalStack: ModalRoute[];
   onPop: () => void;
   underlay: ReactNode;
 };
@@ -48,18 +52,104 @@ function createModalStackLayerStyles({ colors }: AppearanceContextValue) {
   };
 }
 
+type ModalStackEntryProps = {
+  animateIn: boolean;
+  containerWidth: number;
+  isTop: boolean;
+  onPop: () => void;
+  route: ModalRoute;
+  styles: ReturnType<typeof createModalStackLayerStyles>;
+};
+
+function ModalStackEntry({
+  animateIn,
+  containerWidth,
+  isTop,
+  onPop,
+  route,
+  styles,
+}: ModalStackEntryProps) {
+  const dragX = useRef(new Animated.Value(0)).current;
+  const hasPlayedEntryAnimationRef = useRef(false);
+
+  useEffect(() => {
+    hasPlayedEntryAnimationRef.current = false;
+  }, [route.key]);
+
+  useEffect(() => {
+    if (!isTop) {
+      dragX.setValue(0);
+      return;
+    }
+
+    if (!animateIn || hasPlayedEntryAnimationRef.current) {
+      dragX.setValue(0);
+      return;
+    }
+
+    hasPlayedEntryAnimationRef.current = true;
+    const openFromX = getModalDismissTargetX(containerWidth);
+    dragX.setValue(openFromX);
+    Animated.timing(dragX, {
+      duration: MODAL_PUSH_DURATION_MS,
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  }, [animateIn, containerWidth, dragX, isTop, route.key]);
+
+  const cardShadowOpacity = dragX.interpolate({
+    extrapolate: 'clamp',
+    inputRange: [0, 20],
+    outputRange: [0.16, 0],
+  });
+
+  return (
+    <View pointerEvents={isTop ? 'box-none' : 'none'} style={styles.modalLayer}>
+      <ModalSwipeBack
+        containerWidth={containerWidth}
+        dragX={dragX}
+        enabled={isTop}
+        modalKey={route.key}
+        onBack={onPop}
+      >
+        <Animated.View
+          style={[
+            styles.modalCard,
+            {
+              shadowOpacity: isTop ? cardShadowOpacity : 0,
+              transform: [{ translateX: isTop ? dragX : 0 }],
+            },
+          ]}
+        >
+          <ModalShell route={route} />
+        </Animated.View>
+      </ModalSwipeBack>
+    </View>
+  );
+}
+
 export function ModalStackLayer({
-  activeModal,
+  modalStack,
   onPop,
   underlay,
 }: ModalStackLayerProps) {
-  const dragX = useRef(new Animated.Value(0)).current;
+  const seenModalKeysRef = useRef<Set<string>>(new Set());
   const [containerWidth, setContainerWidth] = useState(FALLBACK_WIDTH);
   const styles = useThemedStyles(createModalStackLayerStyles);
 
-  const modalKey = activeModal
-    ? `${activeModal.name}:${JSON.stringify(activeModal.params ?? {})}`
-    : null;
+  seenModalKeysRef.current = pruneSeenModalKeys(
+    modalStack,
+    seenModalKeysRef.current,
+  );
+
+  const topModal = modalStack.at(-1);
+  const topAnimateIn =
+    topModal !== undefined &&
+    shouldAnimateModalEntry(topModal.key, seenModalKeysRef.current);
+
+  if (topModal && topAnimateIn) {
+    seenModalKeysRef.current.add(topModal.key);
+  }
 
   const handleLayout = (event: LayoutChangeEvent) => {
     const width = event.nativeEvent.layout.width;
@@ -69,53 +159,21 @@ export function ModalStackLayer({
     }
   };
 
-  useEffect(() => {
-    if (!modalKey) {
-      dragX.setValue(0);
-      return;
-    }
-
-    const openFromX = getModalDismissTargetX(containerWidth);
-    dragX.setValue(openFromX);
-    Animated.timing(dragX, {
-      duration: MODAL_PUSH_DURATION_MS,
-      toValue: 0,
-      useNativeDriver: true,
-    }).start();
-  }, [containerWidth, dragX, modalKey]);
-
-  const cardShadowOpacity = dragX.interpolate({
-    extrapolate: 'clamp',
-    inputRange: [0, 20],
-    outputRange: [0.16, 0],
-  });
-
   return (
     <View onLayout={handleLayout} style={styles.stack}>
       <View style={styles.underlay}>{underlay}</View>
 
-      {activeModal ? (
-        <View pointerEvents="box-none" style={styles.modalLayer}>
-          <ModalSwipeBack
-            containerWidth={containerWidth}
-            dragX={dragX}
-            modalKey={modalKey!}
-            onBack={onPop}
-          >
-            <Animated.View
-              style={[
-                styles.modalCard,
-                {
-                  shadowOpacity: cardShadowOpacity,
-                  transform: [{ translateX: dragX }],
-                },
-              ]}
-            >
-              <ModalShell route={activeModal} />
-            </Animated.View>
-          </ModalSwipeBack>
-        </View>
-      ) : null}
+      {modalStack.map((route, index) => (
+        <ModalStackEntry
+          key={route.key}
+          animateIn={route.key === topModal?.key && topAnimateIn}
+          containerWidth={containerWidth}
+          isTop={index === modalStack.length - 1}
+          onPop={onPop}
+          route={route}
+          styles={styles}
+        />
+      ))}
     </View>
   );
 }

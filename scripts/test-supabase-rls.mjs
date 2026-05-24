@@ -6,10 +6,42 @@
  *   npm run test:supabase:rls
  *   npm run test:supabase:rls -- --linked
  */
-import { existsSync, readFileSync } from 'fs';
+import {
+  existsSync,
+  lstatSync,
+  readFileSync,
+  symlinkSync,
+  unlinkSync,
+} from 'fs';
 import { spawnSync } from 'child_process';
 
 const TEST_FILE = 'supabase/tests/rls_cross_user_smoke.sql';
+const ROOT_TEMPLATES_LINK = 'templates';
+const SUPABASE_TEMPLATES_DIR = 'supabase/templates';
+let createdTemplatesLink = false;
+
+function ensureTemplateConfigPaths() {
+  if (existsSync(ROOT_TEMPLATES_LINK)) {
+    if (!lstatSync(ROOT_TEMPLATES_LINK).isSymbolicLink()) {
+      console.error(
+        `error: ${ROOT_TEMPLATES_LINK} exists and is not a symlink to ${SUPABASE_TEMPLATES_DIR}`,
+      );
+      process.exit(1);
+    }
+    return;
+  }
+
+  symlinkSync(SUPABASE_TEMPLATES_DIR, ROOT_TEMPLATES_LINK, 'dir');
+  createdTemplatesLink = true;
+}
+
+function cleanupTemplateConfigPaths() {
+  if (createdTemplatesLink) {
+    unlinkSync(ROOT_TEMPLATES_LINK);
+  }
+}
+
+process.on('exit', cleanupTemplateConfigPaths);
 
 function loadEnv(file) {
   const out = {};
@@ -39,12 +71,14 @@ function runPsql(databaseUrl) {
   const result = spawnSync(
     'psql',
     [databaseUrl, '-v', 'ON_ERROR_STOP=1', '-f', TEST_FILE],
-    { stdio: 'inherit' }
+    { stdio: 'inherit' },
   );
   process.exit(result.status ?? 1);
 }
 
 function runSupabaseDbQuery(extraArgs) {
+  ensureTemplateConfigPaths();
+
   const args = ['supabase', 'db', 'query', ...extraArgs, '--file', TEST_FILE];
   console.log(`Running: npx ${args.join(' ')}\n`);
   const result = spawnSync('npx', args, {
@@ -72,6 +106,6 @@ console.error(
   'RLS smoke tests need a Postgres connection.\n' +
     '  Option A: npx supabase link && npm run test:supabase:rls -- --linked\n' +
     '  Option B: set DATABASE_URL in supabase/.env.local && npm run test:supabase:rls\n' +
-    '  (requires psql on PATH for Option B)\n'
+    '  (requires psql on PATH for Option B)\n',
 );
 process.exit(1);

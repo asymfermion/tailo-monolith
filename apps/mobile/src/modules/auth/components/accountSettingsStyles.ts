@@ -37,6 +37,9 @@ export function createAccountSettingsStyles({
       marginTop: spacing.lg,
       marginBottom: spacing.sm,
     },
+    profileFieldLabel: {
+      marginTop: spacing.xl,
+    },
     codeHint: {
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),

@@ -173,10 +173,6 @@ begin
   into v_app_user_id
   from public.ensure_app_user_for_auth(pg_temp.test_user_a(), null, false) e;
 
-  insert into public.profiles (user_id)
-  values (pg_temp.test_user_a())
-  on conflict (user_id) do nothing;
-
   insert into public.anonymous_id_links (anonymous_user_id, user_id, app_user_id)
   values ('anon-smoke-a', pg_temp.test_user_a(), v_app_user_id)
   on conflict (anonymous_user_id) do nothing;
@@ -297,15 +293,6 @@ select pg_temp.assert_count(
 
 select pg_temp.assert_count(
   $$
-    select 1 from public.profiles
-    where user_id = pg_temp.test_user_a()
-  $$,
-  0,
-  'user B cannot select user A profiles'
-);
-
-select pg_temp.assert_count(
-  $$
     select 1 from public.anonymous_id_links
     where user_id = pg_temp.test_user_a()
   $$,
@@ -414,14 +401,6 @@ select pg_temp.assert_raises_rls(
     pg_temp.user_a_event_id()
   ),
   'user B cannot insert event_media on user A event'
-);
-
-select pg_temp.assert_raises_rls(
-  $$
-    insert into public.profiles (user_id)
-    values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid)
-  $$,
-  'user B cannot insert profile for user A'
 );
 
 select pg_temp.assert_raises_rls(

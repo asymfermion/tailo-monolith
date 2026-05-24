@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { AuthFormTextInput } from '@/components/AuthFormTextInput';
@@ -6,6 +6,10 @@ import { SocialSignInPlaceholders } from '@/components/SocialSignInPlaceholders'
 import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
 import { useAppearance, useThemedStyles } from '@/lib/appearance';
+import {
+  isAuthEmailSubmitReady,
+  isAuthOtpSubmitReady,
+} from '@/lib/authFormReadiness';
 import { useNavigation } from '@/navigation/NavigationContext';
 import {
   isValidAccountEmail,
@@ -22,13 +26,17 @@ type FormStep = 'email' | 'code';
 
 type AnonymousAccountUpgradeFormProps = {
   mode: 'link' | 'create';
+  presentation?: 'standalone' | 'profile';
   signInPresentation?: 'pop';
+  onLinkFlowStart?: () => void;
   onLinked: () => void;
 };
 
 export function AnonymousAccountUpgradeForm({
   mode,
+  presentation = 'standalone',
   signInPresentation,
+  onLinkFlowStart,
   onLinked,
 }: AnonymousAccountUpgradeFormProps) {
   const navigation = useNavigation();
@@ -37,10 +45,20 @@ export function AnonymousAccountUpgradeForm({
   const emailRef = useRef('');
   const codeRef = useRef('');
   const [codeEmail, setCodeEmail] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [codeInput, setCodeInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { colors } = useAppearance();
   const styles = useThemedStyles(createAccountSettingsStyles);
+  const handleEmailChange = useCallback((value: string) => {
+    setEmailInput(value);
+  }, []);
+  const handleCodeChange = useCallback((value: string) => {
+    setCodeInput(value);
+  }, []);
+  const isEmailStepReady = isAuthEmailSubmitReady(emailInput);
+  const isCodeStepReady = isAuthOtpSubmitReady(codeInput);
 
   async function handleSendCode() {
     setErrorMessage(null);
@@ -52,6 +70,7 @@ export function AnonymousAccountUpgradeForm({
     }
 
     setIsSubmitting(true);
+    onLinkFlowStart?.();
     const result =
       mode === 'create'
         ? await requestEmailSignUp(email)
@@ -82,6 +101,12 @@ export function AnonymousAccountUpgradeForm({
     setErrorMessage(null);
     const email = emailRef.current;
     const code = codeRef.current;
+
+    if (!isAuthOtpSubmitReady(code)) {
+      setErrorMessage(t('account.errors.codeRequired'));
+      return;
+    }
+
     setIsSubmitting(true);
 
     const result =
@@ -105,40 +130,42 @@ export function AnonymousAccountUpgradeForm({
     onLinked();
   }
 
+  const showStandaloneHeader = presentation === 'standalone';
+  const isProfileLink = presentation === 'profile' && mode === 'link';
+
   return (
     <>
-      <Text style={styles.title}>
-        {mode === 'create' ? t('account.createTitle') : t('account.title')}
-      </Text>
-      <Text style={styles.body}>
-        {mode === 'create' ? t('account.createBody') : t('account.body')}
-      </Text>
-
-      {mode !== 'create' ? (
-        <View style={styles.profileCard}>
-          <View style={[styles.profileRow, styles.profileRowLast]}>
-            <Text style={styles.profileLabel}>
-              {t('account.profileStatusLabel')}
-            </Text>
-            <Text style={styles.profileValue}>
-              {t('account.profileStatusAnonymous')}
-            </Text>
-          </View>
-        </View>
+      {showStandaloneHeader ? (
+        <>
+          <Text style={styles.title}>
+            {mode === 'create' ? t('account.createTitle') : t('account.title')}
+          </Text>
+          <Text style={styles.body}>
+            {mode === 'create' ? t('account.createBody') : t('account.body')}
+          </Text>
+        </>
       ) : null}
 
       {step === 'email' ? (
         <>
-          <Text style={styles.fieldLabel}>{t('account.emailLabel')}</Text>
+          <Text
+            style={[
+              styles.fieldLabel,
+              isProfileLink ? styles.profileFieldLabel : null,
+            ]}
+          >
+            {t('account.emailLabel')}
+          </Text>
           <AuthFormTextInput
             kind="email"
             placeholder={t('account.emailPlaceholder')}
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             valueRef={emailRef}
+            onValueChange={handleEmailChange}
           />
           <PrimaryButton
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isEmailStepReady}
             label={
               isSubmitting ? t('account.sendingCode') : t('account.sendCode')
             }
@@ -158,9 +185,10 @@ export function AnonymousAccountUpgradeForm({
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             valueRef={codeRef}
+            onValueChange={handleCodeChange}
           />
           <PrimaryButton
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isCodeStepReady}
             label={
               isSubmitting ? t('account.verifying') : t('account.verifyCode')
             }
@@ -173,6 +201,7 @@ export function AnonymousAccountUpgradeForm({
             onPress={() => {
               setStep('email');
               codeRef.current = '';
+              setCodeInput('');
               setErrorMessage(null);
             }}
           >
@@ -183,23 +212,27 @@ export function AnonymousAccountUpgradeForm({
         </>
       )}
 
-      <SocialSignInPlaceholders style={{ marginTop: spacing.lg }} />
-      <Pressable
-        accessibilityRole="button"
-        style={styles.secondaryAction}
-        onPress={() => {
-          if (signInPresentation === 'pop') {
-            navigation.pop();
-            return;
-          }
+      {step === 'email' ? (
+        <>
+          <SocialSignInPlaceholders style={{ marginTop: spacing.lg }} />
+          <Pressable
+            accessibilityRole="button"
+            style={styles.secondaryAction}
+            onPress={() => {
+              if (signInPresentation === 'pop') {
+                navigation.pop();
+                return;
+              }
 
-          navigation.push('Login', { variant: 'welcome' });
-        }}
-      >
-        <Text style={styles.secondaryActionText}>
-          {t('common.alreadyHaveAccountSignIn')}
-        </Text>
-      </Pressable>
+              navigation.push('Login', { variant: 'welcome' });
+            }}
+          >
+            <Text style={styles.secondaryActionText}>
+              {t('common.alreadyHaveAccountSignIn')}
+            </Text>
+          </Pressable>
+        </>
+      ) : null}
 
       {errorMessage ? (
         <Text style={styles.errorText}>{errorMessage}</Text>

@@ -1,6 +1,10 @@
-import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
+import {
+  ACCOUNT_PASSWORD_REQUIREMENTS_MESSAGE,
+  isStrongPassword,
+} from '@tailo/shared';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
 import { logAuth } from '../authLogger';
 
 import {
@@ -25,7 +29,6 @@ import type {
   VerifySignInResult,
 } from '../authTypes';
 
-const MIN_PASSWORD_LENGTH = 8;
 const EMAIL_OTP_LENGTH = 8;
 
 function mapUser(user: {
@@ -108,7 +111,7 @@ function passwordErrorMessage(message: string): string {
     normalized.includes('password should be at least') ||
     normalized.includes('password is too short')
   ) {
-    return `Use at least ${MIN_PASSWORD_LENGTH} characters for your password.`;
+    return ACCOUNT_PASSWORD_REQUIREMENTS_MESSAGE;
   }
 
   if (normalized.includes('invalid login credentials')) {
@@ -394,10 +397,10 @@ export function createSupabaseAuthProvider(): AuthProvider {
         return { status: 'skipped' };
       }
 
-      if (password.length < MIN_PASSWORD_LENGTH) {
+      if (!isStrongPassword(password)) {
         return {
           status: 'error',
-          message: `Use at least ${MIN_PASSWORD_LENGTH} characters for your password.`,
+          message: ACCOUNT_PASSWORD_REQUIREMENTS_MESSAGE,
         };
       }
 

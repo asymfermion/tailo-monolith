@@ -3,6 +3,7 @@ import {
   isStrongPassword,
 } from '@tailo/shared';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { Linking } from 'react-native';
 
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
 import { logAuth } from '../authLogger';
@@ -27,9 +28,12 @@ import type {
   VerifyEmailSignUpResult,
   VerifyPasswordResetResult,
   VerifySignInResult,
+  SocialSignInResult,
 } from '../authTypes';
 
 const EMAIL_OTP_LENGTH = 8;
+const OAUTH_REDIRECT_URI = 'tailo://auth/callback';
+const OAUTH_TIMEOUT_MS = 120_000;
 
 function mapUser(user: {
   id: string;
@@ -119,6 +123,122 @@ function passwordErrorMessage(message: string): string {
   }
 
   return message || 'Could not update your password.';
+}
+
+function parseUrlParams(url: string): {
+  query: URLSearchParams;
+  hash: URLSearchParams;
+} {
+  const parsed = new URL(url);
+  const query = parsed.searchParams;
+  const hash = new URLSearchParams(parsed.hash.replace(/^#/, ''));
+  return { query, hash };
+}
+
+function normalizeDisplayName(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+async function completeOAuthInApp(
+  client: SupabaseClient,
+  authUrl: string,
+): Promise<{
+  status: 'signed_in';
+  session: AuthSession;
+} | { status: 'error'; message: string }> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      subscription.remove();
+      resolve({
+        status: 'error',
+        message: 'Google sign-in timed out. Please try again.',
+      });
+    }, OAUTH_TIMEOUT_MS);
+
+    const subscription = Linking.addEventListener('url', async ({ url }) => {
+      if (!url.startsWith(OAUTH_REDIRECT_URI)) {
+        return;
+      }
+
+      subscription.remove();
+      clearTimeout(timeout);
+
+      try {
+        const { query, hash } = parseUrlParams(url);
+        const errorDescription =
+          hash.get('error_description') ?? query.get('error_description');
+
+        if (errorDescription) {
+          resolve({
+            status: 'error',
+            message: decodeURIComponent(errorDescription),
+          });
+          return;
+        }
+
+        const accessToken = hash.get('access_token');
+        const refreshToken = hash.get('refresh_token');
+        const code = query.get('code');
+
+        if (accessToken && refreshToken) {
+          const { error } = await client.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            resolve({ status: 'error', message: error.message });
+            return;
+          }
+        } else if (code) {
+          const { error } = await client.auth.exchangeCodeForSession(code);
+
+          if (error) {
+            resolve({ status: 'error', message: error.message });
+            return;
+          }
+        }
+
+        const {
+          data: { session },
+        } = await client.auth.getSession();
+        const user = session?.user;
+
+        if (!user) {
+          resolve({
+            status: 'error',
+            message: 'Could not complete Google sign-in.',
+          });
+          return;
+        }
+
+        resolve({ status: 'signed_in', session: mapUser(user) });
+      } catch (error) {
+        resolve({
+          status: 'error',
+          message:
+            error instanceof Error ? error.message : 'Google sign-in failed.',
+        });
+      }
+    });
+
+    void Linking.openURL(authUrl).catch((error) => {
+      subscription.remove();
+      clearTimeout(timeout);
+      resolve({
+        status: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Could not open Google sign-in.',
+      });
+    });
+  });
 }
 
 export function createSupabaseAuthProvider(): AuthProvider {
@@ -631,6 +751,136 @@ export function createSupabaseAuthProvider(): AuthProvider {
         status: 'signed_in',
         session,
       };
+    },
+
+    async signInWithGoogle(
+      options?: {
+        mode?: 'sign_in' | 'link';
+      },
+    ): Promise<SocialSignInResult> {
+      if (!isSupabaseConfigured()) {
+        return { status: 'skipped' };
+      }
+
+      const client = getSupabaseClient();
+      const mode = options?.mode ?? 'sign_in';
+
+      if (mode === 'link') {
+        const {
+          data: { session },
+        } = await client.auth.getSession();
+
+        if (!session?.user?.is_anonymous) {
+          return {
+            status: 'error',
+            message: 'Google can only be linked from an anonymous session.',
+          };
+        }
+
+        const { data, error } = await client.auth.linkIdentity({
+          provider: 'google',
+          options: {
+            redirectTo: OAUTH_REDIRECT_URI,
+            skipBrowserRedirect: true,
+          },
+        });
+
+        if (error) {
+          return { status: 'error', message: error.message };
+        }
+
+        if (!data?.url) {
+          return {
+            status: 'error',
+            message: 'Google link flow did not start.',
+          };
+        }
+
+        const result = await completeOAuthInApp(client, data.url);
+
+        if (result.status === 'error') {
+          return result;
+        }
+
+        if (result.session.isAnonymous) {
+          return {
+            status: 'error',
+            message: 'Google account was not linked. Please try again.',
+          };
+        }
+
+        return result;
+      }
+
+      const {
+        data: { session },
+      } = await client.auth.getSession();
+
+      if (session?.user?.is_anonymous) {
+        const { error: signOutError } = await client.auth.signOut();
+
+        if (signOutError) {
+          return { status: 'error', message: signOutError.message };
+        }
+      }
+
+      const { data, error } = await client.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: OAUTH_REDIRECT_URI,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) {
+        return { status: 'error', message: error.message };
+      }
+
+      if (!data?.url) {
+        return { status: 'error', message: 'Google sign-in did not start.' };
+      }
+
+      const result = await completeOAuthInApp(client, data.url);
+
+      if (result.status === 'error') {
+        return result;
+      }
+
+      if (result.session.isAnonymous) {
+        return {
+          status: 'error',
+          message: 'This Google account is not linked to a saved account yet.',
+        };
+      }
+
+      return result;
+    },
+
+    async getIdentityDisplayName(): Promise<string | null> {
+      if (!isSupabaseConfigured()) {
+        return null;
+      }
+
+      const {
+        data: { user: currentUser },
+      } = await getSupabaseClient().auth.getUser();
+
+      const user =
+        currentUser ??
+        (await getSupabaseClient().auth.getSession()).data.session?.user ??
+        null;
+
+      if (!user) {
+        return null;
+      }
+
+      const metadata = user.user_metadata ?? {};
+
+      return (
+        normalizeDisplayName(metadata.full_name) ??
+        normalizeDisplayName(metadata.name) ??
+        null
+      );
     },
 
     async signOut(): Promise<SignOutResult> {

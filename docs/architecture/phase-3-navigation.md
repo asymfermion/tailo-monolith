@@ -48,13 +48,14 @@ Implementation: `modalStack` reducer + `ModalShell` in `NavigationContext`.
 
 ## Change log
 
-| Date       | Change                                                                                    |
-| ---------- | ----------------------------------------------------------------------------------------- |
-| 2026-05-20 | Responsive layout helpers, safe-area on scroll headers, `supportsTablet`, AGENTS.md rules |
-| 2026-05-20 | Replace single `Home` stack with tab shell + modal stack; `HomeScreen` → `TimelineScreen` |
-| 2026-05-19 | Floating icon tab bar (home / paw / settings); Timeline labeled Home in copy & a11y       |
-| 2026-05-19 | Tab bar overlays content; scroll padding only (no shell bottom reserved band)             |
-| 2026-05-19 | Glass tab bar via `expo-blur` (`systemChromeMaterialLight` on iOS)                        |
-| 2026-05-19 | Keep `MainTabShell` mounted under modals so timeline scroll position survives back        |
-| 2026-05-19 | Modal stack: detail card slides over fixed timeline (edge swipe + push/pop)               |
-| 2026-05-19 | Main tab horizontal pager (swipe Timeline ↔ Pet ↔ Settings); back btn aligned             |
+| Date       | Change                                                                                                                                                                                 |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-25 | Save-memories reminder now appears only after timeline value and follows cooldown/snooze rules; anonymous scanning stays recent-only while linked accounts can run historical backfill |
+| 2026-05-20 | Responsive layout helpers, safe-area on scroll headers, `supportsTablet`, AGENTS.md rules                                                                                              |
+| 2026-05-20 | Replace single `Home` stack with tab shell + modal stack; `HomeScreen` → `TimelineScreen`                                                                                              |
+| 2026-05-19 | Floating icon tab bar (home / paw / settings); Timeline labeled Home in copy & a11y                                                                                                    |
+| 2026-05-19 | Tab bar overlays content; scroll padding only (no shell bottom reserved band)                                                                                                          |
+| 2026-05-19 | Glass tab bar via `expo-blur` (`systemChromeMaterialLight` on iOS)                                                                                                                     |
+| 2026-05-19 | Keep `MainTabShell` mounted under modals so timeline scroll position survives back                                                                                                     |
+| 2026-05-19 | Modal stack: detail card slides over fixed timeline (edge swipe + push/pop)                                                                                                            |
+| 2026-05-19 | Main tab horizontal pager (swipe Timeline ↔ Pet ↔ Settings); back btn aligned                                                                                                          |

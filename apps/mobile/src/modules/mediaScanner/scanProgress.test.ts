@@ -79,6 +79,21 @@ describe('getScanPipelineSteps', () => {
     expect(steps.find((step) => step.id === 'scan')?.status).toBe('active');
     expect(steps.find((step) => step.id === 'detect')?.status).toBe('pending');
   });
+
+  it('keeps best picks pending until initial scan is complete', () => {
+    const beforeComplete = getScanPipelineSteps(baseState);
+    const afterComplete = getScanPipelineSteps({
+      ...baseState,
+      initialScanCompleted: true,
+    });
+
+    expect(beforeComplete.find((step) => step.id === 'select')?.status).toBe(
+      'pending',
+    );
+    expect(afterComplete.find((step) => step.id === 'select')?.status).toBe(
+      'complete',
+    );
+  });
 });
 
 describe('getScanProgressDetail', () => {

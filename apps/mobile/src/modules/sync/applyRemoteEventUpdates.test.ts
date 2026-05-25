@@ -4,6 +4,7 @@ import { getLocalEventById, markLocalEventDeleted } from '@/db/localEvents';
 import { isLocalEventTombstoned } from '@/db/localEventTombstones';
 
 import { applyRemoteEventUpdates } from './applyRemoteEventUpdates';
+import { hydrateRemoteEventsBySourceLocalEventIds } from './hydratedCloudEvents';
 
 jest.mock('@/db/localEvents', () => ({
   getLocalEventById: jest.fn(),
@@ -18,12 +19,90 @@ jest.mock('@/db/eventSyncLock', () => ({
   acquireEventSyncLock: jest.fn(),
 }));
 
+jest.mock('./hydratedCloudEvents', () => ({
+  hydrateRemoteEventsBySourceLocalEventIds: jest.fn(),
+}));
+
 describe('applyRemoteEventUpdates', () => {
   const database = {} as SQLite.SQLiteDatabase;
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(isLocalEventTombstoned).mockResolvedValue(false);
+    jest
+      .mocked(hydrateRemoteEventsBySourceLocalEventIds)
+      .mockResolvedValue({ status: 'ok', hydratedCount: 0 });
+  });
+
+  it('hydrates unknown remote moments with media when poll sees missing local rows', async () => {
+    jest.mocked(getLocalEventById).mockResolvedValue(null);
+    jest
+      .mocked(hydrateRemoteEventsBySourceLocalEventIds)
+      .mockResolvedValue({ status: 'ok', hydratedCount: 1 });
+
+    const applied = await applyRemoteEventUpdates(database, [
+      {
+        event_id: 'remote-2',
+        source_local_event_id: 'event-missing',
+        event_type: 'play',
+        caption: 'Cloud caption',
+        caption_source: 'ai',
+        is_favorite: false,
+        sync_version: 2,
+        updated_at: '2026-05-20T12:00:00.000Z',
+        user_edited_caption: false,
+        user_edited_event_type: false,
+        ai_job_status: 'done',
+        pet_validation_status: 'valid',
+        deleted_at: null,
+      },
+    ]);
+
+    expect(hydrateRemoteEventsBySourceLocalEventIds).toHaveBeenCalledWith(
+      database,
+      ['event-missing'],
+    );
+    expect(applied).toBe(1);
+  });
+
+  it('does not hydrate missing events when cloud row is soft-deleted or rejected', async () => {
+    jest.mocked(getLocalEventById).mockResolvedValue(null);
+
+    const applied = await applyRemoteEventUpdates(database, [
+      {
+        event_id: 'remote-1',
+        source_local_event_id: 'event-soft-deleted',
+        event_type: 'unknown',
+        caption: null,
+        caption_source: 'placeholder',
+        is_favorite: false,
+        sync_version: 1,
+        updated_at: '2026-05-20T12:00:00.000Z',
+        user_edited_caption: false,
+        user_edited_event_type: false,
+        ai_job_status: 'done',
+        pet_validation_status: 'valid',
+        deleted_at: '2026-05-20T12:00:00.000Z',
+      },
+      {
+        event_id: 'remote-2',
+        source_local_event_id: 'event-rejected',
+        event_type: 'unknown',
+        caption: null,
+        caption_source: 'placeholder',
+        is_favorite: false,
+        sync_version: 1,
+        updated_at: '2026-05-20T12:00:00.000Z',
+        user_edited_caption: false,
+        user_edited_event_type: false,
+        ai_job_status: 'done',
+        pet_validation_status: 'rejected',
+        deleted_at: null,
+      },
+    ]);
+
+    expect(hydrateRemoteEventsBySourceLocalEventIds).not.toHaveBeenCalled();
+    expect(applied).toBe(0);
   });
 
   it('soft-deletes local moment when cloud sends deleted_at', async () => {

@@ -64,6 +64,9 @@ export const en = {
       'Tailo looks through recent photos on this device to find pet moments — you can allow all photos or pick selected ones.',
     welcomeTextNoAccount:
       'Start without an account. Tailo looks through recent photos on this device to find pet moments — you can allow all photos or pick selected ones.',
+    privacyConsentText:
+      'I understand Tailo scans photos on this device to find pet moments, and only selected moments are synced when I connect an account.',
+    privacyConsentRequired: 'Please confirm to continue.',
     continueWithoutPhotos: 'Continue Without Photos',
     findingMomentsEyebrow: 'Finding moments',
     scanActiveText: 'Tailo is looking through recent photos on this device.',
@@ -182,6 +185,12 @@ export const en = {
   timeline: {
     scrollToTop: 'Back to top of timeline',
     defaultCaption: 'A small moment from today.',
+    cloudBackfill: {
+      title: 'Building your full story from older photos',
+      message:
+        'Older moments are still being added from cloud history. New moments will appear automatically.',
+      dismiss: 'Got it',
+    },
     moment: {
       addFavorite: 'Add to favorites',
       removeFavorite: 'Remove from favorites',

@@ -51,6 +51,7 @@ export {
   requestPasswordReset,
   requestSignInOtp,
   setAccountPassword,
+  signInWithGoogle,
   signInWithPassword,
   signOutRemoteSession,
   verifyEmailLink,

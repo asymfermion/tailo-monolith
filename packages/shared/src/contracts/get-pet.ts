@@ -5,6 +5,7 @@ import { parsePetBirthdayIso } from '../petBirthday.ts';
 export type RemotePetSummary = {
   pet_id: string;
   source_local_pet_id: string;
+  profile_photo_local_asset_id: string | null;
   name: string;
   type: PetType;
   gender: PetGender | null;
@@ -28,6 +29,9 @@ export function isRemotePetSummary(value: unknown): value is RemotePetSummary {
   return (
     typeof Reflect.get(value, 'pet_id') === 'string' &&
     typeof Reflect.get(value, 'source_local_pet_id') === 'string' &&
+    (Reflect.get(value, 'profile_photo_local_asset_id') === null ||
+      Reflect.get(value, 'profile_photo_local_asset_id') === undefined ||
+      typeof Reflect.get(value, 'profile_photo_local_asset_id') === 'string') &&
     typeof Reflect.get(value, 'name') === 'string' &&
     (type === 'dog' || type === 'cat') &&
     (gender === null ||

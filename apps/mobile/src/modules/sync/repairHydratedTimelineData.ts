@@ -131,45 +131,5 @@ async function repairCloudOverwrittenEventTimestamps(
     return repaired;
   }
 
-  return repairEventTimestampsFromAssets(database);
-}
-
-async function repairEventTimestampsFromAssets(
-  database: SQLite.SQLiteDatabase,
-): Promise<number> {
-  const rows = await database.getAllAsync<{
-    localEventId: string;
-    assetCreatedAt: string;
-    eventTimestamp: string;
-  }>(`
-    SELECT
-      events.local_event_id AS localEventId,
-      MIN(assets.created_at) AS assetCreatedAt,
-      events.timestamp AS eventTimestamp
-    FROM local_events AS events
-    INNER JOIN local_media_scores AS scores
-      ON scores.local_event_id = events.local_event_id
-    INNER JOIN local_assets AS assets
-      ON assets.local_asset_id = scores.local_asset_id
-    WHERE events.processing_state = 'processed'
-      AND events.deleted_at IS NULL
-      AND assets.created_at != events.timestamp
-    GROUP BY events.local_event_id, events.timestamp
-  `);
-
-  let repaired = 0;
-
-  for (const row of rows) {
-    await database.runAsync(
-      `
-        UPDATE local_events
-        SET timestamp = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE local_event_id = ?
-      `,
-      [row.assetCreatedAt, row.localEventId],
-    );
-    repaired += 1;
-  }
-
-  return repaired;
+  return 0;
 }

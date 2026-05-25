@@ -58,6 +58,7 @@ export function resolveOnboardingAfterLoad(
     completedFlags: {
       ...initialOnboardingState.completedFlags,
       identityCreated: storedState.completedFlags.identityCreated,
+      privacyAcknowledged: storedState.completedFlags.privacyAcknowledged,
       photoPermissionHandled: storedState.completedFlags.photoPermissionHandled,
       scanStarted: storedState.completedFlags.scanStarted,
       timelinePreviewSeen: storedState.completedFlags.timelinePreviewSeen,

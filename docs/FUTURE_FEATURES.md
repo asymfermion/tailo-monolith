@@ -160,6 +160,20 @@ Future paid behavior:
 
 Tracked as MOBILE_TASKS **3.2.10**.
 
+### 12. Notification permission and reminder strategy
+
+Ask for notification permission later in the lifecycle, not at first launch.
+
+Future behavior:
+
+- Prompt only after the user has seen clear timeline value
+- Explain what notifications are for before the system permission sheet
+- Respect “not now” and add cooldown rules so prompts are not repetitive
+- Keep a Settings entry for enabling/disabling notifications later
+- Start with low-noise reminders (for example: sync/account continuity and important processing outcomes), not high-frequency engagement pings
+
+This should pair with existing account reminder timing rules so permission prompts stay calm and non-blocking.
+
 ---
 
 ## Notes

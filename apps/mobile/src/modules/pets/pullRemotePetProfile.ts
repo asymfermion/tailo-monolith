@@ -108,9 +108,9 @@ export async function pullRemotePetProfileIfNeeded(
     type: remote.type,
     gender: remote.gender,
     birthday: remote.birthday,
-    profilePhotoLocalAssetId: isSameRemotePet
-      ? (existing?.profilePhotoLocalAssetId ?? null)
-      : null,
+    profilePhotoLocalAssetId:
+      remote.profile_photo_local_asset_id ??
+      (isSameRemotePet ? (existing?.profilePhotoLocalAssetId ?? null) : null),
     profilePhotoUri: isSameRemotePet
       ? (existing?.profilePhotoUri ?? null)
       : null,

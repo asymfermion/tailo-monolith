@@ -17,6 +17,10 @@ import {
 } from './permissions';
 import { resolveIncrementalScanCreatedAfterMs } from './incrementalScan';
 import {
+  hasCompletedHistoricalBackfill,
+  setHistoricalBackfillCompleted,
+} from './scanState';
+import {
   getPipelineResumePlan,
   hasIncompletePipelineWork,
   shouldRunIncrementalScan,
@@ -76,6 +80,8 @@ const initialBestImageSelectionProgress: BestImageSelectionProgress = {
 export type UsePhotoAccessOptions = {
   /** When false, only checks permission on mount — no background scan until startScan/resume. */
   autoResumeOnMount?: boolean;
+  /** Linked accounts can run deeper historical scan passes. */
+  historicalScanEnabled?: boolean;
 };
 
 export function usePhotoAccess(
@@ -85,7 +91,7 @@ export function usePhotoAccess(
   startScan: () => Promise<void>;
   redetectPets: () => Promise<void>;
 } {
-  const { autoResumeOnMount = true } = options;
+  const { autoResumeOnMount = true, historicalScanEnabled = true } = options;
   const pipelineInFlightRef = useRef(false);
   const [state, setState] = useState<PhotoAccessState>({
     permissionStatus: 'checking',
@@ -242,11 +248,11 @@ export function usePhotoAccess(
       await runLocalPipeline({
         database,
         includeRecentScan: true,
-        includeOlderScan: true,
+        includeOlderScan: historicalScanEnabled,
         progress: pipelineProgress,
       });
     });
-  }, [pipelineProgress, runPipeline]);
+  }, [historicalScanEnabled, pipelineProgress, runPipeline]);
 
   const resumeIfNeeded = useCallback(async () => {
     const permission = await checkPhotoLibraryPermission();
@@ -290,13 +296,20 @@ export function usePhotoAccess(
         await runLocalPipeline({
           database,
           includeRecentScan: true,
-          includeOlderScan: true,
+          includeOlderScan: historicalScanEnabled,
           progress: pipelineProgress,
         });
+        if (historicalScanEnabled) {
+          await setHistoricalBackfillCompleted(true);
+        }
         return;
       }
 
       if (shouldRunIncrementalScan(plan)) {
+        const shouldRunHistoricalBackfill =
+          historicalScanEnabled &&
+          !(await hasCompletedHistoricalBackfill()) &&
+          plan.hasLocalAssets;
         const createdAfterMs =
           await resolveIncrementalScanCreatedAfterMs(database);
 
@@ -315,8 +328,12 @@ export function usePhotoAccess(
           database,
           includeRecentScan: true,
           scanCreatedAfterMs: createdAfterMs,
+          includeOlderScan: shouldRunHistoricalBackfill,
           progress: pipelineProgress,
         });
+        if (shouldRunHistoricalBackfill) {
+          await setHistoricalBackfillCompleted(true);
+        }
         return;
       }
 
@@ -334,7 +351,7 @@ export function usePhotoAccess(
         });
       }
     });
-  }, [applyPermission, pipelineProgress, runPipeline]);
+  }, [applyPermission, historicalScanEnabled, pipelineProgress, runPipeline]);
 
   const redetectPets = useCallback(async () => {
     await runPipeline(async (database) => {
@@ -357,6 +374,14 @@ export function usePhotoAccess(
       await startScan();
     }
   }, [applyPermission, startScan]);
+
+  useEffect(() => {
+    if (historicalScanEnabled) {
+      return;
+    }
+
+    void setHistoricalBackfillCompleted(false);
+  }, [historicalScanEnabled]);
 
   useEffect(() => {
     let isMounted = true;

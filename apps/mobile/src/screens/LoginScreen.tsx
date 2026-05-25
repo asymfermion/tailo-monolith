@@ -36,9 +36,11 @@ import {
   logAuth,
   normalizeAccountEmail,
   requestSignInOtp,
+  signInWithGoogle,
   signInWithPassword,
   verifySignInOtp,
 } from '@/modules/auth';
+import { useBlockingAuthAction } from '@/modules/auth/useBlockingAuthAction';
 
 type FormStep = 'password' | 'code';
 
@@ -124,6 +126,21 @@ function createLoginScreenStyles({
       fontSize: 15,
       fontWeight: '600' as const,
     },
+    loadingState: {
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      flex: 1,
+      minHeight: 260,
+      paddingHorizontal: spacing.md,
+      gap: spacing.sm,
+    },
+    loadingText: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+      textAlign: 'center' as const,
+    },
   };
 }
 
@@ -151,6 +168,8 @@ export function LoginScreen({
   const [codeInput, setCodeInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isBlockingAuthInProgress, runBlockingAuthAction } =
+    useBlockingAuthAction();
   const signInInFlightRef = useRef(false);
   const passwordInputRef = useRef<TextInput>(null);
   const { colors } = useAppearance();
@@ -168,6 +187,17 @@ export function LoginScreen({
     isAuthEmailSubmitReady(emailInput) &&
     (prefersCodeSignIn || isAuthPasswordSubmitReady(passwordInput));
   const isCodeStepReady = isAuthOtpSubmitReady(codeInput);
+  const withBlockingAuth = useCallback(async <T,>(action: () => Promise<T>): Promise<T> => {
+    signInInFlightRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      return await runBlockingAuthAction(action);
+    } finally {
+      signInInFlightRef.current = false;
+      setIsSubmitting(false);
+    }
+  }, [runBlockingAuthAction]);
 
   async function handleSendCode() {
     setErrorMessage(null);
@@ -216,14 +246,13 @@ export function LoginScreen({
       return;
     }
 
-    signInInFlightRef.current = true;
-    setIsSubmitting(true);
-
     try {
-      logAuth('Login screen: password sign-in submitted', {
-        email: normalizeAccountEmail(email),
+      const result = await withBlockingAuth(async () => {
+        logAuth('Login screen: password sign-in submitted', {
+          email: normalizeAccountEmail(email),
+        });
+        return signInWithPassword(email, password);
       });
-      const result = await signInWithPassword(email, password);
       logAuth('Login screen: password sign-in returned', {
         status: result.status,
       });
@@ -249,8 +278,7 @@ export function LoginScreen({
       logAuth('Login screen: password sign-in threw', { message });
       setErrorMessage(message);
     } finally {
-      signInInFlightRef.current = false;
-      setIsSubmitting(false);
+      // no-op: handled by withBlockingAuth
     }
   }
 
@@ -268,15 +296,13 @@ export function LoginScreen({
       return;
     }
 
-    signInInFlightRef.current = true;
-    setIsSubmitting(true);
-
     try {
-      logAuth('Login screen: OTP verification submitted', {
-        email: normalizeAccountEmail(email),
+      const result = await withBlockingAuth(async () => {
+        logAuth('Login screen: OTP verification submitted', {
+          email: normalizeAccountEmail(email),
+        });
+        return verifySignInOtp(email, code);
       });
-
-      const result = await verifySignInOtp(email, code);
       logAuth('Login screen: OTP verification returned', {
         status: result.status,
       });
@@ -302,8 +328,37 @@ export function LoginScreen({
       logAuth('Login screen: OTP verification threw', { message });
       setErrorMessage(message);
     } finally {
-      signInInFlightRef.current = false;
-      setIsSubmitting(false);
+      // no-op: handled by withBlockingAuth
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    if (signInInFlightRef.current) {
+      return;
+    }
+
+    setErrorMessage(null);
+    try {
+      const result = await withBlockingAuth(() =>
+        signInWithGoogle({
+          source: 'login_google',
+        }),
+      );
+
+      if (result.status === 'skipped') {
+        setErrorMessage(t('account.errors.unavailable'));
+        return;
+      }
+
+      if (result.status === 'error') {
+        setErrorMessage(result.message);
+        return;
+      }
+
+      navigation.finishSignInToTimeline();
+      onSignedIn();
+    } finally {
+      // no-op: handled by withBlockingAuth
     }
   }
 
@@ -334,7 +389,12 @@ export function LoginScreen({
         {variant === 'welcome' ? t('signIn.welcomeBody') : t('signIn.body')}
       </Text>
 
-      {step === 'password' ? (
+      {isBlockingAuthInProgress ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator color={colors.accent} />
+          <Text style={styles.loadingText}>{t('signIn.signingIn')}</Text>
+        </View>
+      ) : step === 'password' ? (
         <>
           <Text style={styles.fieldLabel}>{t('account.emailLabel')}</Text>
           <AuthFormTextInput
@@ -391,7 +451,9 @@ export function LoginScreen({
                 : handlePasswordSignIn())
             }
           />
-          <SocialSignInPlaceholders />
+          <SocialSignInPlaceholders
+            onGooglePress={() => void handleGoogleSignIn()}
+          />
           <Pressable
             accessibilityRole="button"
             disabled={isSubmitting}
@@ -470,6 +532,7 @@ export function LoginScreen({
       {isRemoteAuthConfigured() ? (
         <Pressable
           accessibilityRole="button"
+          disabled={isSubmitting}
           style={styles.secondaryAction}
           onPress={() =>
             navigation.push('AccountSettings', {
@@ -484,7 +547,7 @@ export function LoginScreen({
         </Pressable>
       ) : null}
 
-      {isSubmitting ? (
+      {isSubmitting && !isBlockingAuthInProgress ? (
         <ActivityIndicator
           color={colors.accent}
           style={{ marginTop: spacing.lg }}

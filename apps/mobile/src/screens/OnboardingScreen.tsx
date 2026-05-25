@@ -40,6 +40,7 @@ import { canContinueOnboardingScan } from '@/modules/auth/canContinueOnboardingS
 import {
   isRemoteAuthConfigured,
   resetOnboardingForAccountSignInIntent,
+  signInWithGoogle,
   useAuthAccountStatus,
 } from '@/modules/auth';
 import {
@@ -49,6 +50,7 @@ import {
 import {
   ScanProgressIndicator,
   canScanPhotos,
+  shouldEnableHistoricalScan,
   usePhotoAccess,
 } from '@/modules/mediaScanner';
 import {
@@ -181,6 +183,50 @@ function createOnboardingStyles({
       fontSize: 15,
       fontWeight: '600' as const,
     },
+    consentRow: {
+      alignItems: 'flex-start' as const,
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    consentCheckbox: {
+      alignItems: 'center' as const,
+      borderColor: colors.border,
+      borderRadius: 4,
+      borderWidth: 1,
+      height: 22,
+      justifyContent: 'center' as const,
+      marginTop: 2,
+      width: 22,
+    },
+    consentCheckboxChecked: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+    },
+    consentCheckmark: {
+      color: colors.surface,
+      fontFamily: getFontFamily('600'),
+      fontSize: 14,
+      fontWeight: '600' as const,
+      lineHeight: 16,
+    },
+    consentTextWrap: {
+      flex: 1,
+      minWidth: 0,
+    },
+    consentText: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    consentHint: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 13,
+      lineHeight: 18,
+      marginTop: spacing.xs,
+    },
     optionRow: {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
@@ -295,7 +341,12 @@ export function OnboardingScreen({
   const { colors } = useAppearance();
   const styles = useThemedStyles(createOnboardingStyles);
   const { isLinked } = useAuthAccountStatus();
-  const photoAccess = usePhotoAccess({ autoResumeOnMount: false });
+  const photoAccess = usePhotoAccess({
+    autoResumeOnMount: false,
+    historicalScanEnabled: shouldEnableHistoricalScan({
+      isLinkedAccount: isLinked,
+    }),
+  });
   const {
     initialScanCompleted,
     permissionStatus,
@@ -316,6 +367,9 @@ export function OnboardingScreen({
   >([]);
   const [isLoadingPetOptions, setIsLoadingPetOptions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [accountErrorMessage, setAccountErrorMessage] = useState<string | null>(
+    null,
+  );
   const [hasExistingLocalData, setHasExistingLocalData] = useState(false);
   const step = getEffectiveStep(
     onboardingState.step,
@@ -324,6 +378,7 @@ export function OnboardingScreen({
     onboardingState.completedFlags.scanStarted,
   );
   const canContinueAfterScan = canContinueOnboardingScan(photoAccess);
+  const privacyAcknowledged = onboardingState.completedFlags.privacyAcknowledged;
   const isPipelineActive =
     photoAccess.isScanning ||
     photoAccess.isDetectingPets ||
@@ -493,6 +548,7 @@ export function OnboardingScreen({
   );
 
   const openAccountSignIn = useCallback(async () => {
+    setAccountErrorMessage(null);
     await resetOnboardingForAccountSignInIntent();
     await onStepChange('welcome', {
       photoPermissionHandled: false,
@@ -508,6 +564,11 @@ export function OnboardingScreen({
   }, [navigation, onStepChange]);
 
   const startOnThisDevice = useCallback(async () => {
+    if (!privacyAcknowledged) {
+      return;
+    }
+
+    setAccountErrorMessage(null);
     await onStepChange('scan', {
       photoPermissionHandled: true,
       scanStarted: true,
@@ -519,7 +580,22 @@ export function OnboardingScreen({
     }
 
     await photoAccess.requestAccess();
-  }, [onStepChange, photoAccess]);
+  }, [onStepChange, photoAccess, privacyAcknowledged]);
+
+  const continueWithGoogle = useCallback(async () => {
+    if (!privacyAcknowledged) {
+      return;
+    }
+
+    setAccountErrorMessage(null);
+    const result = await signInWithGoogle({
+      source: 'onboarding_google',
+    });
+
+    if (result.status === 'error') {
+      setAccountErrorMessage(result.message);
+    }
+  }, [privacyAcknowledged]);
 
   const preferSignInOnWelcome = shouldPreferSignInOnWelcome({
     isRemoteAuthConfigured: isRemoteAuthConfigured(),
@@ -547,12 +623,20 @@ export function OnboardingScreen({
           >
             {preferSignInOnWelcome && showAccountActionsOnWelcome ? (
               <>
-                <SocialSignInPlaceholders />
+                <SocialSignInPlaceholders
+                  onGooglePress={
+                    privacyAcknowledged
+                      ? () => void continueWithGoogle()
+                      : undefined
+                  }
+                />
                 <SecondaryLinkButton
+                  disabled={!privacyAcknowledged}
                   label={t('common.alreadyHaveAccountSignIn')}
                   onPress={() => void openAccountSignIn()}
                 />
                 <QuietButton
+                  disabled={!privacyAcknowledged}
                   label={t('common.startOnThisDevice')}
                   onPress={() => void startOnThisDevice()}
                 />
@@ -560,13 +644,21 @@ export function OnboardingScreen({
             ) : (
               <>
                 <PrimaryButton
+                  disabled={!privacyAcknowledged}
                   label={t('common.startOnThisDevice')}
                   onPress={() => void startOnThisDevice()}
                 />
                 {showAccountActionsOnWelcome ? (
                   <>
-                    <SocialSignInPlaceholders />
+                    <SocialSignInPlaceholders
+                      onGooglePress={
+                        privacyAcknowledged
+                          ? () => void continueWithGoogle()
+                          : undefined
+                      }
+                    />
                     <SecondaryLinkButton
+                      disabled={!privacyAcknowledged}
                       label={t('common.alreadyHaveAccountSignIn')}
                       onPress={() => void openAccountSignIn()}
                     />
@@ -577,12 +669,47 @@ export function OnboardingScreen({
             {showAccountActionsOnWelcome ? (
               <>
                 <SecondaryLinkButton
+                  disabled={!privacyAcknowledged}
                   label={t('common.createAccount')}
                   onPress={() =>
                     navigation.push('AccountSettings', { mode: 'create' })
                   }
                 />
               </>
+            ) : null}
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: privacyAcknowledged }}
+              style={styles.consentRow}
+              onPress={() =>
+                onStepChange('welcome', {
+                  privacyAcknowledged: !privacyAcknowledged,
+                })
+              }
+            >
+              <View
+                style={[
+                  styles.consentCheckbox,
+                  privacyAcknowledged ? styles.consentCheckboxChecked : null,
+                ]}
+              >
+                {privacyAcknowledged ? (
+                  <Text style={styles.consentCheckmark}>✓</Text>
+                ) : null}
+              </View>
+              <View style={styles.consentTextWrap}>
+                <Text style={styles.consentText}>
+                  {t('onboarding.privacyConsentText')}
+                </Text>
+              </View>
+            </Pressable>
+            {!privacyAcknowledged ? (
+              <Text style={styles.consentHint}>
+                {t('onboarding.privacyConsentRequired')}
+              </Text>
+            ) : null}
+            {accountErrorMessage ? (
+              <Text style={styles.mutedText}>{accountErrorMessage}</Text>
             ) : null}
           </Panel>
         );
@@ -778,21 +905,31 @@ export function OnboardingScreen({
     navigation,
     onStepChange,
     openAccountSignIn,
+    accountErrorMessage,
     petName,
     petType,
     photoAccess,
     preferSignInOnWelcome,
     showAccountActionsOnWelcome,
+    continueWithGoogle,
     startOnThisDevice,
     isLoadingProfilePhotos,
     profilePhotoSuggestions,
     selectedProfilePhotoId,
     styles.input,
+    styles.consentCheckmark,
+    styles.consentCheckbox,
+    styles.consentCheckboxChecked,
+    styles.consentHint,
+    styles.consentRow,
+    styles.consentText,
+    styles.consentTextWrap,
     styles.mutedText,
     styles.petOptionList,
     styles.profilePhotoLabel,
     styles.profilePhotoRow,
     step,
+    privacyAcknowledged,
   ]);
 
   return (
@@ -897,9 +1034,11 @@ function PrimaryButton({
 }
 
 function QuietButton({
+  disabled,
   label,
   onPress,
 }: {
+  disabled?: boolean;
   label: string;
   onPress: () => void;
 }) {
@@ -908,7 +1047,8 @@ function QuietButton({
   return (
     <Pressable
       accessibilityRole="button"
-      style={styles.quietButton}
+      disabled={disabled}
+      style={[styles.quietButton, disabled ? styles.disabledButton : null]}
       onPress={onPress}
     >
       <Text style={styles.quietButtonText}>{label}</Text>
@@ -918,9 +1058,11 @@ function QuietButton({
 
 /** Accent text action — matches LoginScreen secondary links (sign in, create account). */
 function SecondaryLinkButton({
+  disabled,
   label,
   onPress,
 }: {
+  disabled?: boolean;
   label: string;
   onPress: () => void;
 }) {
@@ -929,7 +1071,8 @@ function SecondaryLinkButton({
   return (
     <Pressable
       accessibilityRole="button"
-      style={styles.secondaryAction}
+      disabled={disabled}
+      style={[styles.secondaryAction, disabled ? styles.disabledButton : null]}
       onPress={onPress}
     >
       <Text style={styles.secondaryActionText}>{label}</Text>

@@ -258,12 +258,13 @@ Initial login on a new device is supported with MVP media limitations:
 3. `bootstrap-timeline` pages existing cloud moments with signed thumbnail URLs into local SQLite using a composite `(timestamp, event_id)` cursor so same-timestamp moments are not skipped at page boundaries.
 4. `TimelineScreen` mounts `usePhotoAccess()`, so this device can continue local/incremental detection once photo permission is available.
 
-Unfinished cross-device work:
+Cross-device completion status:
 
-- **Later remote-created moments:** polling currently returns metadata only, and `applyRemoteEventUpdates` skips unknown `source_local_event_id`s. Add event-with-media hydration for unknown remote events, either by extending `get-event-updates` or adding a targeted hydrate endpoint.
-- **Signed thumbnail expiry:** restored assets use signed thumbnail URLs as `local_assets.uri`. Add local thumbnail caching or signed URL refresh.
-- **Cross-device dedupe:** current dedupe is local-only (`created_at` + dimensions within a 2 s window). Add stable media fingerprints/hashes to upload/sync contracts and server schema so duplicate images uploaded from multiple devices merge into one account moment.
-- **Event merge by content:** server idempotency is `(app_user_id, source_local_event_id)`, which is device-local. Add hash/time-window matching before inserting a new cloud event so duplicate moments from different devices merge without overwriting user edits.
+- **Unknown remote moments:** `applyRemoteEventUpdates` hydrates missing local rows via `bootstrap-timeline` media pulls.
+- **Post-restore backfill:** mobile persists `sync.bootstrap_backfill_cursor` and runs continued bootstrap paging passes until `sync.bootstrap_backfill_completed = 1`.
+- **Signed thumbnail expiry:** mobile refreshes hydrated cloud thumbnail URLs periodically (`sync.thumbnail_refreshed_at`) using targeted event re-hydration.
+- **Cross-device duplicate images:** upload/sync payloads now include optional `media_fingerprint`; cloud stores this on `event_media`.
+- **Server merge by content:** `sync-event` reuses an existing event when fingerprint overlap and timestamp-window matching identify the same account moment, before any new event insert.
 
 ---
 
@@ -1045,7 +1046,7 @@ Full detail: [AI job specification](#ai-job-specification). Result shape in `pac
 | Orphan storage objects after failed sync | Manual GC / Phase 2+ sweeper                                                      | Production traffic     |
 | Realtime vs poll                         | **Poll** `get-event-updates` every 30s when pending AI                            | UX need                |
 | Multi-device account sign-in             | **MVP:** `get-pet` + `bootstrap-timeline` on sign-in; ongoing `get-event-updates` | Cross-device restore   |
-| Cross-device duplicate images            | Not yet deduped; local-only near-identical dedupe                                 | Media hash/fingerprint |
+| Cross-device duplicate images            | Fingerprint + timestamp-window dedupe in `sync-event` before insert               | Paid-tier multi-moment |
 | Session loss → new anonymous user        | Accept orphan cloud data for MVP                                                  | Account recovery flow  |
 
 ## Future — user edit moment (capabilities)
@@ -1059,6 +1060,7 @@ Full detail: [AI job specification](#ai-job-specification). Result shape in `pac
 | 2026-05-24 | Mobile keeps local SQLite stable during anonymous → cloud bootstrap; cloud IDs are stored on local rows/profiles and drive cross-device sync instead of switching database files.                                                                 |
 | 2026-05-24 | Upload worker calls `prepareCloudUploadPrerequisites` (anonymous account + `upsert-pet`) before draining queue; `saveLocalPetProfile` triggers upload when pet profile becomes ready.                                                             |
 | 2026-05-24 | Returning-account sign-in now forces cloud restore/backfill; cloud pet wins over partial local pet state, and `bootstrap-timeline` uses composite `(timestamp, event_id)` pagination to avoid same-timestamp gaps.                                |
+| 2026-05-25 | Completed cross-device chain 2.3.6–2.3.10: persistent bootstrap backfill, hydrated thumbnail refresh pass, media fingerprint sync/storage, and server dedupe by fingerprint + timestamp window before insert.                                     |
 | 2026-05-20 | **Cross-device restore:** `get-account-profile` + `get-pet` + `bootstrap-timeline`; mobile `restoreRemoteAccountDataIfNeeded` hydrates user profile, pet, and cloud moments; `seedLocalAccountPrefsToCloudIfEmpty` only fills empty cloud fields  |
 | 2026-05-24 | Documented cross-device sync gaps: unknown remote events need media hydration/backfill, restored thumbnails need refresh/cache, and duplicate cross-device uploads need media fingerprint dedupe.                                                 |
 | 2026-05-20 | Pet profile **birthday** (`pets.birthday` date column); `upsert-pet` + local profile JSON; Pet tab editor auto-saves name, type, gender, birthday                                                                                                 |

@@ -17,6 +17,7 @@ import { prepareCloudUploadPrerequisites } from './prepareCloudUploadPrerequisit
 import { runUploadQueueWorker } from './uploadQueueWorker';
 import { runPendingCloudSyncForEvent } from './runPendingCloudSync';
 import { uploadToSignedUrl } from './uploadToSignedUrl';
+import * as FileSystem from 'expo-file-system/legacy';
 
 jest.mock('@/modules/auth/authService', () => ({
   isRemoteAuthConfigured: jest.fn(),
@@ -41,6 +42,9 @@ jest.mock('./prepareEventMediaUpload', () => ({
 
 jest.mock('./uploadToSignedUrl', () => ({
   uploadToSignedUrl: jest.fn(),
+}));
+jest.mock('expo-file-system/legacy', () => ({
+  getInfoAsync: jest.fn(),
 }));
 
 jest.mock('./runPendingCloudSync', () => ({
@@ -97,6 +101,9 @@ describe('runUploadQueueWorker', () => {
     jest.mocked(prepareCloudUploadPrerequisites).mockResolvedValue({
       remotePetId: 'pet-remote-1',
     });
+    jest
+      .mocked(FileSystem.getInfoAsync)
+      .mockResolvedValue({ exists: true, md5: 'abc123' } as never);
   });
 
   it('prepares cloud upload prerequisites before checking remote pet id', async () => {
@@ -135,6 +142,7 @@ describe('runUploadQueueWorker', () => {
         lastError: null,
         storagePath: null,
         thumbnailPath: null,
+        mediaFingerprint: null,
         nextAttemptAt: null,
       },
     ]);
@@ -213,6 +221,7 @@ describe('runUploadQueueWorker', () => {
       'upload_event-1_asset-1',
       'user/pet/event/asset-1/original.jpg',
       'user/pet/event/asset-1/thumb.jpg',
+      'md5:abc123',
     );
     expect(runPendingCloudSyncForEvent).toHaveBeenCalledWith(
       database,

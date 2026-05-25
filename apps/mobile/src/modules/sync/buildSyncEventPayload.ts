@@ -46,6 +46,7 @@ export async function buildSyncEventPayload(
         source_local_asset_id: item.localAssetId,
         storage_path: item.storagePath,
         thumbnail_path: item.thumbnailPath,
+        media_fingerprint: item.mediaFingerprint,
         width: asset.width,
         height: asset.height,
         is_primary: item.localAssetId === primaryAssetId,

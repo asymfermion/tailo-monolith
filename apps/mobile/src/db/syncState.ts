@@ -9,6 +9,9 @@ export const SYNC_STATE_KEYS = {
   APP_INSTALL_ID: 'app.install_id',
   PROFILE_PET_FILTER_APPLIED: 'pipeline.profile_pet_filter_applied',
   EVENTS_CURSOR: 'sync.events_cursor',
+  BOOTSTRAP_BACKFILL_CURSOR: 'sync.bootstrap_backfill_cursor',
+  BOOTSTRAP_BACKFILL_COMPLETED: 'sync.bootstrap_backfill_completed',
+  THUMBNAIL_REFRESHED_AT: 'sync.thumbnail_refreshed_at',
   TIMELINE_GENERATION: 'sync.timeline_generation',
 } as const;
 

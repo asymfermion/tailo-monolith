@@ -1,4 +1,5 @@
 import { mergeSyncEventPayload } from '../../../../packages/backend-core/src/usecases/syncEventMerge.ts';
+import { selectDedupeEventCandidate } from '../../../../packages/backend-core/src/usecases/selectDedupeEventCandidate.ts';
 import { parseSyncEventRequest } from '../../../../packages/shared/src/contracts/sync-event.ts';
 import {
   getServiceRoleClient,
@@ -10,6 +11,101 @@ import { resolveCallerAppUserId } from '../resolveAppUser.ts';
 import type { ApiHandler } from './types.ts';
 
 const AI_JOB_TYPE = 'caption_event';
+type ExistingEventSelectRow = {
+  event_id: string;
+  app_user_id: string;
+  pet_id: string;
+  source_local_event_id: string;
+  timestamp: string;
+  source: 'camera_roll' | 'in_app' | 'manual';
+  event_type: 'walk' | 'play' | 'rest' | 'eating' | 'unknown';
+  caption: string | null;
+  caption_source: 'user' | 'ai' | 'placeholder' | null;
+  is_favorite: boolean;
+  user_edited_caption: boolean;
+  user_edited_event_type: boolean;
+  sync_version: number;
+  client_timeline_generation: number;
+  pet_validation_status: 'pending' | 'valid' | 'rejected';
+  deleted_at: string | null;
+};
+
+type ExistingEventWithMatchScore = ExistingEventSelectRow & {
+  matchScore: number;
+};
+
+async function findExistingEventByFingerprint(
+  adminClient: ReturnType<typeof getServiceRoleClient>,
+  appUserId: string,
+  requestTimestamp: string,
+  mediaFingerprints: string[],
+): Promise<ExistingEventSelectRow | null> {
+  if (mediaFingerprints.length === 0) {
+    return null;
+  }
+
+  const { data: mediaRows, error: mediaError } = await adminClient
+    .from('event_media')
+    .select('event_id, media_fingerprint')
+    .in('media_fingerprint', mediaFingerprints);
+
+  if (mediaError || !mediaRows || mediaRows.length === 0) {
+    return null;
+  }
+
+  const eventIds = [...new Set(mediaRows.map((row) => row.event_id))];
+
+  if (eventIds.length === 0) {
+    return null;
+  }
+
+  const { data: eventRows, error: eventError } = await adminClient
+    .from('events')
+    .select(
+      'event_id, app_user_id, pet_id, source_local_event_id, timestamp, source, event_type, caption, caption_source, is_favorite, user_edited_caption, user_edited_event_type, sync_version, client_timeline_generation, pet_validation_status, deleted_at',
+    )
+    .eq('app_user_id', appUserId)
+    .in('event_id', eventIds)
+    .is('deleted_at', null)
+    .neq('pet_validation_status', 'rejected');
+
+  if (eventError || !eventRows || eventRows.length === 0) {
+    return null;
+  }
+
+  const matchCountByEventId = new Map<string, number>();
+
+  for (const mediaRow of mediaRows) {
+    if (!mediaRow.media_fingerprint) {
+      continue;
+    }
+
+    const prev = matchCountByEventId.get(mediaRow.event_id) ?? 0;
+    matchCountByEventId.set(mediaRow.event_id, prev + 1);
+  }
+
+  const scored = (eventRows as ExistingEventSelectRow[])
+    .map((row) => {
+      return {
+        ...row,
+        matchScore: matchCountByEventId.get(row.event_id) ?? 0,
+      };
+    });
+  const selected = selectDedupeEventCandidate(
+    requestTimestamp,
+    scored.map((row) => ({
+      eventId: row.event_id,
+      timestamp: row.timestamp,
+      fingerprintMatchCount: row.matchScore,
+    })),
+  );
+
+  if (!selected) {
+    return null;
+  }
+
+  return scored.find((row) => row.event_id === selected.eventId) ?? null;
+}
 
 function triggerProcessAiJob(log: FunctionLogger): void {
   void invokeServiceFunction(
@@ -53,7 +149,7 @@ export const handleSyncEvent: ApiHandler = async ({ user, log, payload }) => {
     return jsonResponse({ error: 'Pet not found for this account.' }, 403);
   }
 
-  const { data: existingRow, error: existingError } = await adminClient
+  const { data: existingByLocalId, error: existingError } = await adminClient
     .from('events')
     .select(
       'event_id, app_user_id, pet_id, source_local_event_id, timestamp, source, event_type, caption, caption_source, is_favorite, user_edited_caption, user_edited_event_type, sync_version, client_timeline_generation, pet_validation_status',
@@ -65,6 +161,18 @@ export const handleSyncEvent: ApiHandler = async ({ user, log, payload }) => {
   if (existingError) {
     return jsonResponse({ error: existingError.message }, 500);
   }
+
+  const mediaFingerprints = [...new Set(body.media
+    .map((item) => item.media_fingerprint)
+    .filter((value): value is string => typeof value === 'string' && value.length > 0))];
+  const existingRow =
+    (existingByLocalId as ExistingEventSelectRow | null) ??
+    (await findExistingEventByFingerprint(
+      adminClient,
+      appUser.appUserId,
+      body.timestamp,
+      mediaFingerprints,
+    ));
 
   const merged = mergeSyncEventPayload({
     callerAppUserId: appUser.appUserId,
@@ -135,6 +243,7 @@ export const handleSyncEvent: ApiHandler = async ({ user, log, payload }) => {
     event_media_id: crypto.randomUUID(),
     event_id: merged.eventId,
     source_local_asset_id: item.source_local_asset_id,
+    media_fingerprint: item.media_fingerprint ?? null,
     storage_path: item.storage_path,
     thumbnail_path: item.thumbnail_path,
     width: item.width,

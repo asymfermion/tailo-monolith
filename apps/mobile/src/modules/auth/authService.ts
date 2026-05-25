@@ -18,6 +18,7 @@ import type {
   VerifyEmailSignUpResult,
   VerifyPasswordResetResult,
   VerifySignInResult,
+  SocialSignInResult,
 } from './authTypes';
 import {
   getAuthProvider,
@@ -246,6 +247,29 @@ export async function signInWithPassword(
 
   if (result.status === 'signed_in') {
     await establishSignedInSession('sign_in_with_password', result.session);
+  }
+
+  return result;
+}
+
+export async function signInWithGoogle(
+  options: {
+    mode?: 'sign_in' | 'link';
+    source?: string;
+  } = {},
+): Promise<SocialSignInResult> {
+  const { mode = 'sign_in', source = 'sign_in_with_google' } = options;
+  logAuth('Google sign-in started', { mode, source });
+  const result = await getAuthProvider().signInWithGoogle({ mode });
+  logAuth('Google sign-in provider finished', {
+    mode,
+    source,
+    status: result.status,
+    ...(result.status === 'error' ? { message: result.message } : {}),
+  });
+
+  if (result.status === 'signed_in') {
+    await establishSignedInSession(source, result.session);
   }
 
   return result;

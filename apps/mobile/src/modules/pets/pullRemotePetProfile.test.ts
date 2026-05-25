@@ -55,6 +55,7 @@ describe('pullRemotePetProfileIfNeeded', () => {
         pet: {
           pet_id: 'pet-remote-1',
           source_local_pet_id: 'local_pet_1',
+          profile_photo_local_asset_id: 'asset-remote-1',
           name: 'Mochi',
           type: 'cat',
           gender: null,
@@ -68,6 +69,7 @@ describe('pullRemotePetProfileIfNeeded', () => {
       status: 'pulled',
       profile: expect.objectContaining({
         name: 'Mochi',
+        profilePhotoLocalAssetId: 'asset-remote-1',
         remotePetId: 'pet-remote-1',
       }),
     });
@@ -117,6 +119,7 @@ describe('pullRemotePetProfileIfNeeded', () => {
         pet: {
           pet_id: 'pet-remote-1',
           source_local_pet_id: 'remote_local_pet_1',
+          profile_photo_local_asset_id: 'asset-remote-2',
           name: 'Mochi',
           type: 'cat',
           gender: 'female',
@@ -134,7 +137,7 @@ describe('pullRemotePetProfileIfNeeded', () => {
         petId: 'remote_local_pet_1',
         name: 'Mochi',
         type: 'cat',
-        profilePhotoLocalAssetId: null,
+        profilePhotoLocalAssetId: 'asset-remote-2',
         profilePhotoUri: null,
         remotePetId: 'pet-remote-1',
       }),

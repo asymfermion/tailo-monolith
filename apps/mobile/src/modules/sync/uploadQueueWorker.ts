@@ -1,5 +1,6 @@
 import type * as SQLite from 'expo-sqlite';
 import { UPLOAD_MAX_ASSETS_PER_EVENT } from '@tailo/shared';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { getDatabase, invalidateDatabaseConnection } from '@/db';
 import { formatDbError, isClosedDatabaseError } from '@/db/dbLogger';
@@ -45,6 +46,7 @@ type PreparedAssetUpload = {
   height: number;
   originalUri: string;
   thumbnailUri: string;
+  mediaFingerprint: string | null;
 };
 
 export async function runUploadQueueWorker(
@@ -221,6 +223,7 @@ async function processUploadBatch(
         height: prepared.original.height,
         originalUri: prepared.original.uri,
         thumbnailUri: prepared.thumbnail.uri,
+        mediaFingerprint: await resolveMediaFingerprint(prepared.original.uri),
       });
     }
 
@@ -273,6 +276,7 @@ async function processUploadBatch(
         preparedUpload.queueItem.id,
         signedAsset.storage_path,
         signedAsset.thumbnail_path,
+        preparedUpload.mediaFingerprint,
       );
       uploadedAssets += 1;
     }
@@ -328,6 +332,22 @@ async function processUploadBatch(
       uploadedAssets: 0,
       failedAssets: queueItems.length,
     };
+  }
+}
+
+async function resolveMediaFingerprint(uri: string): Promise<string | null> {
+  try {
+    const info = await FileSystem.getInfoAsync(uri, {
+      md5: true,
+    } as Parameters<typeof FileSystem.getInfoAsync>[1]);
+
+    if (!info.exists || typeof info.md5 !== 'string' || !info.md5) {
+      return null;
+    }
+
+    return `md5:${info.md5}`;
+  } catch {
+    return null;
   }
 }
 

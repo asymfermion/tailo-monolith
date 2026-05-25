@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Pressable,
   RefreshControl,
   Text,
   View,
@@ -27,8 +28,13 @@ import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
 import { useNavigation } from '@/navigation/NavigationContext';
 import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
 import { SaveMemoriesLink } from '@/modules/auth';
+import { useAuthAccountStatus } from '@/modules/auth/useAuthAccountStatus';
 import { usePhotoAccess } from '@/modules/mediaScanner';
-import { useEventUpdatesPoll } from '@/modules/sync';
+import { shouldEnableHistoricalScan } from '@/modules/mediaScanner/scanDepthPolicy';
+import {
+  getCloudTimelineBackfillStatus,
+  useEventUpdatesPoll,
+} from '@/modules/sync';
 import { CaptureFab } from '@/modules/timeline/components/CaptureFab';
 import { TimelineTopBar } from '@/modules/timeline/components/TimelineTopBar';
 import type { TimelineListFilter } from '@/modules/timeline/components/TimelineFilterDropdown';
@@ -41,6 +47,7 @@ import {
   useTimelineEvents,
 } from '@/modules/timeline';
 import type { TimelineEvent } from '@/types';
+import { getDatabase } from '@/db';
 
 function keyExtractor(item: TimelineEvent): string {
   return item.localEventId;
@@ -70,6 +77,41 @@ function createTimelineScreenStyles({
     header: {
       paddingBottom: spacing.md,
       paddingTop: spacing.sm,
+    },
+    backfillTip: {
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      marginTop: spacing.sm,
+      gap: spacing.xs,
+    },
+    backfillTipTitle: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 14,
+      fontWeight: '600' as const,
+    },
+    backfillTipMessage: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    backfillTipDismiss: {
+      alignSelf: 'flex-start' as const,
+      minHeight: 44,
+      minWidth: 44,
+      justifyContent: 'center' as const,
+      paddingVertical: spacing.xs,
+    },
+    backfillTipDismissText: {
+      color: colors.accent,
+      fontFamily: getFontFamily('600'),
+      fontSize: 13,
+      fontWeight: '600' as const,
     },
     emptyState: {
       alignItems: 'center' as const,
@@ -101,7 +143,12 @@ export function TimelineScreen() {
   const topPadding = getTabScreenTopPadding(insets.top);
   const navigation = useNavigation();
   const tabBarContentInset = useTabBarContentInset();
-  const photoAccess = usePhotoAccess();
+  const account = useAuthAccountStatus();
+  const photoAccess = usePhotoAccess({
+    historicalScanEnabled: shouldEnableHistoricalScan({
+      isLinkedAccount: account.isLinked,
+    }),
+  });
   const { colors } = useAppearance();
   const styles = useThemedStyles(createTimelineScreenStyles);
   const [timelineFilter, setTimelineFilter] =
@@ -120,6 +167,9 @@ export function TimelineScreen() {
   const wasPipelineActiveRef = useRef(isPipelineActive);
   const listRef = useRef<FlatList<TimelineEvent>>(null);
   const [timelineScrollY, setTimelineScrollY] = useState(0);
+  const [cloudBackfillPending, setCloudBackfillPending] = useState(false);
+  const [cloudBackfillTipDismissed, setCloudBackfillTipDismissed] =
+    useState(false);
   const timelineRefreshKey =
     navigation.captureCompletedNonce +
     navigation.timelineChangedNonce +
@@ -128,6 +178,7 @@ export function TimelineScreen() {
     refreshKey: timelineRefreshKey,
     favoritesOnly,
   });
+  const hasTimelineValue = timeline.events.length > 0;
 
   useEffect(() => {
     if (wasPipelineActiveRef.current && !isPipelineActive) {
@@ -156,13 +207,58 @@ export function TimelineScreen() {
   const handleRemoteEventUpdatesApplied = useCallback(() => {
     setTimelineRefreshNonce((value) => value + 1);
   }, []);
-  useEventUpdatesPoll({
+  const pollState = useEventUpdatesPoll({
     enabled: true,
     onApplied: handleRemoteEventUpdatesApplied,
   });
   const hasPhotoAccess =
     photoAccess.permissionStatus === 'full' ||
     photoAccess.permissionStatus === 'limited';
+  const showCloudBackfillTip =
+    account.isLinked &&
+    hasTimelineValue &&
+    cloudBackfillPending &&
+    !cloudBackfillTipDismissed;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function reloadCloudBackfillStatus() {
+      if (!account.isLinked || !hasTimelineValue) {
+        if (!cancelled) {
+          setCloudBackfillPending(false);
+          setCloudBackfillTipDismissed(false);
+        }
+        return;
+      }
+
+      const database = await getDatabase();
+      const status = await getCloudTimelineBackfillStatus(database);
+
+      if (cancelled) {
+        return;
+      }
+
+      const pending =
+        status.hasHydratedTimeline && !status.isBackfillCompleted;
+      setCloudBackfillPending(pending);
+
+      if (!pending) {
+        setCloudBackfillTipDismissed(false);
+      }
+    }
+
+    void reloadCloudBackfillStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    account.isLinked,
+    hasTimelineValue,
+    pollState.lastAppliedCount,
+    timelineRefreshKey,
+  ]);
 
   const openMomentDetail = useCallback(
     (localEventId: string) => {
@@ -273,7 +369,16 @@ export function TimelineScreen() {
     ],
   );
 
-  const listHeader = useMemo(() => <TimelineHeader />, []);
+  const listHeader = useMemo(
+    () => (
+      <TimelineHeader
+        hasTimelineValue={hasTimelineValue}
+        showCloudBackfillTip={showCloudBackfillTip}
+        onDismissCloudBackfillTip={() => setCloudBackfillTipDismissed(true)}
+      />
+    ),
+    [hasTimelineValue, showCloudBackfillTip],
+  );
 
   return (
     <View style={styles.screen}>
@@ -333,12 +438,39 @@ export function TimelineScreen() {
   );
 }
 
-function TimelineHeader() {
+function TimelineHeader({
+  hasTimelineValue,
+  showCloudBackfillTip,
+  onDismissCloudBackfillTip,
+}: {
+  hasTimelineValue: boolean;
+  showCloudBackfillTip: boolean;
+  onDismissCloudBackfillTip: () => void;
+}) {
   const styles = useThemedStyles(createTimelineScreenStyles);
 
   return (
     <View style={styles.header}>
-      <SaveMemoriesLink />
+      <SaveMemoriesLink hasTimelineValue={hasTimelineValue} />
+      {showCloudBackfillTip ? (
+        <View style={styles.backfillTip}>
+          <Text style={styles.backfillTipTitle}>
+            {t('timeline.cloudBackfill.title')}
+          </Text>
+          <Text style={styles.backfillTipMessage}>
+            {t('timeline.cloudBackfill.message')}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            style={styles.backfillTipDismiss}
+            onPress={onDismissCloudBackfillTip}
+          >
+            <Text style={styles.backfillTipDismissText}>
+              {t('timeline.cloudBackfill.dismiss')}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }

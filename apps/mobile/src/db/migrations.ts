@@ -2,7 +2,7 @@ import type * as SQLite from 'expo-sqlite';
 
 import { logDbInfo, logSqlFailure } from './dbLogger';
 
-export const CURRENT_SCHEMA_VERSION = 11;
+export const CURRENT_SCHEMA_VERSION = 12;
 
 type Migration = {
   version: number;
@@ -310,6 +310,20 @@ const migrations: Migration[] = [
         CREATE INDEX IF NOT EXISTS local_assets_active_photo_idx
           ON local_assets (created_at DESC)
           WHERE media_type = 'photo' AND user_dismissed_at IS NULL;
+      `);
+    },
+  },
+  {
+    version: 12,
+    name: 'add media fingerprint to upload queue',
+    up: async (db) => {
+      await db.execAsync(`
+        ALTER TABLE upload_queue
+          ADD COLUMN media_fingerprint TEXT;
+      `);
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS upload_queue_media_fingerprint_idx
+          ON upload_queue (media_fingerprint);
       `);
     },
   },

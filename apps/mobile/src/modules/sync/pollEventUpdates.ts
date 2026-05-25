@@ -11,6 +11,10 @@ import {
 } from '@/modules/auth/authService';
 
 import { applyRemoteEventUpdates } from './applyRemoteEventUpdates';
+import {
+  refreshHydratedTimelineThumbnailsIfNeeded,
+  runHydratedTimelineBackfillPass,
+} from './backfillCloudTimeline';
 import { getEventUpdates } from './getEventUpdates';
 
 const EVENTS_CURSOR_KEY = SYNC_STATE_KEYS.EVENTS_CURSOR;
@@ -52,6 +56,9 @@ export async function pollEventUpdates(
     database,
     result.response.events,
   );
+  const backfill = await runHydratedTimelineBackfillPass(database);
+  const refreshedThumbnails =
+    await refreshHydratedTimelineThumbnailsIfNeeded(database);
 
   if (result.response.next_cursor) {
     await setSyncStateValue(
@@ -61,5 +68,8 @@ export async function pollEventUpdates(
     );
   }
 
-  return { applied, skippedReason: null };
+  return {
+    applied: applied + backfill.hydratedCount + refreshedThumbnails,
+    skippedReason: null,
+  };
 }

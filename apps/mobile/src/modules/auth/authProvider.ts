@@ -12,6 +12,7 @@ import type {
   VerifyEmailSignUpResult,
   VerifyPasswordResetResult,
   VerifySignInResult,
+  SocialSignInResult,
 } from './authTypes';
 
 /**
@@ -49,6 +50,11 @@ export interface AuthProvider {
     email: string,
     password: string,
   ): Promise<PasswordSignInResult>;
+  signInWithGoogle(options?: {
+    mode?: 'sign_in' | 'link';
+  }): Promise<SocialSignInResult>;
+  /** Best-effort profile name from auth identity metadata (e.g. Google full_name). */
+  getIdentityDisplayName?(): Promise<string | null>;
   /** Clears the current remote session (local data unchanged). */
   signOut(): Promise<SignOutResult>;
 }

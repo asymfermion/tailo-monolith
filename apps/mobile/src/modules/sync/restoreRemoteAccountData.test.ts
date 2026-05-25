@@ -9,6 +9,7 @@ import {
   loadLocalPetProfile,
   pullRemotePetProfileIfNeeded,
 } from '@/modules/pets';
+import { saveLocalPetProfileWithRemoteId } from '@/modules/pets/petProfile';
 
 import {
   countLocalProcessedTimelineEvents,
@@ -19,7 +20,9 @@ import { repairHydratedTimelineData } from './repairHydratedTimelineData';
 import { restoreRemoteAccountDataIfNeeded } from './restoreRemoteAccountData';
 
 jest.mock('@/db', () => ({
-  getDatabase: jest.fn().mockResolvedValue({}),
+  getDatabase: jest.fn().mockResolvedValue({
+    getFirstAsync: jest.fn().mockResolvedValue(null),
+  }),
 }));
 
 jest.mock('@/db/syncState', () => ({
@@ -46,6 +49,10 @@ jest.mock('@/modules/pets', () => ({
   hasReadyLocalPetProfile: jest.fn(),
   loadLocalPetProfile: jest.fn(),
   pullRemotePetProfileIfNeeded: jest.fn(),
+}));
+
+jest.mock('@/modules/pets/petProfile', () => ({
+  saveLocalPetProfileWithRemoteId: jest.fn(),
 }));
 
 jest.mock('./hydrateCloudTimeline', () => ({
@@ -80,7 +87,13 @@ describe('restoreRemoteAccountDataIfNeeded', () => {
       petId: 'pet-1',
       name: 'Link',
       type: 'dog',
+      profilePhotoLocalAssetId: null,
+      profilePhotoUri: null,
+      remotePetId: 'pet-remote-1',
     } as Awaited<ReturnType<typeof loadLocalPetProfile>>);
+    jest
+      .mocked(saveLocalPetProfileWithRemoteId)
+      .mockImplementation(async (profile) => profile);
     jest
       .mocked(repairHydratedTimelineData)
       .mockResolvedValue({ repairedAssetUris: 0, repairedEventTimestamps: 0 });
@@ -120,5 +133,44 @@ describe('restoreRemoteAccountDataIfNeeded', () => {
 
     expect(hydrateCloudTimelineIfNeeded).toHaveBeenCalled();
     expect(repairHydratedTimelineData).toHaveBeenCalled();
+  });
+
+  it('hydrates local pet profile photo uri from hydrated assets', async () => {
+    jest.mocked(countLocalProcessedTimelineEvents).mockResolvedValue(0);
+    jest.mocked(hydrateCloudTimelineIfNeeded).mockResolvedValue({
+      status: 'hydrated',
+      eventCount: 2,
+    });
+    jest.mocked(loadLocalPetProfile).mockResolvedValue({
+      petId: 'pet-1',
+      name: 'Link',
+      type: 'dog',
+      profilePhotoLocalAssetId: 'asset-remote-1',
+      profilePhotoUri: null,
+      remotePetId: 'pet-remote-1',
+    } as Awaited<ReturnType<typeof loadLocalPetProfile>>);
+    const database = {
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValue({ uri: 'https://example.com/thumb.jpg' }),
+    };
+    const { getDatabase } = jest.requireMock('@/db') as {
+      getDatabase: jest.Mock;
+    };
+    getDatabase.mockResolvedValue(database);
+
+    await restoreRemoteAccountDataIfNeeded({ force: true });
+
+    expect(database.getFirstAsync).toHaveBeenCalledWith(
+      expect.stringContaining('FROM local_assets'),
+      ['asset-remote-1'],
+    );
+    expect(saveLocalPetProfileWithRemoteId).toHaveBeenCalledWith(
+      expect.objectContaining({
+        profilePhotoLocalAssetId: 'asset-remote-1',
+        profilePhotoUri: 'https://example.com/thumb.jpg',
+      }),
+      'pet-remote-1',
+    );
   });
 });

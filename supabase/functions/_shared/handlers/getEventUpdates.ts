@@ -46,7 +46,9 @@ export const handleGetEventUpdates: ApiHandler = async ({
     .limit(limit);
 
   if (cursor) {
-    query = query.gt('updated_at', cursor.updatedAt);
+    query = query.or(
+      `updated_at.gt.${cursor.updatedAt},and(updated_at.eq.${cursor.updatedAt},event_id.gt.${cursor.eventId})`,
+    );
   }
 
   const { data: rows, error } = await query;

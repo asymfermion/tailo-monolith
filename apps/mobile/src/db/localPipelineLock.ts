@@ -1,5 +1,5 @@
 let inFlightCount = 0;
-const idleWaiters: Array<() => void> = [];
+const idleWaiters: (() => void)[] = [];
 
 export function beginLocalPipeline(): void {
   inFlightCount += 1;

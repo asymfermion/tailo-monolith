@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { AuthFormTextInput } from '@/components/AuthFormTextInput';
 import { SocialSignInPlaceholders } from '@/components/SocialSignInPlaceholders';
@@ -14,12 +14,17 @@ import { useNavigation } from '@/navigation/NavigationContext';
 import {
   isValidAccountEmail,
   normalizeAccountEmail,
+  completeEmailAccountConnection,
   requestEmailLink,
   requestEmailSignUp,
+  signInWithGoogle,
+  type AuthSession,
   useAuthAccountStatus,
   verifyEmailLink,
   verifyEmailSignUp,
 } from '@/modules/auth';
+import { useBlockingAuthAction } from '@/modules/auth/useBlockingAuthAction';
+import { clearLocalAnonymousAccountDataForAccountSwitch } from '@/modules/auth/clearLocalAnonymousAccountData';
 import { createAccountSettingsStyles } from './accountSettingsStyles';
 
 type FormStep = 'email' | 'code';
@@ -31,6 +36,28 @@ type AnonymousAccountUpgradeFormProps = {
   onLinkFlowStart?: () => void;
   onLinked: () => void;
 };
+
+export function resolveGoogleAuthModeForAccountUpgrade(input: {
+  formMode: 'link' | 'create';
+  session: AuthSession | null;
+}): 'link' | 'sign_in' {
+  if (input.formMode === 'link') {
+    return 'link';
+  }
+
+  return input.session?.isAnonymous ? 'link' : 'sign_in';
+}
+
+export function isGoogleIdentityAlreadyLinkedError(message: string): boolean {
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes('already linked') ||
+    normalized.includes('already exists') ||
+    normalized.includes('identity is already') ||
+    (normalized.includes('identity') && normalized.includes('in use'))
+  );
+}
 
 export function AnonymousAccountUpgradeForm({
   mode,
@@ -49,6 +76,8 @@ export function AnonymousAccountUpgradeForm({
   const [codeInput, setCodeInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isBlockingAuthInProgress, runBlockingAuthAction } =
+    useBlockingAuthAction();
   const { colors } = useAppearance();
   const styles = useThemedStyles(createAccountSettingsStyles);
   const handleEmailChange = useCallback((value: string) => {
@@ -59,6 +88,72 @@ export function AnonymousAccountUpgradeForm({
   }, []);
   const isEmailStepReady = isAuthEmailSubmitReady(emailInput);
   const isCodeStepReady = isAuthOtpSubmitReady(codeInput);
+
+  async function handleGoogleLink() {
+    setErrorMessage(null);
+    setIsSubmitting(true);
+    let result;
+
+    try {
+      result = await runBlockingAuthAction(async () => {
+        const googleMode = resolveGoogleAuthModeForAccountUpgrade({
+          formMode: mode,
+          session: account.session,
+        });
+        const primaryResult = await signInWithGoogle({
+          mode: googleMode,
+          source:
+            mode === 'link' ? 'account_link_google' : 'account_create_google',
+        });
+
+        if (
+          primaryResult.status === 'error' &&
+          googleMode === 'link' &&
+          isGoogleIdentityAlreadyLinkedError(primaryResult.message)
+        ) {
+          const fallbackSignIn = await signInWithGoogle({
+            mode: 'sign_in',
+            source: 'account_create_google_existing',
+          });
+
+          if (fallbackSignIn.status !== 'signed_in') {
+            return fallbackSignIn;
+          }
+
+          await clearLocalAnonymousAccountDataForAccountSwitch();
+          const bootstrapResult = await completeEmailAccountConnection();
+
+          if (bootstrapResult.status === 'partial') {
+            return { status: 'error' as const, message: bootstrapResult.message };
+          }
+
+          return fallbackSignIn;
+        }
+
+        return primaryResult;
+      });
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : t('account.errors.unavailable'),
+      );
+      return;
+    } finally {
+      setIsSubmitting(false);
+    }
+
+    if (result.status === 'skipped') {
+      setErrorMessage(t('account.unavailableBody'));
+      return;
+    }
+
+    if (result.status === 'error') {
+      setErrorMessage(result.message);
+      return;
+    }
+
+    await account.refresh();
+    onLinked();
+  }
 
   async function handleSendCode() {
     setErrorMessage(null);
@@ -132,6 +227,15 @@ export function AnonymousAccountUpgradeForm({
 
   const showStandaloneHeader = presentation === 'standalone';
   const isProfileLink = presentation === 'profile' && mode === 'link';
+
+  if (isBlockingAuthInProgress) {
+    return (
+      <View style={styles.loadingState}>
+        <ActivityIndicator color={colors.accent} />
+        <Text style={styles.loadingText}>{t('signIn.signingIn')}</Text>
+      </View>
+    );
+  }
 
   return (
     <>
@@ -214,7 +318,10 @@ export function AnonymousAccountUpgradeForm({
 
       {step === 'email' ? (
         <>
-          <SocialSignInPlaceholders style={{ marginTop: spacing.lg }} />
+          <SocialSignInPlaceholders
+            style={{ marginTop: spacing.lg }}
+            onGooglePress={() => void handleGoogleLink()}
+          />
           <Pressable
             accessibilityRole="button"
             style={styles.secondaryAction}

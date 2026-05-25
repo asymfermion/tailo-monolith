@@ -16,6 +16,70 @@
 3. **Dashboard → Project Settings → API** — copy the **anon** `publishable` key into `apps/mobile/.env.local`.
 4. **Never** put the database password or `service_role` key in the mobile app.
 
+## Google OAuth setup (dev + prod runbook)
+
+Use this when enabling Google sign-in/link now or later in a new GCP account.
+
+### 1) Google Cloud Console
+
+1. Open **Google Cloud Console** and select/create a project.
+2. Configure **OAuth consent screen**:
+   - App name + support email
+   - Add test users while app is not published
+3. Create OAuth credentials:
+   - **Web application** client
+     - Authorized redirect URI:
+       - `https://<PROJECT_REF>.supabase.co/auth/v1/callback`
+   - **iOS** client
+     - Bundle ID must match app config (`ios.bundleIdentifier`)
+4. Save and record:
+   - Web client ID + secret
+   - iOS client ID
+
+### 2) Supabase Auth provider
+
+1. Dashboard → **Authentication → Providers → Google**
+2. Enable Google
+3. Paste:
+   - Client ID = **Web client ID**
+   - Client Secret = **Web client secret**
+4. Save
+5. Confirm **Authentication → URL Configuration** is correct for your environment.
+
+### 3) Local app config
+
+1. Ensure `apps/mobile/.env.local` has Supabase URL + anon key.
+2. Ensure `app.json`/Expo config uses the correct iOS bundle ID.
+3. If native config changes, rebuild dev client (`pod install` + iOS rebuild).
+
+### 4) Environment checklist (recommended)
+
+- Keep separate Google OAuth projects/clients for **dev** and **prod**.
+- Keep Supabase project/provider config aligned per environment.
+- Record all client IDs in your team secrets manager (not git).
+
+## Google OAuth client/account changes and user impact
+
+### Do we need to migrate users when moving to a new GCP account?
+
+Usually **no direct data migration** is needed in Tailo/Supabase tables. Users remain in the same Supabase project (`auth.users`, `app_users`, `user_identities`).
+
+### Lowest-risk approach
+
+Prefer keeping the **same OAuth client IDs** and just changing project ownership/access in GCP (add new account as owner/editor), so identity subjects stay stable.
+
+### If you rotate to brand-new OAuth client IDs
+
+- Existing Tailo data is still present.
+- Login/link behavior can change depending on provider identity subject matching.
+- Treat this as an auth cutover and run a staged test matrix before prod:
+  - Existing Google user sign-in
+  - Anonymous → Google link
+  - Existing email-linked user adding Google
+  - Cross-device sign-in restore
+
+If any identity mismatch appears, keep email sign-in available as recovery and link Google from inside an already-signed-in account.
+
 ## Auth email templates (OTP)
 
 Tailo’s mobile app expects **8-digit codes** in email, not link-only messages. Full templates, dashboard mapping, and QA steps:

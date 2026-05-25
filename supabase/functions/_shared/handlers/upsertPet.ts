@@ -27,7 +27,7 @@ export const handleUpsertPet: ApiHandler = async ({ user, log, payload }) => {
   const { data: existingRow, error: lookupError } = await adminClient
     .from('pets')
     .select(
-      'pet_id, app_user_id, source_local_pet_id, name, type, gender, birthday',
+      'pet_id, app_user_id, source_local_pet_id, profile_photo_local_asset_id, name, type, gender, birthday',
     )
     .eq('app_user_id', appUser.appUserId)
     .eq('source_local_pet_id', body.source_local_pet_id)
@@ -73,6 +73,7 @@ export const handleUpsertPet: ApiHandler = async ({ user, log, payload }) => {
       pet_id: petId,
       app_user_id: appUser.appUserId,
       source_local_pet_id: body.source_local_pet_id,
+      profile_photo_local_asset_id: body.profile_photo_local_asset_id ?? null,
       name: body.name,
       type: body.type,
       gender: body.gender ?? null,
@@ -91,6 +92,7 @@ export const handleUpsertPet: ApiHandler = async ({ user, log, payload }) => {
   const { error: updateError } = await adminClient
     .from('pets')
     .update({
+      profile_photo_local_asset_id: body.profile_photo_local_asset_id ?? null,
       name: body.name,
       type: body.type,
       gender: body.gender ?? null,

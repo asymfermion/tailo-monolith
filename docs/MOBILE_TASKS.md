@@ -201,11 +201,11 @@ This phase now tracks both the mobile client work and the backend work needed to
 - [x] **2.3.3** Background sync when network returns
 - [x] **2.3.4** UI: subtle sync status (no “Uploading assets…” technical copy)
 - [ ] **2.3.5** Hydrate unknown remote events from other devices: when poll sees an event missing locally, fetch media/signed thumbnails and insert it into SQLite
-- [ ] **2.3.6** Add cross-device timeline backfill after first restore so later or paged cloud moments are not missed once any hydrated event exists
-- [ ] **2.3.7** Cache or refresh restored cloud thumbnails instead of relying indefinitely on expiring signed URLs
-- [ ] **2.3.8** Add media fingerprints/hashes to upload + sync contracts and server schema for cross-device duplicate-image detection
-- [ ] **2.3.9** Server-side merge for duplicate moments from multiple devices: match by account, media fingerprint, and timestamp window before creating a new cloud event
-- [ ] **2.3.10** Tests: Device A uploads, Device B restores, Device A uploads later, Device B polls/inserts; duplicate image uploads collapse to one cloud moment
+- [x] **2.3.6** Add cross-device timeline backfill after first restore so later or paged cloud moments are not missed once any hydrated event exists
+- [x] **2.3.7** Cache or refresh restored cloud thumbnails instead of relying indefinitely on expiring signed URLs
+- [x] **2.3.8** Add media fingerprints/hashes to upload + sync contracts and server schema for cross-device duplicate-image detection
+- [x] **2.3.9** Server-side merge for duplicate moments from multiple devices: match by account, media fingerprint, and timestamp window before creating a new cloud event
+- [x] **2.3.10** Tests: Device A uploads, Device B restores, Device A uploads later, Device B polls/inserts; duplicate image uploads collapse to one cloud moment
 
 ### 2.4 AI presentation (`ai`)
 
@@ -398,10 +398,10 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - [x] **3.0.2** Settings IA: user account settings, localisation, and app preferences (`SettingsScreen` sections)
 - [x] **3.0.3** Replace the lightweight temporary stack with the long-term app navigation shell (`MainTabShell` + `modalStack`)
 - [x] **3.0.4** Keep capture, capture preview, event detail, and account upgrade as modal routes (`ModalShell`)
-- [ ] **3.0.5** Add anonymous-to-email upgrade IA per [authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md): home reminder, settings entry, and linked state
-- [ ] **3.0.6** Tune reminder timing/cooldown so account prompts appear only after the user has seen timeline value and never feel blocking or repetitive
+- [x] **3.0.5** Add anonymous-to-email upgrade IA per [authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md): home reminder, settings entry, and linked state
+- [x] **3.0.6** Tune reminder timing/cooldown so account prompts appear only after the user has seen timeline value and never feel blocking or repetitive
 - [ ] **3.0.6a** Implement explicit account-notification rules from [authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md): alternate auth actions on welcome, passive timeline reminder after value, stronger reminder at 500-image cap, permanent Settings entry, and contextual reminders only for continuity-risk moments
-- [ ] **3.0.7** Distinguish anonymous vs linked account capabilities in UI/UX: recent-only scan for anonymous users, deeper historical scan for linked users
+- [x] **3.0.7** Distinguish anonymous vs linked account capabilities in UI/UX: recent-only scan for anonymous users, deeper historical scan for linked users
 - [x] **3.0.8** Add provider strategy to Settings/account UX: email OTP first; Apple and Google as later linked-provider options on iOS / cross-platform builds
 - [x] **3.0.9** Design linked-account state UI so users can see whether they are anonymous, email-linked, Apple-linked, or Google-linked
 - [x] **3.0.10** Add direct auth entry points alongside anonymous-first onboarding: `Create account` and `Log in` without making them the default path
@@ -414,19 +414,19 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - [x] **3.0a.1** Direct email registration flow: email entry, 8-digit verification code, then continue into onboarding/app; password is optional and can be added later
 - [x] **3.0a.2** Direct email login flow: email + password
 - [x] **3.0a.3** Forgot-password flow for email accounts
-- [ ] **3.0a.3a** Configure and test hosted Supabase email templates for auth flows so app UX and email content match: `Confirm sign up`, `Change email address`, and `Reset password` should all use the intended OTP / recovery experience for mobile
-- [ ] **3.0a.3b** Add template-level QA for `dev` and `prod`: correct subject lines, `{{ .Token }}` where OTP is expected, correct copy for account creation vs email change vs password reset, and no accidental magic-link-only mismatch
+- [x] **3.0a.3a** Configure and test hosted Supabase email templates for auth flows so app UX and email content match: `Confirm sign up`, `Change email address`, and `Reset password` should all use the intended OTP / recovery experience for mobile
+- [x] **3.0a.3b** Add template-level QA for `dev` and `prod`: correct subject lines, `{{ .Token }}` where OTP is expected, correct copy for account creation vs email change vs password reset, and no accidental magic-link-only mismatch
 - [ ] **3.0a.4** Link Apple from anonymous or connected account state
-- [ ] **3.0a.5** Link Google from anonymous or connected account state
+- [x] **3.0a.5** Link Google from anonymous or connected account state
 - [ ] **3.0a.6** Direct sign-in / sign-up with Apple
-- [ ] **3.0a.7** Direct sign-in / sign-up with Google
+- [x] **3.0a.7** Direct sign-in / sign-up with Google
 - [x] **3.0a.8** Account profile editing: display name and preferred language
 
 ### 3.1 Onboarding & permissions
 
 - [ ] **3.1.1** Refine onboarding animations and pacing
 - [ ] **3.1.2** Limited-access flow: process available photos + prompt to grant more later
-- [ ] **3.1.3** Privacy copy: what is scanned, what is uploaded, what stays on device
+- [x] **3.1.3** Privacy copy: what is scanned, what is uploaded, what stays on device
 - [ ] **3.1.4** Keep onboarding anonymous-first: no email prompt before first meaningful timeline value; align copy and flow with [authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md)
 
 ### 3.2 Timeline & event UX
@@ -441,6 +441,10 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - [ ] **3.2.8** Cache translated AI captions per event + locale locally, and invalidate them when the source caption changes
 - [ ] **3.2.9** Fallback rules for caption localisation: show the original AI caption when on-device translation is unavailable, model download is pending, or translation fails
 - [ ] **3.2.10** Paid tier: support multiple passive auto-detected moments per day per pet, with product limits and sync/dedupe rules that preserve the free one-per-day behavior
+- [ ] **3.2.11** Registered free full-history build: after account link/sign-in, run resumable historical photo backfill to build a complete single-pet story (progress persists across launches)
+- [ ] **3.2.12** Paid multi-pet profiles: support multiple pets in product UI and sync, with per-pet selection and editing surfaces
+- [ ] **3.2.13** Paid merged timeline: add “All pets” merged timeline mode with per-event pet identity labels and per-pet filters
+- [ ] **3.2.14** Paid multi-moment/day controls: add account-level setting/flag to enable multiple passive auto-detected moments per day per pet, while preserving free-tier one-per-day behavior
 
 ### 3.3 Reliability & edge cases
 
@@ -469,6 +473,13 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 ### Phase 3 — notes & decisions
 
 - 2026-05-20: **3.0** — Tab shell (Timeline / Pet / Settings) + modal stack for EventDetail, Capture, CapturePreview, AccountSettings. `HomeScreen` renamed `TimelineScreen`; pet summary moved off timeline header to Pet tab.
+- 2026-05-25: **3.0.6–3.0.7** — `SaveMemoriesLink` now uses a value-first reminder policy (first timeline value delay + snooze/repeat cooldown, non-blocking “not now” path), and scanning behavior distinguishes account state: anonymous stays recent/incremental while linked accounts trigger deeper historical backfill.
+- 2026-05-25: **3.0.7 status correction** — reminder policy shipped, but anonymous-vs-linked scan-depth separation is not fully enforced yet; task remains open pending full linked historical-build behavior.
+- 2026-05-25: **3.0.7 completion** — scan-depth policy is now shared and enforced in both onboarding and timeline (`shouldEnableHistoricalScan`): anonymous accounts run recent/incremental only; linked accounts enable deeper historical scan passes.
+- 2026-05-25: Auth transition polish — login and sign-in handoff now use a blocking loading state plus forced loading gate on `auth_session_changed` to avoid transient screen flash before timeline.
+- 2026-05-25: Reminder UX scope split — stronger reminder behavior at the 500-image cap path remains intentionally open for product review before implementation.
+- 2026-05-25: **3.1.3** — onboarding welcome now requires explicit privacy acknowledgment via checkbox before starting onboarding/account actions; copy clarifies on-device photo scan and that only selected moments sync after account connection.
+- 2026-05-25: **3.0a.7** — Google OAuth now works for direct sign-in/sign-up from onboarding and login, with in-app callback handling, account bootstrap, and login loading-state polish (hide form/options while auth is in flight).
 
 - 2026-05-20: Email account linking remains a **soft upgrade** after anonymous onboarding. Settings is the permanent home for account state; home/timeline can show a calm `Save your memories` reminder only after the user has seen timeline value. See [architecture/authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md).
 - 2026-05-23: Auth expansion direction — Tailo stays anonymous-first by default, but should also support direct email registration, direct email login, forgot password, Apple/Google sign-in, and a real connected account profile. See [architecture/authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md).

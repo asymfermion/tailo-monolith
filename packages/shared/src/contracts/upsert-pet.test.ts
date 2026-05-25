@@ -10,12 +10,14 @@ describe('parseUpsertPetRequest', () => {
         name: 'Milo',
         type: 'dog',
         gender: 'unknown',
+        profile_photo_local_asset_id: 'asset-1',
       }),
     ).toEqual({
       source_local_pet_id: 'local_pet_abc',
       name: 'Milo',
       type: 'dog',
       gender: 'unknown',
+      profile_photo_local_asset_id: 'asset-1',
     });
   });
 

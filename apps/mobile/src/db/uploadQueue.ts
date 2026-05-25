@@ -11,6 +11,7 @@ export type UploadQueueRow = {
   lastError: string | null;
   storagePath: string | null;
   thumbnailPath: string | null;
+  mediaFingerprint: string | null;
   nextAttemptAt: string | null;
 };
 
@@ -84,6 +85,7 @@ export async function getPendingUploadQueueItems(
         last_error AS lastError,
         storage_path AS storagePath,
         thumbnail_path AS thumbnailPath,
+        media_fingerprint AS mediaFingerprint,
         next_attempt_at AS nextAttemptAt
       FROM upload_queue
       WHERE status IN ('pending', 'failed')
@@ -123,6 +125,7 @@ export async function markUploadQueueItemDone(
   id: string,
   storagePath: string,
   thumbnailPath: string,
+  mediaFingerprint: string | null,
 ): Promise<void> {
   await db.runAsync(
     `
@@ -131,11 +134,12 @@ export async function markUploadQueueItemDone(
         status = 'done',
         storage_path = ?,
         thumbnail_path = ?,
+        media_fingerprint = ?,
         last_error = NULL,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `,
-    [storagePath, thumbnailPath, id],
+    [storagePath, thumbnailPath, mediaFingerprint, id],
   );
 }
 
@@ -176,6 +180,7 @@ export async function getDoneUploadQueueItemsForEvent(
         last_error AS lastError,
         storage_path AS storagePath,
         thumbnail_path AS thumbnailPath,
+        media_fingerprint AS mediaFingerprint,
         next_attempt_at AS nextAttemptAt
       FROM upload_queue
       WHERE local_event_id = ?

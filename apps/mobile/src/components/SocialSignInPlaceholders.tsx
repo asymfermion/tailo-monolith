@@ -34,8 +34,10 @@ function createStyles({ colors }: AppearanceContextValue) {
 /** Placeholder Google / Apple sign-in controls (providers not wired yet). */
 export function SocialSignInPlaceholders({
   style,
+  onGooglePress,
 }: {
   style?: StyleProp<ViewStyle>;
+  onGooglePress?: () => void;
 }) {
   const { colors } = useAppearance();
   const styles = useThemedStyles(createStyles);
@@ -45,9 +47,10 @@ export function SocialSignInPlaceholders({
       <Pressable
         accessibilityLabel={t('signIn.signInWithGoogle')}
         accessibilityRole="button"
-        accessibilityState={{ disabled: true }}
-        disabled
+        accessibilityState={{ disabled: !onGooglePress }}
+        disabled={!onGooglePress}
         style={styles.button}
+        onPress={onGooglePress}
       >
         <Ionicons color={colors.text} name="logo-google" size={24} />
       </Pressable>

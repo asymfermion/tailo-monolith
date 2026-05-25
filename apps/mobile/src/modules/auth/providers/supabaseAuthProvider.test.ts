@@ -402,4 +402,60 @@ describe('createSupabaseAuthProvider', () => {
     await expect(provider.signOut()).resolves.toEqual({ status: 'signed_out' });
     expect(signOut).toHaveBeenCalledTimes(1);
   });
+
+  it('clears anonymous session before google sign-in', async () => {
+    const getSession = jest.fn().mockResolvedValue({
+      data: { session: { user: { id: 'anon-1', is_anonymous: true } } },
+    });
+    const signOut = jest.fn().mockResolvedValue({ error: null });
+    const signInWithOAuth = jest
+      .fn()
+      .mockResolvedValue({ data: { url: null }, error: null });
+
+    jest.mocked(isSupabaseConfigured).mockReturnValue(true);
+    jest.mocked(getSupabaseClient).mockReturnValue({
+      auth: {
+        getSession,
+        signOut,
+        signInWithOAuth,
+      },
+    } as never);
+
+    const provider = createSupabaseAuthProvider();
+
+    await expect(provider.signInWithGoogle({ mode: 'sign_in' })).resolves.toEqual({
+      status: 'error',
+      message: 'Google sign-in did not start.',
+    });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(signInWithOAuth).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sign out linked session before google sign-in', async () => {
+    const getSession = jest.fn().mockResolvedValue({
+      data: { session: { user: { id: 'user-1', is_anonymous: false } } },
+    });
+    const signOut = jest.fn().mockResolvedValue({ error: null });
+    const signInWithOAuth = jest
+      .fn()
+      .mockResolvedValue({ data: { url: null }, error: null });
+
+    jest.mocked(isSupabaseConfigured).mockReturnValue(true);
+    jest.mocked(getSupabaseClient).mockReturnValue({
+      auth: {
+        getSession,
+        signOut,
+        signInWithOAuth,
+      },
+    } as never);
+
+    const provider = createSupabaseAuthProvider();
+
+    await expect(provider.signInWithGoogle({ mode: 'sign_in' })).resolves.toEqual({
+      status: 'error',
+      message: 'Google sign-in did not start.',
+    });
+    expect(signOut).not.toHaveBeenCalled();
+    expect(signInWithOAuth).toHaveBeenCalledTimes(1);
+  });
 });

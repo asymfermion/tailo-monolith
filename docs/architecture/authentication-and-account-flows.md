@@ -408,20 +408,41 @@ flowchart TD
 
 ## Capability rules
 
-### Anonymous vs connected users
+### Account tier matrix (target design)
 
-| Capability                              | Anonymous user          | Connected user          |
-| --------------------------------------- | ----------------------- | ----------------------- |
-| Onboarding                              | Yes                     | Yes                     |
-| Timeline, capture, basic edits          | Yes                     | Yes                     |
-| Cloud sync + AI captions                | Yes                     | Yes                     |
-| Same-device normal use                  | Yes                     | Yes                     |
-| Recent photo scan                       | Up to 500 recent images | Yes                     |
-| New photo detection after setup         | Yes                     | Yes                     |
-| Historical full-story scan              | No                      | Yes                     |
-| Reinstall/session-loss recovery promise | No                      | Better future path      |
-| Multi-device continuity                 | Not in MVP              | Future                  |
-| Family / sharing features               | Future, likely gated    | Future, likely eligible |
+| Capability                              | Anonymous user (no durable account) | Registered free user (linked account) | Paid user (future)                              |
+| --------------------------------------- | ----------------------------------- | ------------------------------------- | ----------------------------------------------- |
+| Onboarding                              | Yes                                 | Yes                                   | Yes                                             |
+| Timeline, capture, basic edits          | Yes                                 | Yes                                   | Yes                                             |
+| Cloud sync + AI captions                | Yes                                 | Yes                                   | Yes                                             |
+| Recent photo scan                       | Recent window only, capped          | Yes                                   | Yes                                             |
+| Historical full-story scan              | No                                  | Yes (single-pet full-history build)   | Yes (multi-pet full-history build)              |
+| Passive auto-detected moments per day   | 1 per UTC day per pet type          | 1 per UTC day per pet type            | Optional multi-moment/day per pet               |
+| Pet count in main product UI            | 1                                   | 1                                     | Multiple pets                                   |
+| Timeline surface                        | Single-pet timeline                 | Single-pet timeline                   | Optional merged multi-pet timeline              |
+| Reinstall/session-loss recovery promise | No                                  | Yes (best-effort continuity path)     | Yes (same as free, plus paid-tier features)     |
+| Multi-device continuity                 | No guarantee                        | Yes (restore + ongoing sync path)     | Yes                                             |
+| Premium privacy options                 | No                                  | No                                    | Future paid privacy tiers (see FUTURE_FEATURES) |
+
+**Current status note (May 25, 2026):** anonymous vs linked scan-depth separation is not fully enforced yet in production behavior; this matrix is the intended target.
+
+**Current product intent:** registration should improve continuity and history depth, not lock basic timeline value.
+
+### Tier rollout design
+
+1. **Registered free full-history build**
+   - After account link/sign-in, run a resumable historical backfill pass over older library pages until complete.
+   - Persist progress state and continue across app launches/foreground sessions.
+   - Keep normal incremental recent scan running in parallel for new moments.
+2. **Paid multi-pet model**
+   - Add multiple pet profiles per account in UI and sync.
+   - Keep per-pet passive limits configurable by tier.
+3. **Paid multi-moment/day mode**
+   - Add account feature flag for multiple passive auto-detected moments/day/pet.
+   - Keep free default as one passive moment/day/pet.
+4. **Paid merged timeline**
+   - Add “All pets” merged timeline mode with per-event pet identity chips.
+   - Keep per-pet filtered views available for focus and editing.
 
 ### Editing tiers
 
@@ -595,9 +616,14 @@ It should not be framed as unlocking the basic right to use Tailo.
 
 Show reminders only after the user has seen value.
 
+**Definition of “seen value” (required):**
+
+- User has at least one timeline moment where `caption_source = 'ai'` (AI caption visible in timeline or moment detail).
+- Until this condition is true, account prompts stay non-blocking and low-priority.
+
 Good triggers:
 
-- after the user reaches a real timeline
+- after the user reaches a real timeline with at least one AI-captioned moment
 - after first successful sync
 - after several created or edited memories
 - when the anonymous recent-scan cap is reached
@@ -726,6 +752,7 @@ Local device direction also now says:
 | 2026-05-20 | Mobile logout gate, password login, forgot-password reset flow, and auth loading hardening.                                                                                             |
 | 2026-05-24 | Forgot-password documentation now matches the mobile code: successful reset finalizes sign-in and returns to the app/timeline.                                                          |
 | 2026-05-24 | Documented cross-device sync gap: initial restore exists, but later remote-created moments need media hydration and cross-device dedupe work.                                           |
+| 2026-05-25 | Cross-device sync completion: unknown remote moment hydration, persisted bootstrap backfill passes, signed-thumbnail refresh, and fingerprint-based server dedupe are now implemented.  |
 
 ## Recommended implementation plan
 

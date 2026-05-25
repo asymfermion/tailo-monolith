@@ -1,6 +1,6 @@
 # Database Schema Ledger
 
-Last updated: 2026-05-24
+Last updated: 2026-05-25
 
 This ledger records the Tailo-owned Supabase database surface and every migration in `supabase/migrations/`. It is the quick reference for what exists now, what was historical, and where each table or policy came from.
 
@@ -145,12 +145,14 @@ RLS: enabled. Authenticated users can select, insert, and update their own event
 | `height`                | `integer`     | Must be positive.                         |
 | `is_primary`            | `boolean`     | Primary media flag.                       |
 | `detected_pet_type`     | `text`        | Optional; `dog` or `cat`.                 |
+| `media_fingerprint`     | `text`        | Optional media hash (currently `md5:*`).  |
 | `created_at`            | `timestamptz` | Creation timestamp.                       |
 
 Indexes and constraints:
 
 - Unique `(event_id, source_local_asset_id)`.
 - Index on `event_id`.
+- Partial index on `media_fingerprint` where not null.
 
 RLS: enabled. Authenticated users can select, insert, update, and delete media rows through the owning event.
 
@@ -205,6 +207,7 @@ RLS: enabled. Authenticated users can select jobs through the owning event.
 | `20260525120100_pets_birthday.sql`                         | Added optional `pets.birthday` date column and comment.                                                                                                                                                       |
 | `20260525120200_drop_legacy_profiles_table.sql`            | Dropped legacy `public.profiles`; account ownership now lives in `app_users` / `user_identities`, editable fields in `account_profiles`.                                                                      |
 | `20260525120300_fix_current_app_user_id_rls_recursion.sql` | Replaced `current_app_user_id()` as `security definer` and granted execute to authenticated users, fixing RLS recursion on `user_identities`.                                                                 |
+| `20260525120400_event_media_fingerprint_dedupe.sql`        | Added `event_media.media_fingerprint` with partial index for cross-device duplicate-image detection and merge matching.                                                                                       |
 
 ## Maintenance Rules
 

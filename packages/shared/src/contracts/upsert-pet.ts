@@ -8,6 +8,7 @@ export type UpsertPetRequest = {
   type: PetType;
   gender?: PetGender | null;
   birthday?: string | null;
+  profile_photo_local_asset_id?: string | null;
 };
 
 /** Success response from upsert-pet */
@@ -26,6 +27,7 @@ export function parseUpsertPetRequest(body: unknown): UpsertPetRequest | null {
   const type = Reflect.get(body, 'type');
   const gender = Reflect.get(body, 'gender');
   const birthday = Reflect.get(body, 'birthday');
+  const profilePhotoLocalAssetId = Reflect.get(body, 'profile_photo_local_asset_id');
 
   if (typeof sourceLocalPetId !== 'string' || sourceLocalPetId.trim() === '') {
     return null;
@@ -45,6 +47,15 @@ export function parseUpsertPetRequest(body: unknown): UpsertPetRequest | null {
     gender !== 'male' &&
     gender !== 'female' &&
     gender !== 'unknown'
+  ) {
+    return null;
+  }
+
+  if (
+    profilePhotoLocalAssetId !== undefined &&
+    profilePhotoLocalAssetId !== null &&
+    (typeof profilePhotoLocalAssetId !== 'string' ||
+      profilePhotoLocalAssetId.trim() === '')
   ) {
     return null;
   }
@@ -69,6 +80,13 @@ export function parseUpsertPetRequest(body: unknown): UpsertPetRequest | null {
     request.birthday = parsePetBirthdayIso(
       typeof birthday === 'string' ? birthday : null,
     );
+  }
+
+  if (profilePhotoLocalAssetId !== undefined) {
+    request.profile_photo_local_asset_id =
+      typeof profilePhotoLocalAssetId === 'string'
+        ? profilePhotoLocalAssetId.trim()
+        : null;
   }
 
   return request;

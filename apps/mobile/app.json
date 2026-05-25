@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tailo.app",
+      "bundleIdentifier": "com.mtxforge.tailo",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Tailo scans your recent photos to find pet moments for your timeline.",
         "NSPhotoLibraryAddUsageDescription": "Tailo can save photos you capture in the app to your photo library.",
@@ -24,7 +24,7 @@
       }
     },
     "android": {
-      "package": "com.tailo.app",
+      "package": "com.mtxforge.tailo",
       "adaptiveIcon": {
         "foregroundImage": "./assets/brand/app-icon.png",
         "backgroundColor": "#F7F5F2"

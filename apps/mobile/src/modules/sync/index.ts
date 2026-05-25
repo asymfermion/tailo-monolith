@@ -27,3 +27,7 @@ export {
   type HydrateCloudTimelineResult,
 } from './hydrateCloudTimeline';
 export { deleteEvent } from './deleteEvent';
+export {
+  getCloudTimelineBackfillStatus,
+  type CloudTimelineBackfillStatus,
+} from './cloudTimelineBackfillStatus';

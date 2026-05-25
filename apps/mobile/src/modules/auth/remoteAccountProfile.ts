@@ -17,6 +17,7 @@ import {
   loadLocalAccountProfile,
   saveLocalAccountProfile,
 } from '@/modules/auth/localAccountProfile';
+import { getAuthProvider } from '@/modules/auth/authProviderInstance';
 import {
   isGetAccountProfileResponse,
   normalizeRemoteAccountProfileSummary,
@@ -86,6 +87,10 @@ function toRemoteAccountProfile(
     preferredTheme: parsePreferredTheme(snapshot.preferred_theme),
     preferredFontStyle: parsePreferredFontStyle(snapshot.preferred_font_style),
   };
+}
+
+function hasNonEmptyText(value: string | null | undefined): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 export async function applyRemoteAccountProfile(
@@ -207,8 +212,20 @@ export async function seedLocalAccountPrefsToCloudIfEmpty(): Promise<SyncRemoteA
     preferred_font_style: null,
   };
 
-  if (cloud.display_name == null && localProfile?.displayName) {
-    patch.displayName = localProfile.displayName;
+  const cloudDisplayNameMissing = !hasNonEmptyText(cloud.display_name);
+  const localDisplayNameMissing = !hasNonEmptyText(localProfile?.displayName);
+
+  if (cloudDisplayNameMissing && !localDisplayNameMissing) {
+    patch.displayName = localProfile?.displayName ?? null;
+  }
+
+  if (cloudDisplayNameMissing && !patch.displayName) {
+    const identityDisplayName =
+      (await getAuthProvider().getIdentityDisplayName?.()) ?? null;
+
+    if (identityDisplayName) {
+      patch.displayName = identityDisplayName;
+    }
   }
 
   if (cloud.preferred_locale == null) {

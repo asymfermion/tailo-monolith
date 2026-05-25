@@ -12,6 +12,7 @@ import {
   resetAuthProvider,
   setAccountPassword,
   setAuthProvider,
+  signInWithGoogle,
   signInWithPassword,
   signOutRemoteSession,
   verifyEmailLink,
@@ -130,6 +131,15 @@ function createMockProvider(
       },
     }),
     signInWithPassword: jest.fn().mockResolvedValue({
+      status: 'signed_in',
+      session: {
+        userId: 'user-1',
+        isAnonymous: false,
+        email: 'user@example.com',
+        emailConfirmed: true,
+      },
+    }),
+    signInWithGoogle: jest.fn().mockResolvedValue({
       status: 'signed_in',
       session: {
         userId: 'user-1',
@@ -342,6 +352,26 @@ describe('authService', () => {
       'user@example.com',
       'hunter22',
     );
+    expect(mockClearAuthRequireLogin).toHaveBeenCalledTimes(1);
+    expect(mockNotifyAuthSessionChanged).toHaveBeenCalled();
+  });
+
+  it('clears login-required mode after Google sign-in', async () => {
+    const provider = createMockProvider();
+    setAuthProvider(provider);
+
+    await expect(signInWithGoogle()).resolves.toEqual({
+      status: 'signed_in',
+      session: {
+        userId: 'user-1',
+        isAnonymous: false,
+        email: 'user@example.com',
+        emailConfirmed: true,
+      },
+    });
+    expect(provider.signInWithGoogle).toHaveBeenCalledWith({
+      mode: 'sign_in',
+    });
     expect(mockClearAuthRequireLogin).toHaveBeenCalledTimes(1);
     expect(mockNotifyAuthSessionChanged).toHaveBeenCalled();
   });

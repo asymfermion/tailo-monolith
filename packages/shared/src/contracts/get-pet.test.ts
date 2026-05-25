@@ -8,6 +8,7 @@ describe('get-pet contracts', () => {
       isRemotePetSummary({
         pet_id: 'pet-1',
         source_local_pet_id: 'local_pet_1',
+        profile_photo_local_asset_id: 'asset-1',
         name: 'Mochi',
         type: 'cat',
         gender: null,
@@ -26,6 +27,7 @@ describe('get-pet contracts', () => {
       isRemotePetSummary({
         pet_id: 'pet-1',
         source_local_pet_id: 'local_pet_1',
+        profile_photo_local_asset_id: null,
         name: 'Mochi',
         type: 'bird',
         gender: null,

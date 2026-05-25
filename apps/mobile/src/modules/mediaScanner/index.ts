@@ -23,4 +23,5 @@ export {
   getScanProgressDetail,
   getScanProgressHeadline,
 } from './scanProgress';
+export { shouldEnableHistoricalScan } from './scanDepthPolicy';
 export { usePhotoAccess, type PhotoAccessState } from './usePhotoAccess';

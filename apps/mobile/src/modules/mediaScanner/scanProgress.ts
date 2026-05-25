@@ -38,7 +38,7 @@ export function getScanPipelineSteps(
       (photoAccess.eventClusteringProgress.persistedCount > 0 ||
         photoAccess.isSelectingImages));
 
-  const selectComplete = initialScanCompleted || !photoAccess.isSelectingImages;
+  const selectComplete = initialScanCompleted;
 
   return [
     {

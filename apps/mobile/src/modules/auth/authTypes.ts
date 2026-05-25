@@ -34,6 +34,8 @@ export type VerifySignInResult =
   | { status: 'signed_in'; session: AuthSession }
   | { status: 'error'; message: string };
 
+export type SocialSignInResult = VerifySignInResult;
+
 export type SetPasswordResult =
   | { status: 'skipped' }
   | { status: 'updated'; session: AuthSession | null }

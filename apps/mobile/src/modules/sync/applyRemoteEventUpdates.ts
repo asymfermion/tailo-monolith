@@ -14,6 +14,7 @@ import {
   type LocalEventSyncSnapshot,
 } from './mergeRemoteEventUpdate';
 import { shouldApplyRemoteEventUpdate } from './shouldApplyRemoteEventUpdate';
+import { hydrateRemoteEventsBySourceLocalEventIds } from './hydratedCloudEvents';
 
 function toSyncSnapshot(
   local: NonNullable<Awaited<ReturnType<typeof getLocalEventById>>>,
@@ -38,6 +39,7 @@ export async function applyRemoteEventUpdates(
   updates: RemoteEventUpdate[],
 ): Promise<number> {
   let applied = 0;
+  const missingSourceLocalEventIds: string[] = [];
 
   for (const remote of updates) {
     const local = await getLocalEventById(
@@ -46,6 +48,13 @@ export async function applyRemoteEventUpdates(
     );
 
     if (!local) {
+      if (
+        !isRemoteEventSoftDeleted(remote) &&
+        remote.pet_validation_status !== 'rejected'
+      ) {
+        missingSourceLocalEventIds.push(remote.source_local_event_id);
+      }
+
       continue;
     }
 
@@ -130,6 +139,17 @@ export async function applyRemoteEventUpdates(
     );
 
     applied += 1;
+  }
+
+  if (missingSourceLocalEventIds.length > 0) {
+    const hydrated = await hydrateRemoteEventsBySourceLocalEventIds(
+      database,
+      missingSourceLocalEventIds,
+    );
+
+    if (hydrated.status === 'ok') {
+      applied += hydrated.hydratedCount;
+    }
   }
 
   return applied;

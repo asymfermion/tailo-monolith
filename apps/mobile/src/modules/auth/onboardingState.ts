@@ -16,6 +16,7 @@ export type OnboardingStep =
 
 export type OnboardingCompletedFlags = {
   identityCreated: boolean;
+  privacyAcknowledged: boolean;
   photoPermissionHandled: boolean;
   scanStarted: boolean;
   timelinePreviewSeen: boolean;
@@ -47,6 +48,7 @@ export const initialOnboardingState: OnboardingState = {
   completed: false,
   completedFlags: {
     identityCreated: false,
+    privacyAcknowledged: false,
     photoPermissionHandled: false,
     scanStarted: false,
     timelinePreviewSeen: false,
@@ -99,6 +101,7 @@ export async function resetOnboardingForAccountSignInIntent(
       step: 'welcome',
       completed: false,
       completedFlags: {
+        privacyAcknowledged: false,
         photoPermissionHandled: false,
         scanStarted: false,
         timelinePreviewSeen: false,

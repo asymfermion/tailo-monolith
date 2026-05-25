@@ -59,6 +59,9 @@ export const zhHans: TranslationTree = {
       'Tailo 会在这台设备上查看最近的照片来寻找宠物瞬间——你可以允许全部照片，或只选择部分照片。',
     welcomeTextNoAccount:
       '无需先注册。Tailo 会在这台设备上查看最近的照片来寻找宠物瞬间——你可以允许全部照片，或只选择部分照片。',
+    privacyConsentText:
+      '我了解 Tailo 会在这台设备上扫描照片来寻找宠物瞬间；当我连接账户后，只有被选中的瞬间会同步到云端。',
+    privacyConsentRequired: '请先确认后再继续。',
     continueWithoutPhotos: '不选照片继续',
     findingMomentsEyebrow: '寻找瞬间',
     scanActiveText: 'Tailo 正在这台设备上查看最近的照片。',

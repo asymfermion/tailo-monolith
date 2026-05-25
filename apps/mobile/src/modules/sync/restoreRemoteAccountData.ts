@@ -13,6 +13,7 @@ import {
   loadLocalPetProfile,
   pullRemotePetProfileIfNeeded,
 } from '@/modules/pets';
+import { saveLocalPetProfileWithRemoteId } from '@/modules/pets/petProfile';
 
 import {
   getCloudHydratedEventCount,
@@ -174,6 +175,8 @@ export async function restoreRemoteAccountDataIfNeeded(
         profile.type,
       );
     }
+
+    await hydratePetProfilePhotoUriFromLocalAssets(database);
   }
 
   logAuth('Remote account restore finished', {
@@ -184,4 +187,42 @@ export async function restoreRemoteAccountDataIfNeeded(
   });
 
   return { status: 'restored', accountPulled, petPulled, eventCount };
+}
+
+async function hydratePetProfilePhotoUriFromLocalAssets(
+  database: Awaited<ReturnType<typeof getDatabase>>,
+): Promise<void> {
+  const profile = await loadLocalPetProfile();
+
+  if (
+    !profile ||
+    !profile.profilePhotoLocalAssetId ||
+    profile.profilePhotoUri ||
+    !profile.remotePetId
+  ) {
+    return;
+  }
+
+  const row = await database.getFirstAsync<{ uri: string }>(
+    `
+      SELECT uri
+      FROM local_assets
+      WHERE local_asset_id = ?
+      LIMIT 1
+    `,
+    [profile.profilePhotoLocalAssetId],
+  );
+
+  if (!row?.uri) {
+    return;
+  }
+
+  await saveLocalPetProfileWithRemoteId(
+    {
+      ...profile,
+      profilePhotoUri: row.uri,
+      updatedAt: new Date().toISOString(),
+    },
+    profile.remotePetId,
+  );
 }

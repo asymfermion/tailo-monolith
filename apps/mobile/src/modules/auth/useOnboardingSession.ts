@@ -61,9 +61,14 @@ export function useOnboardingSession(): OnboardingSessionState {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const reload = useCallback(
-    async (options?: { silent?: boolean; reason?: string }) => {
+    async (options?: {
+      silent?: boolean;
+      reason?: string;
+      forceLoading?: boolean;
+    }) => {
       const silent = options?.silent ?? onboardingStateRef.current.completed;
       const reason = options?.reason ?? 'manual';
+      const forceLoading = options?.forceLoading ?? false;
 
       logAuth('Onboarding session reload started', {
         reason,
@@ -71,7 +76,7 @@ export function useOnboardingSession(): OnboardingSessionState {
         completed: onboardingStateRef.current.completed,
       });
 
-      if (!silent) {
+      if (!silent || forceLoading) {
         setIsLoading(true);
       }
       setErrorMessage(null);
@@ -139,6 +144,7 @@ export function useOnboardingSession(): OnboardingSessionState {
           await reload({
             silent,
             reason: 'auth_session_changed',
+            forceLoading: silent,
           });
         })();
       }),

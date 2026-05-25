@@ -7,6 +7,7 @@ import {
   isRemoteAuthConfigured,
 } from '@/modules/auth/authService';
 import { isLinkedRemoteAccount } from '@/modules/auth/authTypes';
+import { getAuthProvider } from '@/modules/auth/authProviderInstance';
 import {
   loadLocalAccountProfile,
   saveLocalAccountProfile,
@@ -28,6 +29,10 @@ jest.mock('@/modules/auth/authService', () => ({
 
 jest.mock('@/modules/auth/authTypes', () => ({
   isLinkedRemoteAccount: jest.fn(),
+}));
+
+jest.mock('@/modules/auth/authProviderInstance', () => ({
+  getAuthProvider: jest.fn(),
 }));
 
 jest.mock('@/modules/auth/localAccountProfile', () => ({
@@ -114,6 +119,9 @@ describe('seedLocalAccountPrefsToCloudIfEmpty', () => {
       email: 'user@example.com',
       emailConfirmed: true,
     });
+    jest.mocked(getAuthProvider).mockReturnValue({
+      getIdentityDisplayName: jest.fn().mockResolvedValue(null),
+    } as never);
   });
 
   it('seeds only missing cloud preference fields', async () => {
@@ -154,6 +162,53 @@ describe('seedLocalAccountPrefsToCloudIfEmpty', () => {
 
     expect(invokeTailoApi).toHaveBeenLastCalledWith('upsert-account-profile', {
       preferred_locale: 'en',
+      preferred_font_style: 'rounded',
+    });
+  });
+
+  it('uses identity display name when cloud display name is blank', async () => {
+    jest.mocked(loadLocalAccountProfile).mockResolvedValue(null);
+    jest.mocked(getAuthProvider).mockReturnValue({
+      getIdentityDisplayName: jest.fn().mockResolvedValue('Google Name'),
+    } as never);
+    jest
+      .mocked(invokeTailoApi)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        payload: {
+          profile: {
+            app_user_id: 'app-1',
+            display_name: '',
+            preferred_locale: null,
+            preferred_theme: null,
+            preferred_font_style: null,
+            updated_at: '2026-05-19T00:00:00.000Z',
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        payload: {
+          app_user_id: 'app-1',
+          display_name: 'Google Name',
+          preferred_locale: 'en',
+          preferred_theme: 'dark',
+          preferred_font_style: 'rounded',
+          created: false,
+          updated_at: '2026-05-19T00:00:00.000Z',
+        },
+      });
+
+    await expect(seedLocalAccountPrefsToCloudIfEmpty()).resolves.toMatchObject({
+      status: 'synced',
+    });
+
+    expect(invokeTailoApi).toHaveBeenLastCalledWith('upsert-account-profile', {
+      display_name: 'Google Name',
+      preferred_locale: 'en',
+      preferred_theme: 'dark',
       preferred_font_style: 'rounded',
     });
   });

@@ -44,13 +44,13 @@ Product feel:
 
 ## Repository map
 
-| Path | Purpose |
-| --- | --- |
-| `apps/mobile/` | React Native + Expo mobile app |
-| `packages/shared/` | Shared TypeScript types, constants, contracts, schemas |
-| `packages/ai/` | AI prompts and response schemas when needed |
-| `supabase/` | Backend, migrations, storage, and Edge Functions for Phase 2+ |
-| `docs/` | Developer guide, task plan, and architecture docs |
+| Path               | Purpose                                                       |
+| ------------------ | ------------------------------------------------------------- |
+| `apps/mobile/`     | React Native + Expo mobile app                                |
+| `packages/shared/` | Shared TypeScript types, constants, contracts, schemas        |
+| `packages/ai/`     | AI prompts and response schemas when needed                   |
+| `supabase/`        | Backend, migrations, storage, and Edge Functions for Phase 2+ |
+| `docs/`            | Developer guide, task plan, and architecture docs             |
 
 ---
 
@@ -78,14 +78,14 @@ Do not add OpenAI, cloud AI, sync, uploads, login, or paywall flows unless expli
 
 Read only what is needed for the task. Do not load every doc by default.
 
-| Task type | Read first |
-| --- | --- |
-| Pick next mobile task | `docs/MOBILE_TASKS.md` |
-| Understand architecture boundary | `docs/ARCHITECTURE.md` |
-| Run/setup/debug commands | `docs/DEVELOPER.md` |
-| Phase-specific implementation | matching file in `docs/architecture/` |
-| Full product/agent reference | `Tailo_Agent_Coding_Guidelines_v2.md` |
-| Expo API behavior | Expo SDK 54 docs |
+| Task type                        | Read first                            |
+| -------------------------------- | ------------------------------------- |
+| Pick next mobile task            | `docs/MOBILE_TASKS.md`                |
+| Understand architecture boundary | `docs/ARCHITECTURE.md`                |
+| Run/setup/debug commands         | `docs/DEVELOPER.md`                   |
+| Phase-specific implementation    | matching file in `docs/architecture/` |
+| Full product/agent reference     | `Tailo_Agent_Coding_Guidelines_v2.md` |
+| Expo API behavior                | Expo SDK 54 docs                      |
 
 Prefer focused reading over broad context loading.
 
@@ -215,12 +215,12 @@ Do not create extra architecture files unless starting a new phase or a major su
 
 Prefer one implementation used in many places.
 
-| Scope | Location |
-| --- | --- |
-| Mobile + backend shared logic | `packages/shared` |
-| AI prompts/schemas | `packages/ai` |
-| Mobile-only shared logic | `apps/mobile/src/lib/` |
-| Single mobile feature | `apps/mobile/src/modules/<name>/` |
+| Scope                         | Location                          |
+| ----------------------------- | --------------------------------- |
+| Mobile + backend shared logic | `packages/shared`                 |
+| AI prompts/schemas            | `packages/ai`                     |
+| Mobile-only shared logic      | `apps/mobile/src/lib/`            |
+| Single mobile feature         | `apps/mobile/src/modules/<name>/` |
 
 Before writing new code, search:
 

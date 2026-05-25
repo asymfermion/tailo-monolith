@@ -4,6 +4,7 @@ export type SyncEventMediaInput = {
   source_local_asset_id: string;
   storage_path: string;
   thumbnail_path: string;
+  media_fingerprint?: string | null;
   width: number;
   height: number;
   is_primary: boolean;
@@ -106,6 +107,7 @@ export function parseSyncEventRequest(body: unknown): SyncEventRequest | null {
     const sourceLocalAssetId = Reflect.get(item, 'source_local_asset_id');
     const storagePath = Reflect.get(item, 'storage_path');
     const thumbnailPath = Reflect.get(item, 'thumbnail_path');
+    const mediaFingerprint = Reflect.get(item, 'media_fingerprint');
     const width = Reflect.get(item, 'width');
     const height = Reflect.get(item, 'height');
     const isPrimary = Reflect.get(item, 'is_primary');
@@ -120,6 +122,14 @@ export function parseSyncEventRequest(body: unknown): SyncEventRequest | null {
     }
 
     if (typeof thumbnailPath !== 'string' || !thumbnailPath.trim()) {
+      return null;
+    }
+
+    if (
+      mediaFingerprint !== undefined &&
+      mediaFingerprint !== null &&
+      (typeof mediaFingerprint !== 'string' || !mediaFingerprint.trim())
+    ) {
       return null;
     }
 
@@ -148,6 +158,8 @@ export function parseSyncEventRequest(body: unknown): SyncEventRequest | null {
       source_local_asset_id: sourceLocalAssetId.trim(),
       storage_path: storagePath.trim(),
       thumbnail_path: thumbnailPath.trim(),
+      media_fingerprint:
+        typeof mediaFingerprint === 'string' ? mediaFingerprint.trim() : null,
       width,
       height,
       is_primary: isPrimary,

@@ -55,6 +55,7 @@ export async function syncRemotePetProfileIfNeeded(): Promise<SyncRemotePetProfi
       type: profile.type,
       gender: profile.gender,
       birthday: profile.birthday,
+      profile_photo_local_asset_id: profile.profilePhotoLocalAssetId,
     });
 
     if ('error' in result) {

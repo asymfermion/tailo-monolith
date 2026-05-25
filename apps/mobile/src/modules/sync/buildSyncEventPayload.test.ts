@@ -53,6 +53,7 @@ describe('buildSyncEventPayload', () => {
       lastError: null,
       storagePath: 'user/pet/event/asset-1/original.jpg',
       thumbnailPath: 'user/pet/event/asset-1/thumb.jpg',
+      mediaFingerprint: 'md5:abc123',
       nextAttemptAt: null,
     },
   ];
@@ -100,6 +101,7 @@ describe('buildSyncEventPayload', () => {
       media: [
         expect.objectContaining({
           source_local_asset_id: 'asset-1',
+          media_fingerprint: 'md5:abc123',
           is_primary: true,
         }),
       ],

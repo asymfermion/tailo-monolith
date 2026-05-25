@@ -85,6 +85,20 @@ export function createAccountSettingsStyles({
       fontSize: 15,
       fontWeight: '600' as const,
     },
+    loadingState: {
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      minHeight: 260,
+      paddingHorizontal: spacing.md,
+      gap: spacing.sm,
+    },
+    loadingText: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+      textAlign: 'center' as const,
+    },
     errorText: {
       color: colors.destructive,
       fontFamily: getFontFamily('400'),

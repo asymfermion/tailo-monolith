@@ -1,8 +1,10 @@
 import type * as SQLite from 'expo-sqlite';
 
 import { logDbInfo } from '@/db/dbLogger';
+import { getLocalAssetUploadSourcesByIds } from '@/db/localAssets';
 import { logTailo } from '@/lib/tailoLogger';
 import { enqueueUploadQueueItems } from '@/db/uploadQueue';
+import { isDeviceMediaUri } from '@/lib/deviceMediaUri';
 import {
   inspectUploadQueueForeignKeys,
   logUploadQueueForeignKeyReport,
@@ -37,10 +39,16 @@ export async function enqueueEventMediaUploads(
     return 0;
   }
 
-  const validAssetIds = report.existingAssetIds;
+  const validAssets = await getLocalAssetUploadSourcesByIds(
+    database,
+    report.existingAssetIds,
+  );
+  const validAssetIds = validAssets
+    .filter((asset) => isDeviceMediaUri(asset.uri))
+    .map((asset) => asset.localAssetId);
 
   if (validAssetIds.length === 0) {
-    logDbInfo('Skipped upload_queue enqueue — no local_assets rows', {
+    logDbInfo('Skipped upload_queue enqueue — no uploadable local_assets rows', {
       localEventId,
       requestedAssetIds: uniqueAssetIds,
     });

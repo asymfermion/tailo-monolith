@@ -13,6 +13,7 @@ function createRow(
     lastError: null,
     storagePath: null,
     thumbnailPath: null,
+    mediaFingerprint: null,
     nextAttemptAt: null,
     ...overrides,
   };

@@ -14,8 +14,8 @@ web-build/
 *.mobileprovision
 *.pem
 *.orig.*
-ios/
-android/
+apps/mobile/ios/
+apps/mobile/android/
 .kotlin/
 
 # Environment

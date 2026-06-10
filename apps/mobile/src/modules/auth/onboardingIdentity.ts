@@ -15,7 +15,7 @@ export async function resolveOnboardingIdentityId(
 
   const localId = await getOrCreateAnonymousUserId();
   logAuth(
-    'Using local onboarding identity (no remote session — enable Anonymous auth in Supabase for cloud bootstrap)',
+    'Using local onboarding identity until a remote session is available',
     { userIdPrefix: localId.slice(0, 16) },
   );
   return localId;

@@ -178,6 +178,26 @@ describe('completeOnboardingForReturningLinkedUser', () => {
     );
   });
 
+  it('marks onboarding complete for returning Apple sign-in from onboarding welcome', async () => {
+    jest.mocked(isLinkedRemoteAccount).mockReturnValue(true);
+    jest.mocked(hasReadyLocalPetProfile).mockResolvedValue(false);
+    jest.mocked(getAuthProvider).mockReturnValue({
+      getSession: jest.fn().mockResolvedValue({
+        userId: 'user-1',
+        isAnonymous: false,
+        email: 'apple@privaterelay.appleid.com',
+        emailConfirmed: true,
+      }),
+    } as never);
+
+    await expect(
+      completeOnboardingForReturningLinkedUser({
+        source: 'onboarding_apple',
+        ensureResult: existingUserEnsureResult,
+      }),
+    ).resolves.toBe(true);
+  });
+
   it('does not skip onboarding when linking email mid-flow without local pet data', async () => {
     jest.mocked(isLinkedRemoteAccount).mockReturnValue(true);
     jest.mocked(hasReadyLocalPetProfile).mockResolvedValue(false);

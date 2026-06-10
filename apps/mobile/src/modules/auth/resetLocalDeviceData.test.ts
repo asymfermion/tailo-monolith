@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { invalidateDatabaseConnection } from '@/db';
 
+import { deleteRemoteAccountIfPossible } from './deleteRemoteAccount';
 import { notifyAuthSessionChanged } from './authSessionEvents';
 import { clearSecureUserData } from './installIdentity';
 import { initialOnboardingState, saveOnboardingState } from './onboardingState';
@@ -32,6 +33,10 @@ jest.mock('./onboardingState', () => ({
 
 jest.mock('./authSessionEvents', () => ({
   notifyAuthSessionChanged: jest.fn(),
+}));
+
+jest.mock('./deleteRemoteAccount', () => ({
+  deleteRemoteAccountIfPossible: jest.fn(),
 }));
 
 describe('deleteAllLocalDatabaseFiles', () => {
@@ -111,9 +116,33 @@ describe('resetLocalDeviceData', () => {
   it('wipes sqlite, clears secure data, and restores onboarding', async () => {
     await resetLocalDeviceData();
 
+    expect(deleteRemoteAccountIfPossible).not.toHaveBeenCalled();
     expect(invalidateDatabaseConnection).toHaveBeenCalledTimes(1);
     expect(clearSecureUserData).toHaveBeenCalledTimes(1);
     expect(saveOnboardingState).toHaveBeenCalledWith(initialOnboardingState);
     expect(notifyAuthSessionChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes the remote account before wiping local data when requested', async () => {
+    jest
+      .mocked(deleteRemoteAccountIfPossible)
+      .mockResolvedValue({ status: 'deleted', appUserId: 'app-user-1' });
+
+    await resetLocalDeviceData({ deleteRemoteAccount: true });
+
+    expect(deleteRemoteAccountIfPossible).toHaveBeenCalledTimes(1);
+    expect(clearSecureUserData).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws when remote account deletion fails', async () => {
+    jest.mocked(deleteRemoteAccountIfPossible).mockResolvedValue({
+      status: 'error',
+      message: 'Delete failed.',
+    });
+
+    await expect(
+      resetLocalDeviceData({ deleteRemoteAccount: true }),
+    ).rejects.toThrow('Delete failed.');
+    expect(clearSecureUserData).not.toHaveBeenCalled();
   });
 });

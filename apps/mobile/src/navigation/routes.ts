@@ -34,6 +34,7 @@ export type ModalStackParamList = {
     width: number;
     height: number;
   };
+  NotificationsInbox: undefined;
 };
 
 export type ModalRouteName = keyof ModalStackParamList;
@@ -63,6 +64,10 @@ export type ModalRoute =
   | (RouteBase & {
       name: 'CapturePreview';
       params: ModalStackParamList['CapturePreview'];
+    })
+  | (RouteBase & {
+      name: 'NotificationsInbox';
+      params: ModalStackParamList['NotificationsInbox'];
     });
 
 /** @deprecated Use MainTabId + ModalRouteName. Kept for gradual migration in tests. */
@@ -74,6 +79,7 @@ export type RootStackParamList = {
   EventDetail: ModalStackParamList['EventDetail'];
   Capture: undefined;
   CapturePreview: ModalStackParamList['CapturePreview'];
+  NotificationsInbox: undefined;
 };
 
 export type RootRouteName = keyof RootStackParamList;

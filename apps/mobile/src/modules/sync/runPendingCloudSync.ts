@@ -2,6 +2,7 @@ import type * as SQLite from 'expo-sqlite';
 
 import { listLocalEventIdsPendingCloudSync } from '@/db/localEvents';
 import { logTailo } from '@/lib/tailoLogger';
+import { createSyncCompletionNotification } from '@/modules/notifications/notificationProducers';
 
 import { runEventSyncForLocalEvent } from './runEventSync';
 
@@ -64,6 +65,10 @@ export async function runPendingCloudSync(
       synced,
       skipped,
       errors,
+    });
+    await createSyncCompletionNotification({
+      syncedCount: synced,
+      errorCount: errors,
     });
   }
 

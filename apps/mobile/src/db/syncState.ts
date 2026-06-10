@@ -13,6 +13,7 @@ export const SYNC_STATE_KEYS = {
   BOOTSTRAP_BACKFILL_COMPLETED: 'sync.bootstrap_backfill_completed',
   THUMBNAIL_REFRESHED_AT: 'sync.thumbnail_refreshed_at',
   TIMELINE_GENERATION: 'sync.timeline_generation',
+  NOTIFICATIONS_CURSOR: 'sync.notifications_cursor',
 } as const;
 
 export type SyncStateKey =

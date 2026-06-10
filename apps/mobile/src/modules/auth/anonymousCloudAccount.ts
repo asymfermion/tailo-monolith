@@ -1,3 +1,4 @@
+import { hasPersistedSupabaseAuthBlob } from '@/lib/supabaseAuthStorage';
 import { hasReadyLocalPetProfile } from '@/modules/pets/petProfile';
 
 import { logAuth } from './authLogger';
@@ -5,10 +6,9 @@ import { isAuthRequireLogin } from './authRequireLogin';
 import { getAuthProvider } from './authProviderInstance';
 import { notifyAuthSessionChanged } from './authSessionEvents';
 import type { AuthSession, BootstrapAuthResult } from './authTypes';
-import {
-  ensureCurrentUserIfNeeded,
-  getTailoAppUserId,
-} from './ensureCurrentUser';
+import { isLinkedRemoteAccount } from './authTypes';
+import { getTailoAppUserId } from './appUserId';
+import { ensureCurrentUserIfNeeded } from './ensureCurrentUser';
 import { linkLegacyAnonymousUserIfNeeded } from './legacyAnonymousLink';
 
 export type EnsureAnonymousCloudAccountResult =
@@ -147,10 +147,28 @@ export async function prepareAppRemoteAuth(): Promise<PrepareAppRemoteAuthResult
     return bootstrapAuthSessionForAnonymousAccount();
   }
 
-  if (!(await shouldBootstrapRemoteAuthAtStartup())) {
-    logAuth(
-      'Deferred anonymous cloud account until first pet profile is saved',
-    );
+  const existingSession = await readAuthSession();
+
+  if (existingSession) {
+    logAuth('Persisted remote session restored at startup', {
+      userId: existingSession.userId,
+      isAnonymous: existingSession.isAnonymous,
+      isLinked: isLinkedRemoteAccount(existingSession),
+    });
+    await ensureCurrentUserIfNeeded();
+    await linkLegacyAnonymousUserIfNeeded();
+    notifyAuthSessionChanged();
+    return {
+      status: 'ready',
+      session: existingSession,
+      createdSession: false,
+    };
+  }
+
+  if (!(await hasReadyLocalPetProfile())) {
+    logAuth('Deferred anonymous cloud account until first pet profile is saved', {
+      hasPersistedAuthBlob: await hasPersistedSupabaseAuthBlob(),
+    });
     return { status: 'deferred' };
   }
 
@@ -159,6 +177,7 @@ export async function prepareAppRemoteAuth(): Promise<PrepareAppRemoteAuthResult
   if (authResult.status === 'ready') {
     await ensureCurrentUserIfNeeded();
     await linkLegacyAnonymousUserIfNeeded();
+    notifyAuthSessionChanged();
   }
 
   return authResult;

@@ -33,6 +33,7 @@ function createMockProvider(
     verifyPasswordResetOtp: jest.fn(),
     signInWithPassword: jest.fn(),
     signInWithGoogle: jest.fn(),
+    signInWithApple: jest.fn(),
     signOut: jest.fn(),
     ...overrides,
   };

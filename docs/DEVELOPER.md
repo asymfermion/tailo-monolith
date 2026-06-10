@@ -2,7 +2,7 @@
 
 Setup and day-to-day development for the Tailo monorepo.
 
-For product architecture and agent coding rules, see [Tailo_Agent_Coding_Guidelines_v2.md](../Tailo_Agent_Coding_Guidelines_v2.md) at the repo root.
+For product architecture and agent coding rules, see [AGENTS.md](../AGENTS.md) and [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ---
 
@@ -80,6 +80,8 @@ npx expo start --dev-client
 
 If you see `Cannot find native module 'ExpoImageManipulator'`, the installed dev client was built before that dependency was linked. Run the steps above (not Expo Go alone).
 
+**Sign in with Apple** uses `expo-apple-authentication` and the iOS entitlement from `ios.usesAppleSignIn` in `app.json`. After changing Apple auth native config, rebuild the dev client the same way. Supabase must list your bundle ID under **Authentication → Providers → Apple** — see [supabase/SETUP.md](../supabase/SETUP.md#apple-sign-in-with-apple-setup-dev--prod-runbook).
+
 Connect and unlock the iPhone, trust the Mac if prompted, and confirm Xcode can see the device:
 
 ```bash
@@ -131,6 +133,37 @@ npm run format
 
 AI agents must add unit tests for new logic — see [AGENTS.md](../AGENTS.md).
 
+### Manual QA checklist
+
+Use this checklist before TestFlight or release builds, and when validating changes that affect onboarding, photo access, scan behavior, sync, or auth:
+
+- First launch without account
+- Photo permission full access
+- Photo permission limited access
+- Photo permission denied
+- No pet photos found
+- Many pet photos found
+- Duplicate photos
+- Offline mode
+- Failed upload retry
+- AI job failure
+- Event edit persistence
+- Native dog/cat detection on a physical iPhone dev client when that path changed
+
+### Apple Sign in QA
+
+Run on a **physical iPhone** dev client or TestFlight build (not Simulator). Requires Supabase Apple provider + Apple Developer capability — see [supabase/SETUP.md](../supabase/SETUP.md#apple-sign-in-with-apple-setup-dev--prod-runbook).
+
+- Onboarding → **Sign in with Apple** (direct sign-up) → completes auth → continues onboarding or timeline
+- Login screen → **Sign in with Apple** (returning user) → restores linked account / cloud data
+- Settings → Account → **Connect with Apple** from anonymous session → same `app_user_id` preserved
+- Settings → Account → **Create account** with Apple from anonymous session
+- Cancel Apple sheet → no crash; calm error or silent dismiss
+- Apple identity already linked elsewhere → signs into existing account; local anonymous data cleared
+- First authorization captures display name when Apple provides it
+- Private relay email (`@privaterelay.appleid.com`) treated as normal account email
+- Reinstall → returning Apple sign-in restores cloud account (no silent merge of old anonymous data)
+
 ### Git pre-commit hook
 
 After `npm install`, Husky runs **lint** and **tests** on every commit.
@@ -160,6 +193,7 @@ npm run lint --workspace=@tailo/mobile
 
 ```txt
 apps/mobile/              React Native + Expo app
+apps/landing/             Public landing page website
 packages/shared/          Shared TypeScript types (@tailo/shared)
 supabase/                 Backend (Phase 2 — not started)
 docs/                     Developer and product documentation
@@ -197,11 +231,11 @@ Copy `apps/mobile/.env.example` to `apps/mobile/.env.local` when backend integra
 
 ---
 
-## Current phase: Phase 0 (local spike)
+## Current work
 
-Build locally before backend work. Track progress in **[MOBILE_TASKS.md](./MOBILE_TASKS.md)**.
+Tailo now spans the mobile app, the landing page website, backend integration, and release workstreams. Track progress in **[MOBILE_TASKS.md](./MOBILE_TASKS.md)**.
 
-No Supabase or network required for this phase.
+Use the phase sections in `MOBILE_TASKS.md` to decide whether a change is local-only, backend-related, or release-related.
 
 ---
 
@@ -310,10 +344,19 @@ Scaffold lives in `supabase/` (`config.toml`, `migrations/`, `functions/`).
 
 Edge Functions bundle code from `packages/shared` and `packages/backend-core`. Deno needs `supabase/functions/import_map.json` (maps `@tailo/shared` to the monorepo package). See [supabase/SETUP.md](../supabase/SETUP.md#deploy-migrations--edge-functions-one-command).
 
+Current API surface is router-based:
+
+- `api-auth` (auth/session/account bootstrap endpoints)
+- `api-account` (account profile endpoints)
+- `api-pet` (pet profile endpoints)
+- `api-events` (event sync/upload bootstrap endpoints)
+
+Legacy single-action function names (for example `upsert-pet`, `get-event-updates`, `create-upload-urls`) are now implemented as handlers behind the router functions above.
+
 ### Monorepo layout
 
 - Migrations → `supabase/migrations`
-- Edge Functions → `supabase/functions`
+- Edge Functions (router entrypoints + shared handlers) → `supabase/functions`
 - Portable logic → `packages/backend-core` (scaffold pending)
 - Shared API contracts → `packages/shared`
 

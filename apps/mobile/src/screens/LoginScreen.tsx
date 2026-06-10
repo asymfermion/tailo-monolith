@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthFormTextInput } from '@/components/AuthFormTextInput';
 import { FormErrorBanner } from '@/components/FormErrorBanner';
-import { SocialSignInPlaceholders } from '@/components/SocialSignInPlaceholders';
+import { SocialSignInControls } from '@/components/SocialSignInControls';
 import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
 import {
@@ -36,10 +36,14 @@ import {
   logAuth,
   normalizeAccountEmail,
   requestSignInOtp,
-  signInWithGoogle,
   signInWithPassword,
   verifySignInOtp,
 } from '@/modules/auth';
+import {
+  handleLoginSocialSignInResult,
+  runSocialSignIn,
+  type SocialSignInProvider,
+} from '@/modules/auth/socialSignInFlow';
 import { useBlockingAuthAction } from '@/modules/auth/useBlockingAuthAction';
 
 type FormStep = 'password' | 'code';
@@ -187,17 +191,20 @@ export function LoginScreen({
     isAuthEmailSubmitReady(emailInput) &&
     (prefersCodeSignIn || isAuthPasswordSubmitReady(passwordInput));
   const isCodeStepReady = isAuthOtpSubmitReady(codeInput);
-  const withBlockingAuth = useCallback(async <T,>(action: () => Promise<T>): Promise<T> => {
-    signInInFlightRef.current = true;
-    setIsSubmitting(true);
+  const withBlockingAuth = useCallback(
+    async <T,>(action: () => Promise<T>): Promise<T> => {
+      signInInFlightRef.current = true;
+      setIsSubmitting(true);
 
-    try {
-      return await runBlockingAuthAction(action);
-    } finally {
-      signInInFlightRef.current = false;
-      setIsSubmitting(false);
-    }
-  }, [runBlockingAuthAction]);
+      try {
+        return await runBlockingAuthAction(action);
+      } finally {
+        signInInFlightRef.current = false;
+        setIsSubmitting(false);
+      }
+    },
+    [runBlockingAuthAction],
+  );
 
   async function handleSendCode() {
     setErrorMessage(null);
@@ -332,31 +339,23 @@ export function LoginScreen({
     }
   }
 
-  async function handleGoogleSignIn() {
+  async function handleSocialSignIn(provider: SocialSignInProvider) {
     if (signInInFlightRef.current) {
       return;
     }
 
     setErrorMessage(null);
     try {
+      const source = provider === 'google' ? 'login_google' : 'login_apple';
       const result = await withBlockingAuth(() =>
-        signInWithGoogle({
-          source: 'login_google',
-        }),
+        runSocialSignIn({ provider, source }),
       );
 
-      if (result.status === 'skipped') {
-        setErrorMessage(t('account.errors.unavailable'));
-        return;
-      }
-
-      if (result.status === 'error') {
-        setErrorMessage(result.message);
-        return;
-      }
-
-      navigation.finishSignInToTimeline();
-      onSignedIn();
+      handleLoginSocialSignInResult(result, {
+        setErrorMessage,
+        finishSignIn: navigation.finishSignInToTimeline,
+        onSignedIn,
+      });
     } finally {
       // no-op: handled by withBlockingAuth
     }
@@ -451,8 +450,9 @@ export function LoginScreen({
                 : handlePasswordSignIn())
             }
           />
-          <SocialSignInPlaceholders
-            onGooglePress={() => void handleGoogleSignIn()}
+          <SocialSignInControls
+            onGooglePress={() => void handleSocialSignIn('google')}
+            onApplePress={() => void handleSocialSignIn('apple')}
           />
           <Pressable
             accessibilityRole="button"

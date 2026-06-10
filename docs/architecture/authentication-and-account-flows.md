@@ -247,6 +247,13 @@ flowchart TD
 
 ### Anonymous-to-connected upgrade
 
+Anonymous upgrade keeps the current Tailo identity whenever possible:
+
+- Email connect (`updateUser` + `verifyOtp(email_change)`) keeps the same anonymous `app_user_id`.
+- Google connect attempts provider **link** first on the anonymous session.
+- If Google reports the identity is already linked to another account, Tailo falls back to provider **sign-in**, clears local anonymous device data, then bootstraps the existing linked account.
+- OAuth transitions use a blocking loading state during redirect/callback handoff to avoid intermediate auth-screen flashes.
+
 ```mermaid
 flowchart TD
   A[Anonymous user in app] --> B[Settings -> Account]
@@ -257,10 +264,15 @@ flowchart TD
   D --> G[Send 8-digit code]
   G --> H[Verify code]
   E --> I[Native provider auth]
-  F --> J[Native provider auth]
+  F --> J[Start Google link auth]
   H --> K[Link identity to same app_user_id]
   I --> K
-  J --> K
+  J --> J1{Google link result}
+  J1 -->|Linked| K
+  J1 -->|Already linked elsewhere| J2[Fallback Google sign-in]
+  J2 --> J3[Clear local anonymous device data]
+  J3 --> J4[Bootstrap existing linked account]
+  J4 --> L
   K --> L[Create or update account profile]
   L --> M[Show connected account profile]
 
@@ -272,8 +284,8 @@ flowchart TD
 
   class A anonymousAccount
   class B,D,E,F,H,I,J userAction
-  class G,K,L appAction
-  class C decision
+  class G,K,L,J2,J3,J4 appAction
+  class C,J1 decision
   class M linkedAccount
 ```
 
@@ -544,6 +556,12 @@ Recommended mobile-first shape:
 4. Provider identity is linked to the same Tailo user
 5. Account profile screen shows connected state
 
+**Google behavior (implemented):**
+
+- If the user is anonymous and starts from create/link account, Tailo attempts `linkIdentity` first so the same `app_user_id` is preserved.
+- If Google reports the identity is already linked to a different account, Tailo falls back to Google `sign_in`, then clears local anonymous device data and boots the existing linked account.
+- During OAuth redirect + callback return, the upgrade screen switches to a full blocking loading state to prevent intermediate UI flashes.
+
 ### Flow G — User directly registers or logs in with Apple or Google
 
 1. User taps `Continue with Apple` or `Continue with Google`
@@ -553,6 +571,11 @@ Recommended mobile-first shape:
 5. Continue to onboarding or app home
 
 This should be the easiest path for many users.
+
+**Google behavior (implemented):**
+
+- Direct Google sign-in/sign-up uses OAuth `sign_in`.
+- If an anonymous session exists before direct Google sign-in, Tailo signs out the anonymous session first to avoid invalid manual-link behavior on the provider handoff.
 
 ### Flow H — Account profile
 
@@ -676,6 +699,50 @@ Tailo should use a tiered, calm notification plan for anonymous users.
 - `Settings`: permanent home for account state and provider actions
 - `Pet profile`: not a primary place for account upgrade
 
+### Minimal notification system
+
+Tailo should use one notification model for both in-app messages and push delivery.
+
+Minimal v1 scope:
+
+- one inbox in the app
+- one unread count/badge
+- one read state per notification
+- a small set of notification kinds from app code and cloud jobs
+- push only for actionable or time-sensitive items
+
+Core rules:
+
+- A notification is a durable record with `kind`, `title`, `body`, `source`, `target`, `priority`, `delivery`, and `read_at`.
+- `source` can be local app logic, cloud logic, sync/AI jobs, or account actions.
+- `delivery` can be `in_app`, `push`, or `both`.
+- The in-app inbox is the source of truth for what the user has seen.
+- Opening a notification marks it read and follows the attached target.
+- Push is only a transport layer; it should never be the only place a message exists.
+- Only actionable or time-sensitive items should use push. Passive prompts stay in-app.
+
+Suggested notification kinds for the current app:
+
+- account reminders
+- sync completion or recovery issues
+- AI/job completion
+- continuity-risk prompts
+- system status or release notes, if we later need them
+
+First-pass product rules:
+
+- do not add categories, threads, or reactions
+- do not add archive/delete in v1 unless needed for inbox cleanup
+- do not surface push for every notification; keep passive reminders in-app
+- do not let cloud jobs overwrite local read state unless they own the same notification record
+
+Minimal UI surfaces:
+
+- a small unread indicator in Settings or the home shell
+- an inbox screen with unread/read state
+- tap-to-open behavior that marks the item read before navigation
+- optional dismiss/archive later, but not required for the first pass
+
 ---
 
 ## Current implementation snapshot
@@ -687,7 +754,12 @@ Today the repo supports:
 - direct `Create account` and `Log in` entry points from onboarding welcome, both kept secondary to the anonymous-first path
 - connected account profile screen (sections: account, sign-in methods, profile preferences)
 - linked vs anonymous status in Account settings and Settings summary
-- sign-in methods list (email connected; Apple/Google shown as coming later)
+- direct Google sign-in/sign-up from onboarding/login entry points
+- anonymous Google link/upgrade path from Account settings
+- Google identity conflict fallback: link-first, then sign-in existing account + clear local anonymous device data
+- blocking auth loading state during OAuth redirect/callback handoff (Google and shared auth transitions)
+- display name seeding from provider identity metadata when cloud/local display name is missing or blank
+- sign-in methods list (email + Google currently available; Apple still pending)
 - password setup after direct email account creation
 - email + password sign-in for returning users
 - email OTP sign-in screen as a fallback
@@ -695,7 +767,7 @@ Today the repo supports:
 - forgot-password flow: email reset code → new password → sign in
 - Phase 1 identity foundation: `app_users`, `user_identities`, `account_profiles`, `ensure-current-user` Edge Function; mobile caches `app_user_id` after bootstrap/sign-in
 - `app_user_id` ownership on `pets`/`events`, RLS + storage paths, `upsert-account-profile` + Account settings display name / locale editing
-- account-upgrade planning docs for Apple / Google later
+- consolidated API Edge Functions (`api-auth`, `api-account`, `api-pet`, `api-events`) with shared handlers replacing redundant legacy single-action endpoints
 
 Current architecture direction also says:
 
@@ -715,15 +787,14 @@ Local device direction also now says:
 
 ### Product / UX gaps
 
-- no Apple sign-in flow yet
-- no Google sign-in flow yet
-- no provider-management UI yet
+- no provider unlink/manage UI yet
 
 ### Configuration / operational gaps
 
 - hosted Supabase email templates must match OTP UX, including `Reset password` OTP copy
-- Apple/Google provider setup is not fully configured
-- direct registration/login flows need environment-specific redirect and provider config
+- Apple provider on **prod/staging** still needs per-environment apply (dev configured; see `supabase/SETUP.md`)
+- provider flows need environment-specific redirect and provider config validation across dev/staging/prod
+- **3.1.17** Apple auth device QA matrix in `docs/DEVELOPER.md` — pending physical iPhone / TestFlight run
 
 ---
 
@@ -731,6 +802,12 @@ Local device direction also now says:
 
 | Date       | Change                                                                                                                                                                                  |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-10 | Native Apple sign-in/link: onboarding + login direct sign-in, Settings anonymous upgrade with link-first + conflict fallback, dev Supabase Apple provider (`com.mtxforge.tailo`), first-authorization name persisted to `user_metadata`. Device QA checklist in `DEVELOPER.md`; prod provider apply still per-environment. |
+| 2026-06-06 | Notification inbox first slice shipped (`3.6.1`–`3.6.4`, `3.6.8`): shared contract + local inbox schema, Settings unread entry, account/sync/AI/continuity producers, and test coverage. |
+| 2026-05-25 | Google auth flow now documents link-first behavior for anonymous upgrades, plus fallback to existing-account sign-in when identity is already linked (with local anonymous data clear). |
+| 2026-05-25 | OAuth handoff UX now documents full-screen blocking loading during redirect/callback transitions to avoid intermediate auth screen flashes.                                             |
+| 2026-05-25 | Account profile seeding now documents provider display-name fallback when cloud/local display name is blank.                                                                            |
+| 2026-05-25 | Supabase Edge Function docs now reflect consolidated router endpoints (`api-auth`, `api-account`, `api-pet`, `api-events`) and removal of redundant legacy single-action functions.     |
 | 2026-05-24 | Anonymous → cloud bootstrap no longer switches local SQLite workspaces; mobile persists cloud IDs onto existing local records and keeps local IDs device-scoped.                        |
 | 2026-05-24 | Stale SecureStore reconciliation clears global identity/auth state for fresh local databases, including legacy workspace installs, so Keychain leftovers do not resurrect old accounts. |
 | 2026-05-24 | All auth flow diagrams share install-to-registration color legend (user/app/decision/account-state).                                                                                    |
@@ -785,7 +862,7 @@ Local device direction also now says:
 
 1. ~~Replace upgrade-only views with real account profile screens~~
 2. ~~Allow editing display name and preferred language~~
-3. ~~Show connected methods and account status~~ (email connected; Apple/Google “coming later”)
+3. ~~Show connected methods and account status~~ (email connected; Apple/Google available for link/sign-in on iOS where native auth is supported)
 4. Add safer provider-link / unlink rules later (Phase 3 providers)
 
 ### Phase 5 — Recovery and multi-device polish

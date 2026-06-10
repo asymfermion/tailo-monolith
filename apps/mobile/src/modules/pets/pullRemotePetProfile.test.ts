@@ -2,7 +2,7 @@ import { invokeTailoApi } from '@/lib/invokeTailoApi';
 import {
   getAuthSession,
   isRemoteAuthConfigured,
-} from '@/modules/auth/authService';
+} from '@/modules/auth/authSessionAccess';
 import { isLinkedRemoteAccount } from '@/modules/auth/authTypes';
 
 import {
@@ -15,7 +15,7 @@ jest.mock('@/lib/invokeTailoApi', () => ({
   invokeTailoApi: jest.fn(),
 }));
 
-jest.mock('@/modules/auth/authService', () => ({
+jest.mock('@/modules/auth/authSessionAccess', () => ({
   isRemoteAuthConfigured: jest.fn(),
   getAuthSession: jest.fn(),
 }));

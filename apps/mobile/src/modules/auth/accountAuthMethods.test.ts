@@ -35,8 +35,8 @@ describe('deriveAccountAuthMethods', () => {
   it('marks email connected when the session is linked', () => {
     expect(deriveAccountAuthMethods(linkedSession)).toEqual([
       { id: 'email', status: 'connected' },
-      { id: 'apple', status: 'coming_soon' },
-      { id: 'google', status: 'coming_soon' },
+      { id: 'apple', status: 'available' },
+      { id: 'google', status: 'available' },
     ]);
   });
 

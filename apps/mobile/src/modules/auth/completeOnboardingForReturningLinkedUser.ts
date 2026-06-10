@@ -16,6 +16,10 @@ export const EXPLICIT_RETURNING_SIGN_IN_SOURCES = new Set([
   'sign_in_with_password',
   'verify_sign_in_otp',
   'password_reset',
+  'onboarding_apple',
+  'onboarding_google',
+  'login_apple',
+  'login_google',
 ]);
 
 export type CompleteOnboardingForReturningLinkedUserOptions = {

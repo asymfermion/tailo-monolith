@@ -1,5 +1,6 @@
 import type * as SQLite from 'expo-sqlite';
 
+import { runNotificationSyncPass } from '@/modules/notifications';
 import { syncRemotePetProfileIfNeeded } from '@/modules/pets';
 
 import { pollEventUpdates } from './pollEventUpdates';
@@ -21,6 +22,10 @@ jest.mock('./runPendingCloudSync', () => ({
 
 jest.mock('./pollEventUpdates', () => ({
   pollEventUpdates: jest.fn(),
+}));
+
+jest.mock('@/modules/notifications', () => ({
+  runNotificationSyncPass: jest.fn(),
 }));
 
 describe('runCloudSyncPass', () => {
@@ -50,6 +55,12 @@ describe('runCloudSyncPass', () => {
     jest
       .mocked(pollEventUpdates)
       .mockResolvedValue({ applied: 0, skippedReason: null });
+    jest.mocked(runNotificationSyncPass).mockResolvedValue({
+      pushed: 0,
+      pulled: 0,
+      errors: 0,
+      skippedReason: null,
+    });
   });
 
   it('syncs remote pet before draining upload queue and pending edits', async () => {
@@ -76,9 +87,18 @@ describe('runCloudSyncPass', () => {
       callOrder.push('poll');
       return { applied: 0, skippedReason: null };
     });
+    jest.mocked(runNotificationSyncPass).mockImplementation(async () => {
+      callOrder.push('notifications');
+      return {
+        pushed: 0,
+        pulled: 0,
+        errors: 0,
+        skippedReason: null,
+      };
+    });
 
     await runCloudSyncPass(database);
 
-    expect(callOrder).toEqual(['pet', 'upload', 'edits', 'poll']);
+    expect(callOrder).toEqual(['pet', 'upload', 'edits', 'poll', 'notifications']);
   });
 });

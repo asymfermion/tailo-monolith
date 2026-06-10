@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 
 import { AppTextInput } from '@/components/AppTextInput';
-import { SocialSignInPlaceholders } from '@/components/SocialSignInPlaceholders';
+import { SocialSignInControls } from '@/components/SocialSignInControls';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 
@@ -40,9 +46,14 @@ import { canContinueOnboardingScan } from '@/modules/auth/canContinueOnboardingS
 import {
   isRemoteAuthConfigured,
   resetOnboardingForAccountSignInIntent,
-  signInWithGoogle,
   useAuthAccountStatus,
 } from '@/modules/auth';
+import {
+  handleOnboardingSocialSignInResult,
+  runSocialSignIn,
+  type SocialSignInProvider,
+} from '@/modules/auth/socialSignInFlow';
+import { useBlockingAuthAction } from '@/modules/auth/useBlockingAuthAction';
 import {
   shouldPreferSignInOnWelcome,
   shouldShowAccountActionsOnWelcome,
@@ -59,6 +70,9 @@ import {
   saveSelectedPetType,
   type LocalPetType,
 } from '@/modules/pets';
+
+/** Set true to show the privacy consent checkbox on onboarding welcome. */
+const SHOW_WELCOME_PRIVACY_CONSENT = false;
 
 type OnboardingScreenProps = {
   anonymousUserId: string;
@@ -258,6 +272,18 @@ function createOnboardingStyles({
       fontSize: 15,
       lineHeight: 22,
     },
+    loadingState: {
+      alignItems: 'center' as const,
+      gap: spacing.sm,
+      marginTop: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    loadingText: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+    },
     profilePhotoLabel: {
       color: colors.textMuted,
       fontFamily: getFontFamily('600'),
@@ -370,6 +396,9 @@ export function OnboardingScreen({
   const [accountErrorMessage, setAccountErrorMessage] = useState<string | null>(
     null,
   );
+  const { isBlockingAuthInProgress, runBlockingAuthAction } =
+    useBlockingAuthAction();
+  const socialSignInInFlightRef = useRef(false);
   const [hasExistingLocalData, setHasExistingLocalData] = useState(false);
   const step = getEffectiveStep(
     onboardingState.step,
@@ -378,7 +407,11 @@ export function OnboardingScreen({
     onboardingState.completedFlags.scanStarted,
   );
   const canContinueAfterScan = canContinueOnboardingScan(photoAccess);
-  const privacyAcknowledged = onboardingState.completedFlags.privacyAcknowledged;
+  const storedPrivacyAcknowledged =
+    onboardingState.completedFlags.privacyAcknowledged;
+  const privacyAcknowledged = SHOW_WELCOME_PRIVACY_CONSENT
+    ? storedPrivacyAcknowledged
+    : true;
   const isPipelineActive =
     photoAccess.isScanning ||
     photoAccess.isDetectingPets ||
@@ -582,20 +615,32 @@ export function OnboardingScreen({
     await photoAccess.requestAccess();
   }, [onStepChange, photoAccess, privacyAcknowledged]);
 
-  const continueWithGoogle = useCallback(async () => {
-    if (!privacyAcknowledged) {
-      return;
-    }
+  const continueWithSocialSignIn = useCallback(
+    async (provider: SocialSignInProvider) => {
+      if (!privacyAcknowledged || socialSignInInFlightRef.current) {
+        return;
+      }
 
-    setAccountErrorMessage(null);
-    const result = await signInWithGoogle({
-      source: 'onboarding_google',
-    });
+      socialSignInInFlightRef.current = true;
+      setAccountErrorMessage(null);
 
-    if (result.status === 'error') {
-      setAccountErrorMessage(result.message);
-    }
-  }, [privacyAcknowledged]);
+      try {
+        const source =
+          provider === 'google' ? 'onboarding_google' : 'onboarding_apple';
+        const result = await runBlockingAuthAction(() =>
+          runSocialSignIn({ provider, source }),
+        );
+
+        await handleOnboardingSocialSignInResult(result, {
+          startOnThisDevice,
+          setErrorMessage: setAccountErrorMessage,
+        });
+      } finally {
+        socialSignInInFlightRef.current = false;
+      }
+    },
+    [privacyAcknowledged, runBlockingAuthAction, startOnThisDevice],
+  );
 
   const preferSignInOnWelcome = shouldPreferSignInOnWelcome({
     isRemoteAuthConfigured: isRemoteAuthConfigured(),
@@ -621,12 +666,22 @@ export function OnboardingScreen({
                 : 'onboarding.welcomeText',
             )}
           >
-            {preferSignInOnWelcome && showAccountActionsOnWelcome ? (
+            {isBlockingAuthInProgress ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator color={colors.accent} />
+                <Text style={styles.loadingText}>{t('signIn.signingIn')}</Text>
+              </View>
+            ) : preferSignInOnWelcome && showAccountActionsOnWelcome ? (
               <>
-                <SocialSignInPlaceholders
+                <SocialSignInControls
                   onGooglePress={
                     privacyAcknowledged
-                      ? () => void continueWithGoogle()
+                      ? () => void continueWithSocialSignIn('google')
+                      : undefined
+                  }
+                  onApplePress={
+                    privacyAcknowledged
+                      ? () => void continueWithSocialSignIn('apple')
                       : undefined
                   }
                 />
@@ -650,10 +705,15 @@ export function OnboardingScreen({
                 />
                 {showAccountActionsOnWelcome ? (
                   <>
-                    <SocialSignInPlaceholders
+                    <SocialSignInControls
                       onGooglePress={
                         privacyAcknowledged
-                          ? () => void continueWithGoogle()
+                          ? () => void continueWithSocialSignIn('google')
+                          : undefined
+                      }
+                      onApplePress={
+                        privacyAcknowledged
+                          ? () => void continueWithSocialSignIn('apple')
                           : undefined
                       }
                     />
@@ -677,36 +737,42 @@ export function OnboardingScreen({
                 />
               </>
             ) : null}
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: privacyAcknowledged }}
-              style={styles.consentRow}
-              onPress={() =>
-                onStepChange('welcome', {
-                  privacyAcknowledged: !privacyAcknowledged,
-                })
-              }
-            >
-              <View
-                style={[
-                  styles.consentCheckbox,
-                  privacyAcknowledged ? styles.consentCheckboxChecked : null,
-                ]}
-              >
-                {privacyAcknowledged ? (
-                  <Text style={styles.consentCheckmark}>✓</Text>
+            {SHOW_WELCOME_PRIVACY_CONSENT ? (
+              <>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: storedPrivacyAcknowledged }}
+                  style={styles.consentRow}
+                  onPress={() =>
+                    onStepChange('welcome', {
+                      privacyAcknowledged: !storedPrivacyAcknowledged,
+                    })
+                  }
+                >
+                  <View
+                    style={[
+                      styles.consentCheckbox,
+                      storedPrivacyAcknowledged
+                        ? styles.consentCheckboxChecked
+                        : null,
+                    ]}
+                  >
+                    {storedPrivacyAcknowledged ? (
+                      <Text style={styles.consentCheckmark}>✓</Text>
+                    ) : null}
+                  </View>
+                  <View style={styles.consentTextWrap}>
+                    <Text style={styles.consentText}>
+                      {t('onboarding.privacyConsentText')}
+                    </Text>
+                  </View>
+                </Pressable>
+                {!storedPrivacyAcknowledged ? (
+                  <Text style={styles.consentHint}>
+                    {t('onboarding.privacyConsentRequired')}
+                  </Text>
                 ) : null}
-              </View>
-              <View style={styles.consentTextWrap}>
-                <Text style={styles.consentText}>
-                  {t('onboarding.privacyConsentText')}
-                </Text>
-              </View>
-            </Pressable>
-            {!privacyAcknowledged ? (
-              <Text style={styles.consentHint}>
-                {t('onboarding.privacyConsentRequired')}
-              </Text>
+              </>
             ) : null}
             {accountErrorMessage ? (
               <Text style={styles.mutedText}>{accountErrorMessage}</Text>
@@ -911,7 +977,9 @@ export function OnboardingScreen({
     photoAccess,
     preferSignInOnWelcome,
     showAccountActionsOnWelcome,
-    continueWithGoogle,
+    colors.accent,
+    continueWithSocialSignIn,
+    isBlockingAuthInProgress,
     startOnThisDevice,
     isLoadingProfilePhotos,
     profilePhotoSuggestions,

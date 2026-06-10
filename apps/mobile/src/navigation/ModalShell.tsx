@@ -4,6 +4,7 @@ import { CaptureScreen } from '@/screens/CaptureScreen';
 import { EventDetailScreen } from '@/screens/EventDetailScreen';
 import { ForgotPasswordScreen } from '@/screens/ForgotPasswordScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
+import { NotificationsInboxScreen } from '@/screens/NotificationsInboxScreen';
 
 import { logAuth } from '@/modules/auth/authLogger';
 
@@ -63,5 +64,7 @@ export function ModalShell({ route }: ModalShellProps) {
           width={route.params.width}
         />
       );
+    case 'NotificationsInbox':
+      return <NotificationsInboxScreen />;
   }
 }

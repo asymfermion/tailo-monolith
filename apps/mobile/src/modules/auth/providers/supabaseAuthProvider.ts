@@ -7,6 +7,15 @@ import { Linking } from 'react-native';
 
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
 import { logAuth } from '../authLogger';
+import {
+  requestAppleNativeCredential,
+  resolveAppleDisplayName,
+  type AppleNativeCredential,
+} from '../appleNativeAuth';
+import {
+  loadLocalAccountProfile,
+  saveLocalAccountProfile,
+} from '../localAccountProfile';
 
 import {
   classifyEmailLinkError,
@@ -35,6 +44,10 @@ const EMAIL_OTP_LENGTH = 8;
 const OAUTH_REDIRECT_URI = 'tailo://auth/callback';
 const OAUTH_TIMEOUT_MS = 120_000;
 
+type IdTokenAuthResponse = Awaited<
+  ReturnType<SupabaseClient['auth']['signInWithIdToken']>
+>;
+
 function mapUser(user: {
   id: string;
   is_anonymous?: boolean;
@@ -47,6 +60,116 @@ function mapUser(user: {
     email: user.email ?? null,
     emailConfirmed: Boolean(user.email_confirmed_at),
   };
+}
+
+function normalizeDisplayName(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+function composeDisplayName(
+  givenName: unknown,
+  familyName: unknown,
+): string | null {
+  const parts = [givenName, familyName]
+    .filter((part): part is string => typeof part === 'string' && part.trim())
+    .map((part) => part.trim());
+
+  return parts.length > 0 ? parts.join(' ') : null;
+}
+
+function resolveDisplayNameFromUserMetadata(
+  metadata: Record<string, unknown>,
+): string | null {
+  return (
+    normalizeDisplayName(metadata.full_name) ??
+    normalizeDisplayName(metadata.name) ??
+    composeDisplayName(metadata.given_name, metadata.family_name) ??
+    null
+  );
+}
+
+type AuthUserNameSource = {
+  user_metadata?: Record<string, unknown>;
+  identities?: Array<{
+    provider?: string;
+    identity_data?: Record<string, unknown>;
+  }>;
+};
+
+function resolveDisplayNameFromAuthUser(
+  user: AuthUserNameSource,
+): string | null {
+  const fromMetadata = resolveDisplayNameFromUserMetadata(
+    user.user_metadata ?? {},
+  );
+
+  if (fromMetadata) {
+    return fromMetadata;
+  }
+
+  const appleIdentity = user.identities?.find(
+    (identity) => identity.provider === 'apple',
+  );
+
+  if (!appleIdentity?.identity_data) {
+    return null;
+  }
+
+  return resolveDisplayNameFromUserMetadata(appleIdentity.identity_data);
+}
+
+/** Apple only returns full name on first authorization — persist it when available. */
+async function persistAppleProfileMetadataIfNeeded(
+  client: SupabaseClient,
+  credential: AppleNativeCredential,
+  options?: {
+    authUser?: AuthUserNameSource | null;
+    rememberedDisplayName?: string | null;
+  },
+): Promise<void> {
+  const displayName =
+    resolveAppleDisplayName(credential) ??
+    options?.rememberedDisplayName ??
+    (options?.authUser ? resolveDisplayNameFromAuthUser(options.authUser) : null);
+
+  if (!displayName) {
+    return;
+  }
+
+  const metadata: Record<string, string> = {
+    full_name: displayName,
+    name: displayName,
+  };
+
+  if (credential.givenName) {
+    metadata.given_name = credential.givenName;
+  }
+
+  if (credential.familyName) {
+    metadata.family_name = credential.familyName;
+  }
+
+  const { error } = await client.auth.updateUser({
+    data: metadata,
+  });
+
+  if (error) {
+    logAuth('Apple profile metadata update failed', { message: error.message });
+  }
+
+  try {
+    await saveLocalAccountProfile({ displayName });
+  } catch (error) {
+    logAuth('Apple profile local save failed', {
+      message:
+        error instanceof Error ? error.message : 'Could not save display name.',
+    });
+  }
 }
 
 function emailLinkErrorMessage(message: string): string {
@@ -135,22 +258,16 @@ function parseUrlParams(url: string): {
   return { query, hash };
 }
 
-function normalizeDisplayName(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 async function completeOAuthInApp(
   client: SupabaseClient,
   authUrl: string,
-): Promise<{
-  status: 'signed_in';
-  session: AuthSession;
-} | { status: 'error'; message: string }> {
+): Promise<
+  | {
+      status: 'signed_in';
+      session: AuthSession;
+    }
+  | { status: 'error'; message: string }
+> {
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       subscription.remove();
@@ -242,6 +359,58 @@ async function completeOAuthInApp(
 }
 
 export function createSupabaseAuthProvider(): AuthProvider {
+  let latestAppleDisplayName: string | null = null;
+
+  async function rememberAppleDisplayNameFromCredential(
+    credential: AppleNativeCredential,
+  ): Promise<void> {
+    const displayName = resolveAppleDisplayName(credential);
+
+    if (!displayName) {
+      logAuth('Apple credential did not include a display name', {
+        hasGivenName: Boolean(credential.givenName),
+        hasFamilyName: Boolean(credential.familyName),
+      });
+      return;
+    }
+
+    latestAppleDisplayName = displayName;
+
+    try {
+      await saveLocalAccountProfile({ displayName });
+    } catch (error) {
+      logAuth('Apple display name local save failed', {
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Could not save Apple display name.',
+      });
+    }
+  }
+
+  async function getAppleCredential(): Promise<
+    | { status: 'credential'; credential: AppleNativeCredential }
+    | { status: 'skipped' }
+    | { status: 'error'; message: string }
+  > {
+    const result = await requestAppleNativeCredential();
+
+    if (result.status === 'credential') {
+      await rememberAppleDisplayNameFromCredential(result.credential);
+      return result;
+    }
+
+    if (result.status === 'unavailable') {
+      return { status: 'skipped' };
+    }
+
+    if (result.status === 'canceled') {
+      return { status: 'error', message: 'Apple sign-in was canceled.' };
+    }
+
+    return result;
+  }
+
   return {
     kind: 'supabase',
 
@@ -259,7 +428,14 @@ export function createSupabaseAuthProvider(): AuthProvider {
         error,
       } = await getSupabaseClient().auth.getSession();
 
-      if (error || !session?.user) {
+      if (error) {
+        logAuth('Supabase getSession returned an error', {
+          message: error.message,
+        });
+        return null;
+      }
+
+      if (!session?.user) {
         return null;
       }
 
@@ -753,11 +929,9 @@ export function createSupabaseAuthProvider(): AuthProvider {
       };
     },
 
-    async signInWithGoogle(
-      options?: {
-        mode?: 'sign_in' | 'link';
-      },
-    ): Promise<SocialSignInResult> {
+    async signInWithGoogle(options?: {
+      mode?: 'sign_in' | 'link';
+    }): Promise<SocialSignInResult> {
       if (!isSupabaseConfigured()) {
         return { status: 'skipped' };
       }
@@ -856,6 +1030,124 @@ export function createSupabaseAuthProvider(): AuthProvider {
       return result;
     },
 
+    async signInWithApple(options?: {
+      mode?: 'sign_in' | 'link';
+    }): Promise<SocialSignInResult> {
+      if (!isSupabaseConfigured()) {
+        return { status: 'skipped' };
+      }
+
+      const credentialResult = await getAppleCredential();
+
+      if (credentialResult.status !== 'credential') {
+        return credentialResult;
+      }
+
+      const client = getSupabaseClient();
+      const mode = options?.mode ?? 'sign_in';
+      const authPayload = {
+        provider: 'apple' as const,
+        token: credentialResult.credential.identityToken,
+      };
+
+      if (mode === 'link') {
+        const {
+          data: { session },
+        } = await client.auth.getSession();
+
+        if (!session?.user?.is_anonymous) {
+          return {
+            status: 'error',
+            message: 'Apple can only be linked from an anonymous session.',
+          };
+        }
+
+        const { data, error } = (await client.auth.linkIdentity(
+          authPayload,
+        )) as unknown as IdTokenAuthResponse;
+
+        if (error) {
+          return { status: 'error', message: error.message };
+        }
+
+        const user = data.user ?? data.session?.user;
+
+        if (!user) {
+          return {
+            status: 'error',
+            message: 'Apple account was not linked. Please try again.',
+          };
+        }
+
+        const linkedSession = mapUser(user);
+
+        if (linkedSession.isAnonymous) {
+          return {
+            status: 'error',
+            message: 'Apple account was not linked. Please try again.',
+          };
+        }
+
+        await persistAppleProfileMetadataIfNeeded(
+          client,
+          credentialResult.credential,
+          {
+            authUser: user,
+            rememberedDisplayName: latestAppleDisplayName,
+          },
+        );
+
+        return { status: 'signed_in', session: linkedSession };
+      }
+
+      const {
+        data: { session },
+      } = await client.auth.getSession();
+
+      if (session?.user?.is_anonymous) {
+        const { error: signOutError } = await client.auth.signOut();
+
+        if (signOutError) {
+          return { status: 'error', message: signOutError.message };
+        }
+      }
+
+      const { data, error } = await client.auth.signInWithIdToken(authPayload);
+
+      if (error) {
+        return { status: 'error', message: error.message };
+      }
+
+      const user = data.user ?? data.session?.user;
+
+      if (!user) {
+        return {
+          status: 'error',
+          message: 'Could not complete Apple sign-in.',
+        };
+      }
+
+      const signedInSession = mapUser(user);
+
+      if (signedInSession.isAnonymous) {
+        return {
+          status: 'error',
+          message: 'This Apple account is not linked to a saved account yet.',
+        };
+      }
+
+      await persistAppleProfileMetadataIfNeeded(
+        client,
+        credentialResult.credential,
+        {
+          authUser: user,
+          rememberedDisplayName: latestAppleDisplayName,
+        },
+      );
+
+      return { status: 'signed_in', session: signedInSession };
+    },
+
     async getIdentityDisplayName(): Promise<string | null> {
       if (!isSupabaseConfigured()) {
         return null;
@@ -874,11 +1166,12 @@ export function createSupabaseAuthProvider(): AuthProvider {
         return null;
       }
 
-      const metadata = user.user_metadata ?? {};
+      const localProfile = await loadLocalAccountProfile();
 
       return (
-        normalizeDisplayName(metadata.full_name) ??
-        normalizeDisplayName(metadata.name) ??
+        resolveDisplayNameFromAuthUser(user) ??
+        localProfile?.displayName ??
+        latestAppleDisplayName ??
         null
       );
     },

@@ -4,15 +4,15 @@ import { logAuth } from '@/modules/auth/authLogger';
 import {
   getAuthSession,
   isRemoteAuthConfigured,
-} from '@/modules/auth/authService';
+} from '@/modules/auth/authSessionAccess';
 import { isLinkedRemoteAccount } from '@/modules/auth/authTypes';
 import { pullRemoteAccountProfileIfNeeded } from '@/modules/auth/remoteAccountProfile';
 import { logTailo } from '@/lib/tailoLogger';
 import {
   hasReadyLocalPetProfile,
   loadLocalPetProfile,
-  pullRemotePetProfileIfNeeded,
-} from '@/modules/pets';
+} from '@/modules/pets/petProfile';
+import { pullRemotePetProfileIfNeeded } from '@/modules/pets/pullRemotePetProfile';
 import { saveLocalPetProfileWithRemoteId } from '@/modules/pets/petProfile';
 
 import {

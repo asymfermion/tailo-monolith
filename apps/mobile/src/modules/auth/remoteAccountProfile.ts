@@ -11,7 +11,7 @@ import { getAppLocale, setAppLocale, type AppLocale } from '@/i18n/locale';
 import {
   getAuthSession,
   isRemoteAuthConfigured,
-} from '@/modules/auth/authService';
+} from '@/modules/auth/authSessionAccess';
 import { isLinkedRemoteAccount } from '@/modules/auth/authTypes';
 import {
   loadLocalAccountProfile,
@@ -93,11 +93,35 @@ function hasNonEmptyText(value: string | null | undefined): boolean {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+/** Backfills a missing local display name from auth identity metadata after social sign-in. */
+export async function applyIdentityDisplayNameIfMissing(): Promise<boolean> {
+  const localProfile = await loadLocalAccountProfile();
+
+  if (hasNonEmptyText(localProfile?.displayName)) {
+    return false;
+  }
+
+  const identityDisplayName =
+    (await getAuthProvider().getIdentityDisplayName?.()) ?? null;
+
+  if (!identityDisplayName) {
+    return false;
+  }
+
+  await saveLocalAccountProfile({ displayName: identityDisplayName });
+  return true;
+}
+
 export async function applyRemoteAccountProfile(
   snapshot: AccountProfileAppearance,
 ): Promise<void> {
+  const localProfile = await loadLocalAccountProfile();
+  const nextDisplayName = hasNonEmptyText(snapshot.display_name)
+    ? snapshot.display_name
+    : (localProfile?.displayName ?? null);
+
   await saveLocalAccountProfile({
-    displayName: snapshot.display_name ?? null,
+    displayName: nextDisplayName,
   });
 
   const locale = parsePreferredLocale(snapshot.preferred_locale);

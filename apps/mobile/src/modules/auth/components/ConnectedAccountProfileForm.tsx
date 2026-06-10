@@ -17,11 +17,9 @@ import {
   isAuthPasswordResetSubmitReady,
 } from '@/lib/authFormReadiness';
 import { useAppearance, useThemedStyles } from '@/lib/appearance';
-import {
-  isLinkedRemoteAccount,
-  setAccountPassword,
-  useAuthAccountStatus,
-} from '@/modules/auth';
+import { setAccountPassword } from '@/modules/auth/authService';
+import { isLinkedRemoteAccount } from '@/modules/auth/authTypes';
+import { useAuthAccountStatus } from '@/modules/auth/useAuthAccountStatus';
 import { saveAccountProfile } from '@/modules/auth/persistAccountProfile';
 import { useRemoteAccountProfile } from '@/modules/auth/useRemoteAccountProfile';
 
@@ -60,6 +58,13 @@ export function ConnectedAccountProfileForm({
   const isLinked = isLinkedRemoteAccount(session);
   const profileDisplayName = profile?.displayName ?? '';
   const profileAppUserId = profile?.appUserId ?? null;
+  const resolvedDisplayName = displayName.trim() || profileDisplayName || null;
+  const profileSubtitle =
+    !resolvedDisplayName && session?.email
+      ? t('userProfile.subtitleMissingDisplayName')
+      : mode === 'create'
+        ? t('account.createdBody')
+        : t('userProfile.subtitle');
   const canSavePassword = isAuthPasswordResetSubmitReady(
     password,
     confirmPassword,
@@ -248,13 +253,9 @@ export function ConnectedAccountProfileForm({
     <>
       <Text style={styles.title}>{t('userProfile.title')}</Text>
       <UserProfileHeader
-        displayName={displayName.trim() || profile?.displayName || null}
+        displayName={resolvedDisplayName}
         email={session?.email ?? null}
-        subtitle={
-          mode === 'create'
-            ? t('account.createdBody')
-            : t('userProfile.subtitle')
-        }
+        subtitle={profileSubtitle}
       />
 
       {isProfileLoading ? (

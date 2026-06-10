@@ -14,7 +14,7 @@ import { clearSupabaseAuthStorage } from '@/lib/supabaseAuthStorage';
 
 import { LOCAL_ACCOUNT_PROFILE_KEY } from './keys';
 import { ANONYMOUS_USER_ID_KEY } from './identity';
-import { APP_USER_ID_KEY } from './ensureCurrentUser';
+import { APP_USER_ID_KEY } from './appUserId';
 import {
   clearCurrentLocalWorkspace,
   createWorkspaceSecureStorage,

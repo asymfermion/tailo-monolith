@@ -12,6 +12,7 @@ import {
   resetAuthProvider,
   setAccountPassword,
   setAuthProvider,
+  signInWithApple,
   signInWithGoogle,
   signInWithPassword,
   signOutRemoteSession,
@@ -35,6 +36,14 @@ jest.mock('./completeEmailAccountConnection', () => ({
   completeEmailAccountConnection: jest.fn().mockResolvedValue({
     status: 'completed',
   }),
+}));
+
+jest.mock('@/modules/notifications/notificationService', () => ({
+  dismissAccountUpgradeNotifications: jest.fn().mockResolvedValue(0),
+}));
+
+jest.mock('./remoteAccountProfile', () => ({
+  applyIdentityDisplayNameIfMissing: jest.fn().mockResolvedValue(false),
 }));
 
 jest.mock('./completeOnboardingForReturningLinkedUser', () => ({
@@ -140,6 +149,15 @@ function createMockProvider(
       },
     }),
     signInWithGoogle: jest.fn().mockResolvedValue({
+      status: 'signed_in',
+      session: {
+        userId: 'user-1',
+        isAnonymous: false,
+        email: 'user@example.com',
+        emailConfirmed: true,
+      },
+    }),
+    signInWithApple: jest.fn().mockResolvedValue({
       status: 'signed_in',
       session: {
         userId: 'user-1',
@@ -376,6 +394,26 @@ describe('authService', () => {
     expect(mockNotifyAuthSessionChanged).toHaveBeenCalled();
   });
 
+  it('clears login-required mode after Apple sign-in', async () => {
+    const provider = createMockProvider();
+    setAuthProvider(provider);
+
+    await expect(signInWithApple()).resolves.toEqual({
+      status: 'signed_in',
+      session: {
+        userId: 'user-1',
+        isAnonymous: false,
+        email: 'user@example.com',
+        emailConfirmed: true,
+      },
+    });
+    expect(provider.signInWithApple).toHaveBeenCalledWith({
+      mode: 'sign_in',
+    });
+    expect(mockClearAuthRequireLogin).toHaveBeenCalledTimes(1);
+    expect(mockNotifyAuthSessionChanged).toHaveBeenCalled();
+  });
+
   it('awaits account bootstrap before notifying session listeners', async () => {
     let resolveBootstrap: (() => void) | undefined;
     const bootstrapGate = new Promise<void>((resolve) => {
@@ -396,6 +434,38 @@ describe('authService', () => {
       setImmediate(resolve);
     });
 
+    expect(completeEmailAccountConnection).toHaveBeenCalledTimes(1);
+    expect(mockNotifyAuthSessionChanged).not.toHaveBeenCalled();
+
+    resolveBootstrap?.();
+    await signInPromise;
+
+    expect(mockNotifyAuthSessionChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('awaits account bootstrap before notifying session listeners after Apple sign-in', async () => {
+    let resolveBootstrap: (() => void) | undefined;
+    const bootstrapGate = new Promise<void>((resolve) => {
+      resolveBootstrap = resolve;
+    });
+
+    jest.mocked(completeEmailAccountConnection).mockImplementation(async () => {
+      await bootstrapGate;
+      return { status: 'completed' };
+    });
+
+    const provider = createMockProvider();
+    setAuthProvider(provider);
+
+    const signInPromise = signInWithApple();
+
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(provider.signInWithApple).toHaveBeenCalledWith({
+      mode: 'sign_in',
+    });
     expect(completeEmailAccountConnection).toHaveBeenCalledTimes(1);
     expect(mockNotifyAuthSessionChanged).not.toHaveBeenCalled();
 

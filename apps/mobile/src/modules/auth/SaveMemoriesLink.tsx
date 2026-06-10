@@ -15,6 +15,10 @@ import {
   SAVE_MEMORIES_REMINDER,
   shouldShowSaveMemoriesReminder,
 } from '@/modules/auth/saveMemoriesReminder';
+import {
+  createAccountReminderNotification,
+  createContinuityRiskNotification,
+} from '@/modules/notifications/notificationProducers';
 
 import { useAuthAccountStatus } from './useAuthAccountStatus';
 
@@ -93,6 +97,18 @@ export function SaveMemoriesLink({
     let active = true;
 
     void (async () => {
+      if (account.isLoading) {
+        return;
+      }
+
+      if (!account.isConfigured || account.isLinked || !account.session?.isAnonymous) {
+        if (active) {
+          setIsVisible(false);
+          setIsReady(true);
+        }
+        return;
+      }
+
       if (!hasTimelineValue) {
         if (active) {
           setIsVisible(false);
@@ -135,6 +151,8 @@ export function SaveMemoriesLink({
           SAVE_MEMORIES_LAST_PROMPT_SHOWN_AT_KEY,
           String(now),
         );
+        await createAccountReminderNotification();
+        await createContinuityRiskNotification();
       }
 
       if (!active) {
@@ -148,7 +166,13 @@ export function SaveMemoriesLink({
     return () => {
       active = false;
     };
-  }, [hasTimelineValue]);
+  }, [
+    account.isConfigured,
+    account.isLinked,
+    account.isLoading,
+    account.session?.isAnonymous,
+    hasTimelineValue,
+  ]);
 
   const canRender = useMemo(
     () =>

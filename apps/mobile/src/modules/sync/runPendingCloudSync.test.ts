@@ -1,4 +1,5 @@
 import { listLocalEventIdsPendingCloudSync } from '@/db/localEvents';
+import { createSyncCompletionNotification } from '@/modules/notifications/notificationProducers';
 
 import { runPendingCloudSync } from './runPendingCloudSync';
 import { runEventSyncForLocalEvent } from './runEventSync';
@@ -11,6 +12,10 @@ jest.mock('./runEventSync', () => ({
   runEventSyncForLocalEvent: jest.fn(),
 }));
 
+jest.mock('@/modules/notifications/notificationProducers', () => ({
+  createSyncCompletionNotification: jest.fn(),
+}));
+
 const mockedListPending =
   listLocalEventIdsPendingCloudSync as jest.MockedFunction<
     typeof listLocalEventIdsPendingCloudSync
@@ -18,6 +23,10 @@ const mockedListPending =
 const mockedSync = runEventSyncForLocalEvent as jest.MockedFunction<
   typeof runEventSyncForLocalEvent
 >;
+const mockedCreateSyncNotification =
+  createSyncCompletionNotification as jest.MockedFunction<
+    typeof createSyncCompletionNotification
+  >;
 
 describe('runPendingCloudSync', () => {
   const database = {} as never;
@@ -40,6 +49,10 @@ describe('runPendingCloudSync', () => {
     });
 
     expect(mockedSync).toHaveBeenCalledTimes(2);
+    expect(mockedCreateSyncNotification).toHaveBeenCalledWith({
+      syncedCount: 1,
+      errorCount: 0,
+    });
   });
 
   it('returns zeros when nothing is pending', async () => {

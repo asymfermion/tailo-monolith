@@ -6,7 +6,7 @@ import {
   pullRemoteAccountProfileIfNeeded,
   seedLocalAccountPrefsToCloudIfEmpty,
 } from './remoteAccountProfile';
-import { syncRemotePetProfileIfNeeded } from '@/modules/pets';
+import { syncRemotePetProfileIfNeeded } from '@/modules/pets/remotePetSync';
 import { restoreRemoteAccountDataIfNeeded } from '@/modules/sync/restoreRemoteAccountData';
 
 jest.mock('./authProviderInstance', () => ({
@@ -26,7 +26,7 @@ jest.mock('./remoteAccountProfile', () => ({
   seedLocalAccountPrefsToCloudIfEmpty: jest.fn(),
 }));
 
-jest.mock('@/modules/pets', () => ({
+jest.mock('@/modules/pets/remotePetSync', () => ({
   syncRemotePetProfileIfNeeded: jest.fn(),
 }));
 

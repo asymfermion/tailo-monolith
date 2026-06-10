@@ -1,15 +1,15 @@
 import {
   getAuthSession,
   isRemoteAuthConfigured,
-} from '@/modules/auth/authService';
+} from '@/modules/auth/authSessionAccess';
 import { isLinkedRemoteAccount } from '@/modules/auth/authTypes';
 import { pullRemoteAccountProfileIfNeeded } from '@/modules/auth/remoteAccountProfile';
 import {
   hasReadyLocalPetProfile,
   loadLocalPetProfile,
-  pullRemotePetProfileIfNeeded,
-} from '@/modules/pets';
-import { saveLocalPetProfileWithRemoteId } from '@/modules/pets/petProfile';
+  saveLocalPetProfileWithRemoteId,
+} from '@/modules/pets/petProfile';
+import { pullRemotePetProfileIfNeeded } from '@/modules/pets/pullRemotePetProfile';
 
 import {
   countLocalProcessedTimelineEvents,
@@ -32,7 +32,7 @@ jest.mock('@/db/syncState', () => ({
   },
 }));
 
-jest.mock('@/modules/auth/authService', () => ({
+jest.mock('@/modules/auth/authSessionAccess', () => ({
   getAuthSession: jest.fn(),
   isRemoteAuthConfigured: jest.fn(),
 }));
@@ -45,14 +45,14 @@ jest.mock('@/modules/auth/remoteAccountProfile', () => ({
   pullRemoteAccountProfileIfNeeded: jest.fn(),
 }));
 
-jest.mock('@/modules/pets', () => ({
+jest.mock('@/modules/pets/petProfile', () => ({
   hasReadyLocalPetProfile: jest.fn(),
   loadLocalPetProfile: jest.fn(),
-  pullRemotePetProfileIfNeeded: jest.fn(),
+  saveLocalPetProfileWithRemoteId: jest.fn(),
 }));
 
-jest.mock('@/modules/pets/petProfile', () => ({
-  saveLocalPetProfileWithRemoteId: jest.fn(),
+jest.mock('@/modules/pets/pullRemotePetProfile', () => ({
+  pullRemotePetProfileIfNeeded: jest.fn(),
 }));
 
 jest.mock('./hydrateCloudTimeline', () => ({

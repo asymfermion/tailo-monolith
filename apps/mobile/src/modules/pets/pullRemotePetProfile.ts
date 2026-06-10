@@ -3,7 +3,7 @@ import { logAuth } from '@/modules/auth/authLogger';
 import {
   getAuthSession,
   isRemoteAuthConfigured,
-} from '@/modules/auth/authService';
+} from '@/modules/auth/authSessionAccess';
 import { isLinkedRemoteAccount } from '@/modules/auth/authTypes';
 import {
   isGetPetResponse,

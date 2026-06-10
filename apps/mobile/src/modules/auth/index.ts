@@ -9,6 +9,7 @@ export type {
   RequestSignInResult,
   SetPasswordResult,
   SignOutResult,
+  SocialSignInResult,
   VerifyEmailLinkResult,
   VerifyPasswordResetResult,
   VerifySignInResult,
@@ -51,6 +52,7 @@ export {
   requestPasswordReset,
   requestSignInOtp,
   setAccountPassword,
+  signInWithApple,
   signInWithGoogle,
   signInWithPassword,
   signOutRemoteSession,
@@ -80,8 +82,10 @@ export {
 export {
   APP_USER_ID_KEY,
   clearTailoAppUserIdCache,
-  ensureCurrentUserIfNeeded,
   getTailoAppUserId,
+} from './appUserId';
+export {
+  ensureCurrentUserIfNeeded,
   type EnsureCurrentUserIfNeededResult,
 } from './ensureCurrentUser';
 export {
@@ -132,7 +136,14 @@ export {
   reconcileInstallIdentity,
   type InstallReconcileResult,
 } from './installIdentity';
-export { resetLocalDeviceData } from './resetLocalDeviceData';
+export {
+  resetLocalDeviceData,
+  type ResetLocalDeviceDataOptions,
+} from './resetLocalDeviceData';
+export {
+  deleteRemoteAccountIfPossible,
+  type DeleteRemoteAccountResult,
+} from './deleteRemoteAccount';
 export {
   useOnboardingSession,
   type OnboardingSessionState,

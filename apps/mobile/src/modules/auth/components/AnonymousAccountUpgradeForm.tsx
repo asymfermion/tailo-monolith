@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { AuthFormTextInput } from '@/components/AuthFormTextInput';
-import { SocialSignInPlaceholders } from '@/components/SocialSignInPlaceholders';
+import { SocialSignInControls } from '@/components/SocialSignInControls';
 import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
 import { useAppearance, useThemedStyles } from '@/lib/appearance';
@@ -14,15 +14,21 @@ import { useNavigation } from '@/navigation/NavigationContext';
 import {
   isValidAccountEmail,
   normalizeAccountEmail,
-  completeEmailAccountConnection,
+} from '@/modules/auth/accountEmailLink';
+import { completeEmailAccountConnection } from '@/modules/auth/completeEmailAccountConnection';
+import type { CompleteEmailAccountConnectionResult } from '@/modules/auth/completeEmailAccountConnection';
+import {
   requestEmailLink,
   requestEmailSignUp,
-  signInWithGoogle,
-  type AuthSession,
-  useAuthAccountStatus,
   verifyEmailLink,
   verifyEmailSignUp,
-} from '@/modules/auth';
+} from '@/modules/auth/authService';
+import type { AuthSession, SocialSignInResult } from '@/modules/auth/authTypes';
+import { useAuthAccountStatus } from '@/modules/auth/useAuthAccountStatus';
+import {
+  runSocialSignIn,
+  type SocialSignInProvider,
+} from '@/modules/auth/socialSignInFlow';
 import { useBlockingAuthAction } from '@/modules/auth/useBlockingAuthAction';
 import { clearLocalAnonymousAccountDataForAccountSwitch } from '@/modules/auth/clearLocalAnonymousAccountData';
 import { createAccountSettingsStyles } from './accountSettingsStyles';
@@ -48,6 +54,9 @@ export function resolveGoogleAuthModeForAccountUpgrade(input: {
   return input.session?.isAnonymous ? 'link' : 'sign_in';
 }
 
+export const resolveAppleAuthModeForAccountUpgrade =
+  resolveGoogleAuthModeForAccountUpgrade;
+
 export function isGoogleIdentityAlreadyLinkedError(message: string): boolean {
   const normalized = message.toLowerCase();
 
@@ -57,6 +66,78 @@ export function isGoogleIdentityAlreadyLinkedError(message: string): boolean {
     normalized.includes('identity is already') ||
     (normalized.includes('identity') && normalized.includes('in use'))
   );
+}
+
+export const isAppleIdentityAlreadyLinkedError =
+  isGoogleIdentityAlreadyLinkedError;
+
+type SocialAccountUpgradeProvider = 'google' | 'apple';
+
+type SocialAccountUpgradeSignIn = (options: {
+  mode?: 'sign_in' | 'link';
+  source?: string;
+}) => Promise<SocialSignInResult>;
+
+type RunSocialAccountUpgradeAuthInput = {
+  provider: SocialAccountUpgradeProvider;
+  formMode: 'link' | 'create';
+  session: AuthSession | null;
+  signIn: SocialAccountUpgradeSignIn;
+  clearLocalAnonymousData: () => Promise<void>;
+  completeAccountConnection: () => Promise<CompleteEmailAccountConnectionResult>;
+  isIdentityAlreadyLinkedError: (message: string) => boolean;
+};
+
+export async function runSocialAccountUpgradeAuth({
+  provider,
+  formMode,
+  session,
+  signIn,
+  clearLocalAnonymousData,
+  completeAccountConnection,
+  isIdentityAlreadyLinkedError,
+}: RunSocialAccountUpgradeAuthInput): Promise<SocialSignInResult> {
+  const authMode = resolveGoogleAuthModeForAccountUpgrade({
+    formMode,
+    session,
+  });
+  const primarySource =
+    formMode === 'link'
+      ? `account_link_${provider}`
+      : `account_create_${provider}`;
+  const primaryResult = await signIn({
+    mode: authMode,
+    source: primarySource,
+  });
+
+  if (
+    primaryResult.status === 'error' &&
+    authMode === 'link' &&
+    isIdentityAlreadyLinkedError(primaryResult.message)
+  ) {
+    const fallbackSignIn = await signIn({
+      mode: 'sign_in',
+      source: `account_create_${provider}_existing`,
+    });
+
+    if (fallbackSignIn.status !== 'signed_in') {
+      return fallbackSignIn;
+    }
+
+    await clearLocalAnonymousData();
+    const bootstrapResult = await completeAccountConnection();
+
+    if (bootstrapResult.status === 'partial') {
+      return {
+        status: 'error',
+        message: bootstrapResult.message,
+      };
+    }
+
+    return fallbackSignIn;
+  }
+
+  return primaryResult;
 }
 
 export function AnonymousAccountUpgradeForm({
@@ -89,52 +170,32 @@ export function AnonymousAccountUpgradeForm({
   const isEmailStepReady = isAuthEmailSubmitReady(emailInput);
   const isCodeStepReady = isAuthOtpSubmitReady(codeInput);
 
-  async function handleGoogleLink() {
+  async function handleSocialLink(provider: SocialSignInProvider) {
     setErrorMessage(null);
     setIsSubmitting(true);
     let result;
 
     try {
       result = await runBlockingAuthAction(async () => {
-        const googleMode = resolveGoogleAuthModeForAccountUpgrade({
+        return runSocialAccountUpgradeAuth({
+          provider,
           formMode: mode,
           session: account.session,
+          signIn: (options) => runSocialSignIn({ provider, ...options }),
+          clearLocalAnonymousData:
+            clearLocalAnonymousAccountDataForAccountSwitch,
+          completeAccountConnection: completeEmailAccountConnection,
+          isIdentityAlreadyLinkedError:
+            provider === 'google'
+              ? isGoogleIdentityAlreadyLinkedError
+              : isAppleIdentityAlreadyLinkedError,
         });
-        const primaryResult = await signInWithGoogle({
-          mode: googleMode,
-          source:
-            mode === 'link' ? 'account_link_google' : 'account_create_google',
-        });
-
-        if (
-          primaryResult.status === 'error' &&
-          googleMode === 'link' &&
-          isGoogleIdentityAlreadyLinkedError(primaryResult.message)
-        ) {
-          const fallbackSignIn = await signInWithGoogle({
-            mode: 'sign_in',
-            source: 'account_create_google_existing',
-          });
-
-          if (fallbackSignIn.status !== 'signed_in') {
-            return fallbackSignIn;
-          }
-
-          await clearLocalAnonymousAccountDataForAccountSwitch();
-          const bootstrapResult = await completeEmailAccountConnection();
-
-          if (bootstrapResult.status === 'partial') {
-            return { status: 'error' as const, message: bootstrapResult.message };
-          }
-
-          return fallbackSignIn;
-        }
-
-        return primaryResult;
       });
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : t('account.errors.unavailable'),
+        error instanceof Error
+          ? error.message
+          : t('account.errors.unavailable'),
       );
       return;
     } finally {
@@ -147,7 +208,6 @@ export function AnonymousAccountUpgradeForm({
     }
 
     if (result.status === 'error') {
-      setErrorMessage(result.message);
       return;
     }
 
@@ -318,9 +378,10 @@ export function AnonymousAccountUpgradeForm({
 
       {step === 'email' ? (
         <>
-          <SocialSignInPlaceholders
+          <SocialSignInControls
             style={{ marginTop: spacing.lg }}
-            onGooglePress={() => void handleGoogleLink()}
+            onGooglePress={() => void handleSocialLink('google')}
+            onApplePress={() => void handleSocialLink('apple')}
           />
           <Pressable
             accessibilityRole="button"

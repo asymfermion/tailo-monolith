@@ -60,6 +60,7 @@ describe('getTailoApiFunctionForAction', () => {
     expect(getTailoApiFunctionForAction('get-account-profile')).toBe(
       'api-account',
     );
+    expect(getTailoApiFunctionForAction('delete-account')).toBe('api-account');
     expect(getTailoApiFunctionForAction('sync-event')).toBe('api-events');
   });
 });

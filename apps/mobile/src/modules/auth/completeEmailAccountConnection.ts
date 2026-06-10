@@ -1,4 +1,4 @@
-import { syncRemotePetProfileIfNeeded } from '@/modules/pets';
+import { syncRemotePetProfileIfNeeded } from '@/modules/pets/remotePetSync';
 import { restoreRemoteAccountDataIfNeeded } from '@/modules/sync/restoreRemoteAccountData';
 
 import { logAuth } from './authLogger';

@@ -1,5 +1,6 @@
 import { secureStorage } from '@/modules/auth/secureStorage';
 
+import * as deviceLocale from './deviceLocale';
 import {
   DEFAULT_LOCALE,
   getIntlLocale,
@@ -7,6 +8,11 @@ import {
   setAppLocale,
 } from './locale';
 import { formatCount, pluralSuffix, t } from './t';
+
+jest.mock('./deviceLocale', () => ({
+  ...jest.requireActual('./deviceLocale'),
+  readDeviceAppLocale: jest.fn(() => 'en'),
+}));
 
 jest.mock('@/modules/auth/secureStorage', () => ({
   secureStorage: {
@@ -17,6 +23,7 @@ jest.mock('@/modules/auth/secureStorage', () => ({
 }));
 
 const storage = jest.mocked(secureStorage);
+const readDeviceAppLocale = jest.mocked(deviceLocale.readDeviceAppLocale);
 
 describe('locale switching', () => {
   beforeEach(async () => {
@@ -27,6 +34,7 @@ describe('locale switching', () => {
     storage.getItemAsync.mockResolvedValue(null);
     storage.setItemAsync.mockResolvedValue(undefined);
     storage.deleteItemAsync.mockResolvedValue(undefined);
+    readDeviceAppLocale.mockReturnValue('en');
 
     await setAppLocale(DEFAULT_LOCALE);
   });
@@ -65,5 +73,27 @@ describe('locale switching', () => {
 
     expect(locale).toBe('zh-Hans');
     expect(t('startup.retry')).toBe('重试');
+    expect(readDeviceAppLocale).not.toHaveBeenCalled();
+  });
+
+  it('uses the device locale when nothing is stored', async () => {
+    storage.getItemAsync.mockResolvedValue(null);
+    readDeviceAppLocale.mockReturnValue('zh-Hans');
+
+    const locale = await hydrateAppLocale();
+
+    expect(locale).toBe('zh-Hans');
+    expect(t('startup.retry')).toBe('重试');
+    expect(readDeviceAppLocale).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to English for unsupported device languages', async () => {
+    storage.getItemAsync.mockResolvedValue(null);
+    readDeviceAppLocale.mockReturnValue('en');
+
+    const locale = await hydrateAppLocale();
+
+    expect(locale).toBe('en');
+    expect(t('startup.retry')).toBe('Try again');
   });
 });

@@ -2,7 +2,7 @@ import { invokeTailoApi, readApiErrorMessage } from '@/lib/invokeTailoApi';
 import {
   getAuthSession,
   isRemoteAuthConfigured,
-} from '@/modules/auth/authService';
+} from '@/modules/auth/authSessionAccess';
 import {
   getLegacyAnonymousUserId,
   LEGACY_ANON_LINKED_KEY,

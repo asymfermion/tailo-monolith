@@ -254,7 +254,13 @@ export const en = {
       'Clears this device’s timeline, pet profile, and saved sign-in state.',
     resetLocalDataConfirmTitle: 'Reset local data?',
     resetLocalDataConfirmMessage:
-      'This removes all local moments and account data on this device, like a fresh install. It cannot be undone.',
+      'Choose whether to clear this device only, or also delete your saved cloud account.',
+    resetLocalDataLocalOnlyLabel: 'This device only',
+    resetLocalDataLocalOnlyMessage:
+      'Removes all local moments and account data on this device, like a fresh install. Your cloud account stays intact.',
+    resetLocalDataLocalAndRemoteLabel: 'Device + cloud account',
+    resetLocalDataLocalAndRemoteMessage:
+      'Removes local data on this device and deletes your saved Tailo cloud account, timeline, and uploads. You will not need to remove the account in Supabase manually.',
     resetLocalDataFailedTitle: 'Could not reset local data',
     resetLocalDataFailedMessage: 'Try again in a moment.',
     preferenceSyncFailedTitle: 'Could not save preference',
@@ -282,11 +288,25 @@ export const en = {
     timelineScanDescription: 'Manage photo access, scans, and moments.',
     petProfileLabel: 'Pet profile',
     petProfileDescription: 'Name, photo, and pet details.',
+    notificationsLabel: 'Notifications',
+    notificationsDescription: 'Inbox for account, sync, and moment updates.',
+    notificationsUnreadCount: '{{count}} unread',
+  },
+  notifications: {
+    inboxTitle: 'Notifications',
+    inboxSubtitle: 'Updates from Tailo appear here.',
+    unreadCount: '{{count}} unread notifications',
+    unreadLabel: 'Unread',
+    readLabel: 'Read',
+    emptyTitle: 'No notifications yet',
+    emptyBody: 'Account reminders and sync updates will appear here.',
   },
   userProfile: {
     title: 'Your profile',
     titleAnonymous: 'Your profile',
     subtitle: 'Name and email for your Tailo account.',
+    subtitleMissingDisplayName:
+      'Add a display name below. Apple only shares your name on the first sign-in.',
     subtitleAnonymous:
       'Connect an account to save your profile across devices.',
     anonymousHeadline: 'Create your account',

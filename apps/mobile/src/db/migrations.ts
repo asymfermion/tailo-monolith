@@ -2,7 +2,7 @@ import type * as SQLite from 'expo-sqlite';
 
 import { logDbInfo, logSqlFailure } from './dbLogger';
 
-export const CURRENT_SCHEMA_VERSION = 12;
+export const CURRENT_SCHEMA_VERSION = 14;
 
 type Migration = {
   version: number;
@@ -324,6 +324,65 @@ const migrations: Migration[] = [
       await db.execAsync(`
         CREATE INDEX IF NOT EXISTS upload_queue_media_fingerprint_idx
           ON upload_queue (media_fingerprint);
+      `);
+    },
+  },
+  {
+    version: 13,
+    name: 'add local notifications inbox table',
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          notification_id TEXT PRIMARY KEY NOT NULL,
+          kind TEXT NOT NULL,
+          title TEXT NOT NULL,
+          body TEXT NOT NULL,
+          source TEXT NOT NULL,
+          target TEXT NOT NULL,
+          priority TEXT NOT NULL DEFAULT 'normal',
+          delivery TEXT NOT NULL DEFAULT 'in_app',
+          read_at TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          expires_at TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS notifications_read_created_idx
+          ON notifications (read_at, created_at DESC);
+
+        CREATE INDEX IF NOT EXISTS notifications_created_idx
+          ON notifications (created_at DESC);
+      `);
+    },
+  },
+  {
+    version: 14,
+    name: 'add notification sync metadata',
+    up: async (db) => {
+      await db.execAsync(`
+        ALTER TABLE notifications
+          ADD COLUMN remote_notification_id TEXT;
+      `);
+      await db.execAsync(`
+        ALTER TABLE notifications
+          ADD COLUMN server_sync_version INTEGER NOT NULL DEFAULT 0;
+      `);
+      await db.execAsync(`
+        ALTER TABLE notifications
+          ADD COLUMN pending_cloud_sync INTEGER NOT NULL DEFAULT 1
+            CHECK (pending_cloud_sync IN (0, 1));
+      `);
+      await db.execAsync(`
+        ALTER TABLE notifications
+          ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      `);
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS notifications_pending_cloud_sync_idx
+          ON notifications (pending_cloud_sync, updated_at)
+          WHERE pending_cloud_sync = 1;
+      `);
+      await db.execAsync(`
+        INSERT OR IGNORE INTO sync_state (state_key, state_value)
+        VALUES ('sync.notifications_cursor', '');
       `);
     },
   },

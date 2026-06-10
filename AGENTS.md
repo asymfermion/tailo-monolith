@@ -4,7 +4,7 @@ This file is the entry point for AI coding agents working in this repository, in
 
 Tailo-specific rules live here. Do not duplicate Tailo product, architecture, testing, or workflow rules in `.cursor/rules/`; duplication causes drift and wastes context. Personal or third-party behavior rules may live outside the repo, but this file is the project source of truth.
 
-For deeper product and architecture detail, see [`Tailo_Agent_Coding_Guidelines_v2.md`](./Tailo_Agent_Coding_Guidelines_v2.md) only when the current task requires it.
+For product and architecture detail, use the focused docs under `docs/`.
 
 ---
 
@@ -47,6 +47,7 @@ Product feel:
 | Path               | Purpose                                                       |
 | ------------------ | ------------------------------------------------------------- |
 | `apps/mobile/`     | React Native + Expo mobile app                                |
+| `apps/landing/`    | Public landing page website                                   |
 | `packages/shared/` | Shared TypeScript types, constants, contracts, schemas        |
 | `packages/ai/`     | AI prompts and response schemas when needed                   |
 | `supabase/`        | Backend, migrations, storage, and Edge Functions for Phase 2+ |
@@ -84,7 +85,6 @@ Read only what is needed for the task. Do not load every doc by default.
 | Understand architecture boundary | `docs/ARCHITECTURE.md`                |
 | Run/setup/debug commands         | `docs/DEVELOPER.md`                   |
 | Phase-specific implementation    | matching file in `docs/architecture/` |
-| Full product/agent reference     | `Tailo_Agent_Coding_Guidelines_v2.md` |
 | Expo API behavior                | Expo SDK 54 docs                      |
 
 Prefer focused reading over broad context loading.
@@ -146,6 +146,13 @@ Do not commit or push unless the user explicitly asks.
 6. Match existing style.
 7. Avoid scope creep and drive-by refactors.
 
+When adding tasks to `docs/MOBILE_TASKS.md`:
+
+- Put the task under the most specific existing section instead of creating a side-track section unless the work genuinely needs a new section.
+- Use the next numeric ID in that section, for example `3.6.9`; do not use letter suffixes such as `3.6.4a`, alternate prefixes such as `B2.`, or duplicate an existing ID.
+- If a new section is needed, use the next numeric phase/section number and then number tasks sequentially under it.
+- After editing, check for duplicate or lettered task IDs and update nearby notes that reference renamed IDs.
+
 Every changed line should trace directly to the user's request or the selected task.
 
 ---
@@ -204,6 +211,14 @@ Update the matching phase doc under `docs/architecture/`, for example:
 - `phase-2-backend-mvp.md`
 
 Add a short change-log row with date and what changed.
+
+For any new architecture/design document (or substantial architecture update), include all three:
+
+1. A **high-level design diagram** (system boundaries, major flows, and ownership)
+2. A **low-level design diagram** (module/service interactions, key call paths, and state transitions)
+3. A **DB schema section** for touched persistence layers (tables/fields/indexes/constraints and migration/version notes)
+
+Diagrams should be text-source (`mermaid` preferred) so they stay versioned and reviewable in git.
 
 If adding, renaming, editing, or removing a Supabase migration under `supabase/migrations/`, update `docs/architecture/database-schema-ledger.md` in the same change.
 
@@ -301,6 +316,20 @@ Before finishing UI work, check narrow and wide layouts where practical.
 
 ---
 
+## Performance and cost
+
+Tailo should feel useful quickly without spending cloud budget unnecessarily.
+
+Rules:
+
+- First useful local timeline value should appear within about 60 seconds on a real device where practical.
+- Scan newest photos first, render progressively, and continue long-running scan/detection work in background batches.
+- Do not block UI for scanning, detection, compression, uploads, or sync.
+- Never upload all photos, call an LLM per image, reprocess unchanged media, or store unnecessary originals.
+- Filter on device, cluster before upload, compress media, cache AI results, deduplicate uploads, and process AI per event.
+
+---
+
 ## React hooks and effects
 
 Avoid infinite render/update loops.
@@ -379,6 +408,8 @@ Backend portability rules:
 - Supabase functions should be thin adapters.
 - Mobile should call Tailo APIs via shared contracts rather than scattering Supabase SDK calls.
 - Secrets must never be committed or shipped in the app.
+- Prefer fewer Edge Function entrypoints: group related API actions under existing domain routers (`api-auth`, `api-account`, `api-pet`, `api-events`) instead of creating new function entrypoints by default.
+- Create a new Edge Function entrypoint only when there is a clear runtime boundary (for example background/scheduled workers, special auth requirements, or materially different scaling/deployment needs).
 
 ---
 
@@ -455,6 +486,8 @@ npm run format:check
 ```
 
 Run `npm run format` after edits when formatting may have changed.
+
+For manual release or TestFlight QA, use the checklist in `docs/DEVELOPER.md`.
 
 ---
 

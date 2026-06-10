@@ -1,5 +1,5 @@
 import { appEnv } from '@/lib/env';
-import { getAuthAccessToken } from '@/modules/auth/authService';
+import { getAuthAccessToken } from '@/modules/auth/authSessionAccess';
 import {
   buildTailoApiBody,
   getTailoApiFunctionForAction,

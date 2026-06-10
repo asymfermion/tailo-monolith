@@ -2,7 +2,7 @@ import {
   getAuthAccessToken,
   getAuthSession,
   isRemoteAuthConfigured,
-} from '@/modules/auth/authService';
+} from '@/modules/auth/authSessionAccess';
 import {
   getLegacyAnonymousUserId,
   LEGACY_ANON_LINKED_KEY,
@@ -17,7 +17,7 @@ jest.mock('@/lib/env', () => ({
   },
 }));
 
-jest.mock('@/modules/auth/authService', () => ({
+jest.mock('@/modules/auth/authSessionAccess', () => ({
   isRemoteAuthConfigured: jest.fn(),
   getAuthSession: jest.fn(),
   getAuthAccessToken: jest.fn(),

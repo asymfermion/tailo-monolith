@@ -8,6 +8,7 @@ import {
   useThemedStyles,
   type AppearanceContextValue,
 } from '@/lib/appearance';
+import { useAppleSignInAvailability } from '@/modules/auth/appleNativeAuth';
 
 function createStyles({ colors }: AppearanceContextValue) {
   return {
@@ -31,16 +32,20 @@ function createStyles({ colors }: AppearanceContextValue) {
   };
 }
 
-/** Placeholder Google / Apple sign-in controls (providers not wired yet). */
-export function SocialSignInPlaceholders({
+/** Icon-only social sign-in controls (Google + Apple). */
+export function SocialSignInControls({
   style,
   onGooglePress,
+  onApplePress,
 }: {
   style?: StyleProp<ViewStyle>;
   onGooglePress?: () => void;
+  onApplePress?: () => void;
 }) {
   const { colors } = useAppearance();
   const styles = useThemedStyles(createStyles);
+  const isAppleAvailable = useAppleSignInAvailability();
+  const canUseApple = Boolean(onApplePress && isAppleAvailable);
 
   return (
     <View style={[styles.row, style]}>
@@ -57,9 +62,10 @@ export function SocialSignInPlaceholders({
       <Pressable
         accessibilityLabel={t('signIn.signInWithApple')}
         accessibilityRole="button"
-        accessibilityState={{ disabled: true }}
-        disabled
+        accessibilityState={{ disabled: !canUseApple }}
+        disabled={!canUseApple}
         style={styles.button}
+        onPress={onApplePress}
       >
         <Ionicons color={colors.text} name="logo-apple" size={24} />
       </Pressable>

@@ -2,16 +2,16 @@ import {
   getAuthAccessToken,
   getAuthSession,
   isRemoteAuthConfigured,
-} from '@/modules/auth/authService';
+} from '@/modules/auth/authSessionAccess';
 import { secureStorage } from '@/modules/auth/secureStorage';
 import { getAuthProvider } from '@/modules/auth/authProviderInstance';
 
 import {
   APP_USER_ID_KEY,
   clearTailoAppUserIdCache,
-  ensureCurrentUserIfNeeded,
   getTailoAppUserId,
-} from './ensureCurrentUser';
+} from './appUserId';
+import { ensureCurrentUserIfNeeded } from './ensureCurrentUser';
 
 jest.mock('@/lib/env', () => ({
   appEnv: {
@@ -20,7 +20,7 @@ jest.mock('@/lib/env', () => ({
   },
 }));
 
-jest.mock('@/modules/auth/authService', () => ({
+jest.mock('@/modules/auth/authSessionAccess', () => ({
   isRemoteAuthConfigured: jest.fn(),
   getAuthSession: jest.fn(),
   getAuthAccessToken: jest.fn(),

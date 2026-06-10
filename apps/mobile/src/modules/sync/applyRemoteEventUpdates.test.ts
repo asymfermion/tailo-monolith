@@ -2,6 +2,7 @@ import type * as SQLite from 'expo-sqlite';
 
 import { getLocalEventById, markLocalEventDeleted } from '@/db/localEvents';
 import { isLocalEventTombstoned } from '@/db/localEventTombstones';
+import { createAiJobCompletionNotification } from '@/modules/notifications/notificationProducers';
 
 import { applyRemoteEventUpdates } from './applyRemoteEventUpdates';
 import { hydrateRemoteEventsBySourceLocalEventIds } from './hydratedCloudEvents';
@@ -23,6 +24,10 @@ jest.mock('./hydratedCloudEvents', () => ({
   hydrateRemoteEventsBySourceLocalEventIds: jest.fn(),
 }));
 
+jest.mock('@/modules/notifications/notificationProducers', () => ({
+  createAiJobCompletionNotification: jest.fn(),
+}));
+
 describe('applyRemoteEventUpdates', () => {
   const database = {} as SQLite.SQLiteDatabase;
 
@@ -32,6 +37,7 @@ describe('applyRemoteEventUpdates', () => {
     jest
       .mocked(hydrateRemoteEventsBySourceLocalEventIds)
       .mockResolvedValue({ status: 'ok', hydratedCount: 0 });
+    jest.mocked(createAiJobCompletionNotification).mockResolvedValue();
   });
 
   it('hydrates unknown remote moments with media when poll sees missing local rows', async () => {
@@ -291,5 +297,58 @@ describe('applyRemoteEventUpdates', () => {
     ]);
 
     expect(applied).toBe(0);
+  });
+
+  it('creates AI completion notification when pending AI becomes done', async () => {
+    const runAsync = jest.fn(async () => ({ changes: 1 }));
+    const writeDatabase = {
+      runAsync,
+    } as unknown as SQLite.SQLiteDatabase;
+
+    jest.mocked(getLocalEventById).mockResolvedValue({
+      localEventId: 'event-ai',
+      petId: 'pet-1',
+      timestamp: '2026-05-19T12:00:00.000Z',
+      source: 'camera_roll',
+      eventType: 'unknown',
+      caption: null,
+      captionLanguage: null,
+      confidence: null,
+      isFavorite: 0,
+      processingState: 'processed',
+      selectedAssetIds: '[]',
+      remoteEventId: 'remote-ai',
+      serverSyncVersion: 1,
+      captionSource: 'placeholder',
+      userEditedCaption: 0,
+      userEditedEventType: 0,
+      pendingAi: 1,
+      syncLockOwner: null,
+      pendingCloudSync: 0,
+      deletedAt: null,
+    });
+
+    const applied = await applyRemoteEventUpdates(writeDatabase, [
+      {
+        event_id: 'remote-ai',
+        source_local_event_id: 'event-ai',
+        event_type: 'play',
+        caption: 'A calm walk.',
+        caption_source: 'ai',
+        is_favorite: false,
+        sync_version: 2,
+        updated_at: '2026-05-20T12:00:00.000Z',
+        user_edited_caption: false,
+        user_edited_event_type: false,
+        ai_job_status: 'done',
+        pet_validation_status: 'valid',
+        deleted_at: null,
+      },
+    ]);
+
+    expect(applied).toBe(1);
+    expect(createAiJobCompletionNotification).toHaveBeenCalledWith({
+      localEventId: 'event-ai',
+    });
   });
 });

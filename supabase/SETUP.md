@@ -80,6 +80,61 @@ Prefer keeping the **same OAuth client IDs** and just changing project ownership
 
 If any identity mismatch appears, keep email sign-in available as recovery and link Google from inside an already-signed-in account.
 
+## Apple Sign in with Apple setup (dev + prod runbook)
+
+Tailo uses **native iOS** `signInWithIdToken` (not web OAuth). OAuth secret rotation is only needed if you later add web/Android Apple sign-in.
+
+### 1) Apple Developer Console
+
+1. Open [Apple Developer → Identifiers](https://developer.apple.com/account/resources/identifiers/list).
+2. Confirm App ID `com.mtxforge.tailo` exists and **Sign in with Apple** is enabled.
+3. Leave **Server-to-Server notification** endpoints blank (Supabase Auth does not use them).
+4. If testing in **Expo Go**, no extra App ID is required — register `host.exp.Exponent` in Supabase (see below).
+
+Optional (web/Android OAuth only — not required for native iOS MVP):
+
+- Create a **Services ID** (e.g. `com.mtxforge.tailo.web`)
+- Add domain `sgxtyxvithlmuuofkzlk.supabase.co` and return URL `https://sgxtyxvithlmuuofkzlk.supabase.co/auth/v1/callback`
+- Create a **Sign in with Apple** key (`.p8`), then generate the client secret via [Supabase Apple secret generator](https://supabase.com/docs/guides/auth/social-login/auth-apple)
+
+### 2) Supabase Auth provider
+
+**Dev project (`sgxtyxvithlmuuofkzlk`)** — already configured via `supabase/config.toml` + `npx supabase config push`:
+
+| Field | Value |
+| ----- | ----- |
+| Enabled | `true` |
+| Client IDs | `com.mtxforge.tailo,host.exp.Exponent` |
+| Secret | Empty for native-only |
+| Skip nonce check | `true` for native iOS (GoTrue hex vs Apple base64url mismatch; see [supabase/auth#2378](https://github.com/supabase/auth/issues/2378)) |
+
+To push after editing `config.toml`:
+
+```bash
+# From repo root — templates symlink required by CLI (see scripts/lib/supabase-monorepo-cli.sh)
+ln -sf supabase/templates templates
+npx supabase config push --yes
+rm -f templates
+```
+
+Dashboard check: **Authentication → Providers → Apple**.
+
+**Prod / staging** — repeat with that project's ref and bundle IDs. Keep dev and prod provider config separate.
+
+### 3) Local app config
+
+1. `apps/mobile/app.json` — `ios.usesAppleSignIn: true`, `expo-apple-authentication` plugin, bundle ID `com.mtxforge.tailo`.
+2. Rebuild the iOS dev client after native auth changes (`npx expo prebuild --platform ios` + device build). Metro reload is not enough.
+3. Test on a **physical iPhone** — Sign in with Apple is unreliable in Simulator.
+
+### 4) Environment checklist
+
+- [ ] Dev Supabase Apple provider enabled with `com.mtxforge.tailo` (+ `host.exp.Exponent` if using Expo Go)
+- [ ] Prod/staging Supabase Apple provider enabled with production bundle ID(s)
+- [ ] Apple Developer App ID capability enabled for each bundle ID
+- [ ] iOS dev client / EAS build rebuilt with Sign in with Apple entitlement
+- [ ] Manual QA on device — see [DEVELOPER.md § Apple Sign in](../docs/DEVELOPER.md#apple-sign-in-qa)
+
 ## Auth email templates (OTP)
 
 Tailo’s mobile app expects **8-digit codes** in email, not link-only messages. Full templates, dashboard mapping, and QA steps:

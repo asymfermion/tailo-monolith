@@ -20,6 +20,7 @@ import type {
   VerifySignInResult,
   SocialSignInResult,
 } from './authTypes';
+import { isLinkedRemoteAccount } from './authTypes';
 import {
   getAuthProvider,
   resetAuthProvider,
@@ -33,18 +34,24 @@ import {
   EXPLICIT_RETURNING_SIGN_IN_SOURCES,
 } from './completeOnboardingForReturningLinkedUser';
 import { resetOnboardingForAccountSignInIntent } from './onboardingState';
+import { clearTailoAppUserIdCache } from './appUserId';
+import { ensureCurrentUserIfNeeded } from './ensureCurrentUser';
 import {
-  clearTailoAppUserIdCache,
-  ensureCurrentUserIfNeeded,
-  getTailoAppUserId,
-} from './ensureCurrentUser';
+  getAuthAccessToken,
+  getAuthSession,
+  isRemoteAuthConfigured,
+} from './authSessionAccess';
 import { ensureAnonymousCloudAccountIfNeeded } from './anonymousCloudAccount';
+import { dismissAccountUpgradeNotifications } from '@/modules/notifications/notificationService';
+
+import { applyIdentityDisplayNameIfMissing } from './remoteAccountProfile';
 
 export { getAuthProvider, resetAuthProvider, setAuthProvider };
-
-export function isRemoteAuthConfigured(): boolean {
-  return getAuthProvider().isConfigured();
-}
+export {
+  getAuthAccessToken,
+  getAuthSession,
+  isRemoteAuthConfigured,
+};
 
 export async function bootstrapAuthSession(): Promise<BootstrapAuthResult> {
   if (!getAuthProvider().isConfigured()) {
@@ -101,6 +108,11 @@ async function establishSignedInSession(
     });
   }
 
+  const appliedIdentityDisplayName = await applyIdentityDisplayNameIfMissing();
+  if (appliedIdentityDisplayName) {
+    logAuth('Applied identity display name to local profile', { source });
+  }
+
   if (EXPLICIT_RETURNING_SIGN_IN_SOURCES.has(source)) {
     await resetOnboardingForAccountSignInIntent();
   }
@@ -110,6 +122,19 @@ async function establishSignedInSession(
     ensureResult,
     signedInSession: sessionSnapshot,
   });
+
+  const linkedSession =
+    (await getAuthProvider().getSession()) ?? sessionSnapshot ?? null;
+
+  if (isLinkedRemoteAccount(linkedSession)) {
+    const dismissed = await dismissAccountUpgradeNotifications();
+    if (dismissed > 0) {
+      logAuth('Dismissed account-upgrade notifications after link', {
+        source,
+        dismissed,
+      });
+    }
+  }
 
   notifyAuthSessionChanged();
   logAuth('Session listeners notified', { source });
@@ -143,30 +168,6 @@ export async function ensureRemoteAuthSession(): Promise<AuthSession | null> {
   }
 
   return accountResult.session;
-}
-
-export async function getAuthSession(): Promise<AuthSession | null> {
-  if (await isAuthRequireLogin()) {
-    return null;
-  }
-
-  const session = await getAuthProvider().getSession();
-
-  if (!session) {
-    return null;
-  }
-
-  const appUserId = await getTailoAppUserId();
-
-  return appUserId ? { ...session, appUserId } : session;
-}
-
-export async function getAuthAccessToken(): Promise<string | null> {
-  if (await isAuthRequireLogin()) {
-    return null;
-  }
-
-  return getAuthProvider().getAccessToken();
 }
 
 export async function requestEmailLink(
@@ -262,6 +263,29 @@ export async function signInWithGoogle(
   logAuth('Google sign-in started', { mode, source });
   const result = await getAuthProvider().signInWithGoogle({ mode });
   logAuth('Google sign-in provider finished', {
+    mode,
+    source,
+    status: result.status,
+    ...(result.status === 'error' ? { message: result.message } : {}),
+  });
+
+  if (result.status === 'signed_in') {
+    await establishSignedInSession(source, result.session);
+  }
+
+  return result;
+}
+
+export async function signInWithApple(
+  options: {
+    mode?: 'sign_in' | 'link';
+    source?: string;
+  } = {},
+): Promise<SocialSignInResult> {
+  const { mode = 'sign_in', source = 'sign_in_with_apple' } = options;
+  logAuth('Apple sign-in started', { mode, source });
+  const result = await getAuthProvider().signInWithApple({ mode });
+  logAuth('Apple sign-in provider finished', {
     mode,
     source,
     status: result.status,

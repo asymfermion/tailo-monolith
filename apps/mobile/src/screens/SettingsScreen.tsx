@@ -33,11 +33,13 @@ import {
   useAuthGate,
   useRemoteAccountProfile,
 } from '@/modules/auth';
+import { useUnreadNotificationsCount } from '@/modules/notifications';
 
 import { SettingsOptionPicker } from './settings/SettingsOptionPicker';
 
 type SettingsRowProps = {
   description?: string;
+  detail?: string;
   label: string;
   onPress?: () => void;
 };
@@ -122,6 +124,21 @@ function createSettingsStyles({
       lineHeight: 20,
       marginTop: spacing.xs,
     },
+    rowDetailBadge: {
+      alignSelf: 'flex-start' as const,
+      backgroundColor: colors.accent,
+      borderRadius: 999,
+      marginTop: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+    },
+    rowDetailText: {
+      color: colors.surface,
+      fontFamily: getFontFamily('600'),
+      fontSize: 12,
+      fontWeight: '600' as const,
+      lineHeight: 16,
+    },
     chevron: {
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),
@@ -179,6 +196,7 @@ export function SettingsScreen() {
   const [isResettingLocalData, setIsResettingLocalData] = useState(false);
   const styles = useThemedStyles(createSettingsStyles);
   const showLogout = account.isConfigured && account.isLinked;
+  const unreadNotifications = useUnreadNotificationsCount();
 
   useEffect(() => {
     if (navigation.activeTab !== 'Settings') {
@@ -222,6 +240,31 @@ export function SettingsScreen() {
     );
   }, [account, authGate]);
 
+  const runResetLocalData = useCallback(
+    (deleteRemoteAccount: boolean) => {
+      void (async () => {
+        setIsResettingLocalData(true);
+
+        try {
+          await resetLocalDeviceData({ deleteRemoteAccount });
+          navigation.finishSignInToTimeline();
+          await authGate.refresh();
+          await account.refresh();
+        } catch (error) {
+          Alert.alert(
+            t('settings.resetLocalDataFailedTitle'),
+            error instanceof Error
+              ? error.message
+              : t('settings.resetLocalDataFailedMessage'),
+          );
+        } finally {
+          setIsResettingLocalData(false);
+        }
+      })();
+    },
+    [account, authGate, navigation],
+  );
+
   const handleResetLocalData = useCallback(() => {
     Alert.alert(
       t('settings.resetLocalDataConfirmTitle'),
@@ -229,33 +272,44 @@ export function SettingsScreen() {
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: t('settings.resetLocalDataLabel'),
+          text: t('settings.resetLocalDataLocalOnlyLabel'),
           style: 'destructive',
           onPress: () => {
-            void (async () => {
-              setIsResettingLocalData(true);
-
-              try {
-                await resetLocalDeviceData();
-                navigation.finishSignInToTimeline();
-                await authGate.refresh();
-                await account.refresh();
-              } catch (error) {
-                Alert.alert(
-                  t('settings.resetLocalDataFailedTitle'),
-                  error instanceof Error
-                    ? error.message
-                    : t('settings.resetLocalDataFailedMessage'),
-                );
-              } finally {
-                setIsResettingLocalData(false);
-              }
-            })();
+            Alert.alert(
+              t('settings.resetLocalDataLocalOnlyLabel'),
+              t('settings.resetLocalDataLocalOnlyMessage'),
+              [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                  text: t('settings.resetLocalDataLocalOnlyLabel'),
+                  style: 'destructive',
+                  onPress: () => runResetLocalData(false),
+                },
+              ],
+            );
+          },
+        },
+        {
+          text: t('settings.resetLocalDataLocalAndRemoteLabel'),
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              t('settings.resetLocalDataLocalAndRemoteLabel'),
+              t('settings.resetLocalDataLocalAndRemoteMessage'),
+              [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                  text: t('settings.resetLocalDataLocalAndRemoteLabel'),
+                  style: 'destructive',
+                  onPress: () => runResetLocalData(true),
+                },
+              ],
+            );
           },
         },
       ],
     );
-  }, [account, authGate, navigation]);
+  }, [runResetLocalData]);
 
   const shouldSyncProfile =
     account.isConfigured && !account.isLoading && account.isLinked;
@@ -425,6 +479,20 @@ export function SettingsScreen() {
             )
           }
         />
+        <SettingsRow
+          description={t('settings.notificationsDescription')}
+          detail={
+            unreadNotifications > 0
+              ? t('settings.notificationsUnreadCount', {
+                  count: String(unreadNotifications),
+                })
+              : undefined
+          }
+          isLast
+          label={t('settings.notificationsLabel')}
+          styles={styles}
+          onPress={() => navigation.push('NotificationsInbox')}
+        />
       </SettingsSection>
 
       <SettingsSection
@@ -522,6 +590,7 @@ function SettingsSection({
 
 function SettingsRow({
   description,
+  detail,
   isLast = false,
   label,
   onPress,
@@ -535,6 +604,11 @@ function SettingsRow({
       <Text style={styles.rowLabel}>{label}</Text>
       {description ? (
         <Text style={styles.rowDescription}>{description}</Text>
+      ) : null}
+      {detail ? (
+        <View style={styles.rowDetailBadge}>
+          <Text style={styles.rowDetailText}>{detail}</Text>
+        </View>
       ) : null}
     </View>
   );

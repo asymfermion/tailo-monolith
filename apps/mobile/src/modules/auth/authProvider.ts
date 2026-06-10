@@ -53,6 +53,9 @@ export interface AuthProvider {
   signInWithGoogle(options?: {
     mode?: 'sign_in' | 'link';
   }): Promise<SocialSignInResult>;
+  signInWithApple(options?: {
+    mode?: 'sign_in' | 'link';
+  }): Promise<SocialSignInResult>;
   /** Best-effort profile name from auth identity metadata (e.g. Google full_name). */
   getIdentityDisplayName?(): Promise<string | null>;
   /** Clears the current remote session (local data unchanged). */

@@ -5,7 +5,7 @@ import { setAppTheme } from '@/lib/appTheme';
 import {
   getAuthSession,
   isRemoteAuthConfigured,
-} from '@/modules/auth/authService';
+} from '@/modules/auth/authSessionAccess';
 import { isLinkedRemoteAccount } from '@/modules/auth/authTypes';
 import { getAuthProvider } from '@/modules/auth/authProviderInstance';
 import {
@@ -14,6 +14,8 @@ import {
 } from '@/modules/auth/localAccountProfile';
 
 import {
+  applyIdentityDisplayNameIfMissing,
+  applyRemoteAccountProfile,
   pullRemoteAccountProfileIfNeeded,
   seedLocalAccountPrefsToCloudIfEmpty,
 } from './remoteAccountProfile';
@@ -22,7 +24,7 @@ jest.mock('@/lib/invokeTailoApi', () => ({
   invokeTailoApi: jest.fn(),
 }));
 
-jest.mock('@/modules/auth/authService', () => ({
+jest.mock('@/modules/auth/authSessionAccess', () => ({
   isRemoteAuthConfigured: jest.fn(),
   getAuthSession: jest.fn(),
 }));
@@ -104,6 +106,59 @@ describe('pullRemoteAccountProfileIfNeeded', () => {
     expect(setAppLocale).toHaveBeenCalledWith('zh-Hans');
     expect(setAppTheme).toHaveBeenCalledWith('dark');
     expect(setAppFontStyle).toHaveBeenCalledWith('rounded');
+  });
+});
+
+describe('applyRemoteAccountProfile', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('keeps a local display name when cloud profile is blank', async () => {
+    jest.mocked(loadLocalAccountProfile).mockResolvedValue({
+      displayName: 'Apple User',
+      updatedAt: '2026-06-10T00:00:00.000Z',
+    });
+
+    await applyRemoteAccountProfile({
+      display_name: null,
+      preferred_locale: null,
+      preferred_theme: null,
+      preferred_font_style: null,
+    });
+
+    expect(saveLocalAccountProfile).toHaveBeenCalledWith({
+      displayName: 'Apple User',
+    });
+  });
+});
+
+describe('applyIdentityDisplayNameIfMissing', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('skips when local display name already exists', async () => {
+    jest.mocked(loadLocalAccountProfile).mockResolvedValue({
+      displayName: 'Mochi',
+      updatedAt: '2026-06-10T00:00:00.000Z',
+    });
+
+    await expect(applyIdentityDisplayNameIfMissing()).resolves.toBe(false);
+    expect(saveLocalAccountProfile).not.toHaveBeenCalled();
+  });
+
+  it('backfills local display name from auth identity metadata', async () => {
+    jest.mocked(loadLocalAccountProfile).mockResolvedValue(null);
+    jest.mocked(getAuthProvider).mockReturnValue({
+      getIdentityDisplayName: jest.fn().mockResolvedValue('Apple User'),
+    } as never);
+
+    await expect(applyIdentityDisplayNameIfMissing()).resolves.toBe(true);
+
+    expect(saveLocalAccountProfile).toHaveBeenCalledWith({
+      displayName: 'Apple User',
+    });
   });
 });
 

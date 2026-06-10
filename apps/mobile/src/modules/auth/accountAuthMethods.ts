@@ -20,7 +20,7 @@ export function resolveAccountLinkState(
 
 /**
  * Sign-in methods shown on the connected account profile (Phase 4).
- * Apple / Google are listed as coming soon until provider linking ships.
+ * Provider identity detection is separate; these mark which methods can be linked.
  */
 export function deriveAccountAuthMethods(
   session: AuthSession | null,
@@ -32,8 +32,8 @@ export function deriveAccountAuthMethods(
       id: 'email',
       status: emailConnected ? 'connected' : 'available',
     },
-    { id: 'apple', status: 'coming_soon' },
-    { id: 'google', status: 'coming_soon' },
+    { id: 'apple', status: 'available' },
+    { id: 'google', status: 'available' },
   ];
 }
 

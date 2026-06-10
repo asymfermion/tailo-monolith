@@ -1,4 +1,5 @@
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
+import { saveLocalAccountProfile } from '../localAccountProfile';
 import { createSupabaseAuthProvider } from './supabaseAuthProvider';
 
 jest.mock('@/lib/supabase', () => ({
@@ -6,9 +7,44 @@ jest.mock('@/lib/supabase', () => ({
   getSupabaseClient: jest.fn(),
 }));
 
+jest.mock('../appleNativeAuth', () => {
+  const actual = jest.requireActual('../appleNativeAuth') as typeof import('../appleNativeAuth');
+
+  return {
+    requestAppleNativeCredential: jest.fn(),
+    resolveAppleDisplayName: actual.resolveAppleDisplayName,
+  };
+});
+
+jest.mock('../localAccountProfile', () => ({
+  loadLocalAccountProfile: jest.fn().mockResolvedValue(null),
+  saveLocalAccountProfile: jest.fn().mockResolvedValue({
+    displayName: 'Apple User',
+    updatedAt: '2026-06-10T00:00:00.000Z',
+  }),
+}));
+
+const mockRequestAppleNativeCredential = jest.mocked(
+  (
+    jest.requireMock('../appleNativeAuth') as {
+      requestAppleNativeCredential: jest.Mock;
+    }
+  ).requestAppleNativeCredential,
+);
+
 describe('createSupabaseAuthProvider', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    mockRequestAppleNativeCredential.mockResolvedValue({
+      status: 'credential',
+      credential: {
+        identityToken: 'apple-id-token',
+        email: 'apple@example.com',
+        displayName: 'Apple User',
+        givenName: 'Apple',
+        familyName: 'User',
+      },
+    });
   });
 
   it('skips bootstrap when env is not configured', async () => {
@@ -423,7 +459,9 @@ describe('createSupabaseAuthProvider', () => {
 
     const provider = createSupabaseAuthProvider();
 
-    await expect(provider.signInWithGoogle({ mode: 'sign_in' })).resolves.toEqual({
+    await expect(
+      provider.signInWithGoogle({ mode: 'sign_in' }),
+    ).resolves.toEqual({
       status: 'error',
       message: 'Google sign-in did not start.',
     });
@@ -451,11 +489,275 @@ describe('createSupabaseAuthProvider', () => {
 
     const provider = createSupabaseAuthProvider();
 
-    await expect(provider.signInWithGoogle({ mode: 'sign_in' })).resolves.toEqual({
+    await expect(
+      provider.signInWithGoogle({ mode: 'sign_in' }),
+    ).resolves.toEqual({
       status: 'error',
       message: 'Google sign-in did not start.',
     });
     expect(signOut).not.toHaveBeenCalled();
     expect(signInWithOAuth).toHaveBeenCalledTimes(1);
+  });
+
+  it('signs in with Apple id token', async () => {
+    const getSession = jest.fn().mockResolvedValue({
+      data: { session: null },
+    });
+    const signInWithIdToken = jest.fn().mockResolvedValue({
+      data: {
+        user: {
+          id: 'apple-user-1',
+          is_anonymous: false,
+          email: 'apple@example.com',
+          email_confirmed_at: '2026-06-06T00:00:00.000Z',
+        },
+      },
+      error: null,
+    });
+    const updateUser = jest.fn().mockResolvedValue({ error: null });
+
+    jest.mocked(isSupabaseConfigured).mockReturnValue(true);
+    jest.mocked(getSupabaseClient).mockReturnValue({
+      auth: {
+        getSession,
+        signInWithIdToken,
+        updateUser,
+      },
+    } as never);
+
+    const provider = createSupabaseAuthProvider();
+
+    await expect(
+      provider.signInWithApple({ mode: 'sign_in' }),
+    ).resolves.toEqual({
+      status: 'signed_in',
+      session: {
+        userId: 'apple-user-1',
+        isAnonymous: false,
+        email: 'apple@example.com',
+        emailConfirmed: true,
+      },
+    });
+    expect(signInWithIdToken).toHaveBeenCalledWith({
+      provider: 'apple',
+      token: 'apple-id-token',
+    });
+    expect(updateUser).toHaveBeenCalledWith({
+      data: {
+        full_name: 'Apple User',
+        name: 'Apple User',
+        given_name: 'Apple',
+        family_name: 'User',
+      },
+    });
+    expect(saveLocalAccountProfile).toHaveBeenCalledWith({
+      displayName: 'Apple User',
+    });
+  });
+
+  it('clears anonymous session before Apple sign-in', async () => {
+    const getSession = jest.fn().mockResolvedValue({
+      data: { session: { user: { id: 'anon-1', is_anonymous: true } } },
+    });
+    const signOut = jest.fn().mockResolvedValue({ error: null });
+    const signInWithIdToken = jest.fn().mockResolvedValue({
+      data: {
+        user: {
+          id: 'apple-user-1',
+          is_anonymous: false,
+          email: 'apple@example.com',
+          email_confirmed_at: '2026-06-06T00:00:00.000Z',
+        },
+      },
+      error: null,
+    });
+    const updateUser = jest.fn().mockResolvedValue({ error: null });
+
+    jest.mocked(isSupabaseConfigured).mockReturnValue(true);
+    jest.mocked(getSupabaseClient).mockReturnValue({
+      auth: {
+        getSession,
+        signOut,
+        signInWithIdToken,
+        updateUser,
+      },
+    } as never);
+
+    const provider = createSupabaseAuthProvider();
+
+    await expect(
+      provider.signInWithApple({ mode: 'sign_in' }),
+    ).resolves.toEqual({
+      status: 'signed_in',
+      session: {
+        userId: 'apple-user-1',
+        isAnonymous: false,
+        email: 'apple@example.com',
+        emailConfirmed: true,
+      },
+    });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(signInWithIdToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects direct Apple sign-in when Supabase returns an anonymous user', async () => {
+    const getSession = jest.fn().mockResolvedValue({
+      data: { session: null },
+    });
+    const signInWithIdToken = jest.fn().mockResolvedValue({
+      data: {
+        user: {
+          id: 'anon-1',
+          is_anonymous: true,
+          email: null,
+          email_confirmed_at: null,
+        },
+      },
+      error: null,
+    });
+
+    jest.mocked(isSupabaseConfigured).mockReturnValue(true);
+    jest.mocked(getSupabaseClient).mockReturnValue({
+      auth: {
+        getSession,
+        signInWithIdToken,
+      },
+    } as never);
+
+    const provider = createSupabaseAuthProvider();
+
+    await expect(
+      provider.signInWithApple({ mode: 'sign_in' }),
+    ).resolves.toEqual({
+      status: 'error',
+      message: 'This Apple account is not linked to a saved account yet.',
+    });
+  });
+
+  it('links Apple id token to an anonymous session', async () => {
+    const getSession = jest.fn().mockResolvedValue({
+      data: { session: { user: { id: 'anon-1', is_anonymous: true } } },
+    });
+    const linkIdentity = jest.fn().mockResolvedValue({
+      data: {
+        user: {
+          id: 'anon-1',
+          is_anonymous: false,
+          email: 'apple@example.com',
+          email_confirmed_at: '2026-06-06T00:00:00.000Z',
+        },
+      },
+      error: null,
+    });
+    const updateUser = jest.fn().mockResolvedValue({ error: null });
+
+    jest.mocked(isSupabaseConfigured).mockReturnValue(true);
+    jest.mocked(getSupabaseClient).mockReturnValue({
+      auth: {
+        getSession,
+        linkIdentity,
+        updateUser,
+      },
+    } as never);
+
+    const provider = createSupabaseAuthProvider();
+
+    await expect(provider.signInWithApple({ mode: 'link' })).resolves.toEqual({
+      status: 'signed_in',
+      session: {
+        userId: 'anon-1',
+        isAnonymous: false,
+        email: 'apple@example.com',
+        emailConfirmed: true,
+      },
+    });
+    expect(linkIdentity).toHaveBeenCalledWith({
+      provider: 'apple',
+      token: 'apple-id-token',
+    });
+    expect(updateUser).toHaveBeenCalledWith({
+      data: {
+        full_name: 'Apple User',
+        name: 'Apple User',
+        given_name: 'Apple',
+        family_name: 'User',
+      },
+    });
+    expect(saveLocalAccountProfile).toHaveBeenCalledWith({
+      displayName: 'Apple User',
+    });
+  });
+
+  it('rejects Apple link mode unless the current Supabase session is anonymous', async () => {
+    const getSession = jest.fn().mockResolvedValue({
+      data: { session: { user: { id: 'user-1', is_anonymous: false } } },
+    });
+    const linkIdentity = jest.fn();
+
+    jest.mocked(isSupabaseConfigured).mockReturnValue(true);
+    jest.mocked(getSupabaseClient).mockReturnValue({
+      auth: {
+        getSession,
+        linkIdentity,
+      },
+    } as never);
+
+    const provider = createSupabaseAuthProvider();
+
+    await expect(provider.signInWithApple({ mode: 'link' })).resolves.toEqual({
+      status: 'error',
+      message: 'Apple can only be linked from an anonymous session.',
+    });
+    expect(linkIdentity).not.toHaveBeenCalled();
+  });
+
+  it('uses first Apple credential display name as profile fallback', async () => {
+    const getSession = jest.fn().mockResolvedValue({
+      data: { session: null },
+    });
+    const signInWithIdToken = jest.fn().mockResolvedValue({
+      data: {
+        user: {
+          id: 'apple-user-1',
+          is_anonymous: false,
+          email: 'apple@example.com',
+          email_confirmed_at: '2026-06-06T00:00:00.000Z',
+        },
+      },
+      error: null,
+    });
+    const getUser = jest.fn().mockResolvedValue({
+      data: { user: { user_metadata: {} } },
+    });
+    const updateUser = jest.fn().mockResolvedValue({ error: null });
+
+    jest.mocked(isSupabaseConfigured).mockReturnValue(true);
+    jest.mocked(getSupabaseClient).mockReturnValue({
+      auth: {
+        getSession,
+        signInWithIdToken,
+        getUser,
+        updateUser,
+      },
+    } as never);
+
+    const provider = createSupabaseAuthProvider();
+
+    await provider.signInWithApple({ mode: 'sign_in' });
+
+    await expect(provider.getIdentityDisplayName?.()).resolves.toBe(
+      'Apple User',
+    );
+    expect(updateUser).toHaveBeenCalledWith({
+      data: {
+        full_name: 'Apple User',
+        name: 'Apple User',
+        given_name: 'Apple',
+        family_name: 'User',
+      },
+    });
+    expect(saveLocalAccountProfile).toHaveBeenCalledWith({
+      displayName: 'Apple User',
+    });
   });
 });

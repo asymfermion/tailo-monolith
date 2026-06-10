@@ -15,6 +15,8 @@ Use when creating a **staging** project or promoting beyond the dev project (`sg
 - [ ] **Anonymous** sign-ins enabled (B0.2).
 - [ ] **Manual linking** enabled for future Apple/Google/email (B0.3).
 - [ ] Email provider configured if testing account upgrade.
+- [ ] **Apple** provider enabled with production bundle ID(s) in Client IDs (native iOS; OAuth secret only if web/Android Apple sign-in is added). See [SETUP.md § Apple](./SETUP.md#apple-sign-in-with-apple-setup-dev--prod-runbook).
+- [ ] **Google** OAuth clients aligned per environment. See [SETUP.md § Google](./SETUP.md#google-oauth-setup-dev--prod-runbook).
 
 ## Database
 

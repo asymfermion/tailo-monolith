@@ -2,20 +2,30 @@ import { useSyncExternalStore } from 'react';
 
 import { secureStorage } from '@/modules/auth/secureStorage';
 
-export const APP_LOCALES = ['en', 'zh-Hans'] as const;
-export const DEFAULT_LOCALE = 'en' as const;
-export const APP_LOCALE_STORAGE_KEY = 'tailo.app_locale';
+import { readDeviceAppLocale } from './deviceLocale';
+import {
+  APP_LOCALE_STORAGE_KEY,
+  DEFAULT_LOCALE,
+  isAppLocale,
+  type AppLocale,
+} from './localeTypes';
 
-export type AppLocale = (typeof APP_LOCALES)[number];
+export {
+  APP_LOCALES,
+  APP_LOCALE_STORAGE_KEY,
+  DEFAULT_LOCALE,
+  isAppLocale,
+  type AppLocale,
+} from './localeTypes';
+export {
+  readDeviceAppLocale,
+  readDeviceLocaleCandidates,
+  resolveDeviceAppLocale,
+  type DeviceLocale,
+} from './deviceLocale';
 
 let currentLocale: AppLocale = DEFAULT_LOCALE;
 const listeners = new Set<() => void>();
-
-export function isAppLocale(
-  value: string | null | undefined,
-): value is AppLocale {
-  return value === 'en' || value === 'zh-Hans';
-}
 
 export function getAppLocale(): AppLocale {
   return currentLocale;
@@ -42,7 +52,7 @@ export async function hydrateAppLocale(): Promise<AppLocale> {
     return applyAppLocale(storedLocale);
   }
 
-  return currentLocale;
+  return applyAppLocale(readDeviceAppLocale());
 }
 
 export async function setAppLocale(locale: AppLocale): Promise<AppLocale> {

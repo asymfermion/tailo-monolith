@@ -4,6 +4,8 @@ export {
   getAppLocale,
   getIntlLocale,
   hydrateAppLocale,
+  readDeviceAppLocale,
+  resolveDeviceAppLocale,
   setAppLocale,
   useAppLocale,
   type AppLocale,

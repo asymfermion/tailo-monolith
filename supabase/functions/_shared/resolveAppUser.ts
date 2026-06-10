@@ -32,3 +32,28 @@ export async function resolveCallerAppUserId(
 
   return { appUserId: row.app_user_id };
 }
+
+type UserIdentityRow = {
+  app_user_id: string;
+};
+
+/** Read-only lookup — does not create missing app users. */
+export async function lookupCallerAppUserId(
+  user: User,
+  adminClient: SupabaseClient,
+): Promise<{ appUserId: string } | null> {
+  const { data, error } = await adminClient
+    .from('user_identities')
+    .select('app_user_id')
+    .eq('provider', 'supabase_auth')
+    .eq('provider_subject', user.id)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  const row = data as UserIdentityRow;
+
+  return row.app_user_id ? { appUserId: row.app_user_id } : null;
+}

@@ -7,6 +7,7 @@ import {
 import { getLocalEventById, markLocalEventDeleted } from '@/db/localEvents';
 import { isLocalEventTombstoned } from '@/db/localEventTombstones';
 import { acquireEventSyncLock } from '@/db/eventSyncLock';
+import { createAiJobCompletionNotification } from '@/modules/notifications/notificationProducers';
 
 import {
   hasMergedEventChanges,
@@ -137,6 +138,12 @@ export async function applyRemoteEventUpdates(
         local.localEventId,
       ],
     );
+
+    if (before.pendingAi && !merged.pendingAi) {
+      await createAiJobCompletionNotification({
+        localEventId: local.localEventId,
+      });
+    }
 
     applied += 1;
   }

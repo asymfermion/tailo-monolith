@@ -35,6 +35,7 @@ export type ModalStackParamList = {
     height: number;
   };
   NotificationsInbox: undefined;
+  PetProfileDetails: undefined;
 };
 
 export type ModalRouteName = keyof ModalStackParamList;
@@ -68,6 +69,10 @@ export type ModalRoute =
   | (RouteBase & {
       name: 'NotificationsInbox';
       params: ModalStackParamList['NotificationsInbox'];
+    })
+  | (RouteBase & {
+      name: 'PetProfileDetails';
+      params: ModalStackParamList['PetProfileDetails'];
     });
 
 /** @deprecated Use MainTabId + ModalRouteName. Kept for gradual migration in tests. */
@@ -80,6 +85,7 @@ export type RootStackParamList = {
   Capture: undefined;
   CapturePreview: ModalStackParamList['CapturePreview'];
   NotificationsInbox: undefined;
+  PetProfileDetails: undefined;
 };
 
 export type RootRouteName = keyof RootStackParamList;

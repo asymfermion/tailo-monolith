@@ -5,6 +5,7 @@ import { EventDetailScreen } from '@/screens/EventDetailScreen';
 import { ForgotPasswordScreen } from '@/screens/ForgotPasswordScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { NotificationsInboxScreen } from '@/screens/NotificationsInboxScreen';
+import { PetProfileDetailsScreen } from '@/screens/PetProfileDetailsScreen';
 
 import { logAuth } from '@/modules/auth/authLogger';
 
@@ -66,5 +67,7 @@ export function ModalShell({ route }: ModalShellProps) {
       );
     case 'NotificationsInbox':
       return <NotificationsInboxScreen />;
+    case 'PetProfileDetails':
+      return <PetProfileDetailsScreen />;
   }
 }

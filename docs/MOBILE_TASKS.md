@@ -448,8 +448,8 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 
 ### 3.4 Pet profile
 
-- [ ] **3.4.1** Polish the pet profile tab as the primary home for the pet story: clearer summary hierarchy, recent-moment context, and calmer empty/loading states
-- [ ] **3.4.2** Add pet profile edit affordances for name, type, gender, and profile photo with straightforward confirmation states
+- [x] **3.4.1** Polish the pet profile tab as the primary home for the pet story: clearer summary hierarchy, recent-moment context, and calmer empty/loading states
+- [x] **3.4.2** Add pet profile edit affordances for name, type, gender, and profile photo with straightforward confirmation states
 - [ ] **3.4.3** Keep the pet profile layout readable on compact phones and tablets without crowding the timeline shell
 
 ### 3.5 Settings
@@ -605,6 +605,8 @@ flowchart LR
 - 2026-06-10: **3.1.6–3.1.8, 3.1.13, 3.9.4** — Apple sign-in/link shipped in mobile (onboarding, login, account upgrade); dev Supabase Apple provider enabled via `config push`; runbooks and device QA checklist in `supabase/SETUP.md` and `docs/DEVELOPER.md`.
 - 2026-06-10: **3.1.17** — Apple auth verified on physical iPhone via TestFlight (EAS production build). **3.9.2** — first TestFlight upload complete.
 - 2026-06-10: **3.3.15** — onboarding scan now stops at 10 moments, 300 images, or a 90-day photo window (first limit wins); post-onboarding timeline scans unchanged.
+- 2026-06-11: **3.4.1** — Pet tab now opens with a pet-story summary card (photo, type/gender, moment count, latest memory), refreshes after profile edits, and keeps calmer empty/loading treatment above the editable profile fields.
+- 2026-06-11: **3.4.2** — Pet details now live on their own modal page from the summary card, so the tab stays focused on the pet story while edits for name, type, gender, birthday, and profile photo remain available with autosave feedback.
 - 2026-06-06: **3.6.1–3.6.4, 3.6.8 (first slice)** — added shared notifications contract + SQLite schema v13, mobile repository/service, Settings inbox entry + unread badge, inbox modal screen, initial producers (account reminder, continuity risk, sync completion, AI completion), push delivery fallback helper, read-state reconciliation helper, and unit tests.
 - 2026-06-06: **3.6.5 + 3.6.7** — added cloud notification sync contract and unified API action (`sync-notifications` push+pull), Supabase `notification_items` + RLS migration, mobile notification sync metadata/schema v14, background sync pass with cursor, and cross-device read-state merge (`newest read_at` wins).
 - 2026-06-06: Release automation direction — add GitHub Actions + EAS release workflow so a GitHub version release can build and submit iOS to App Store Connect once Apple credentials, Expo token, and approval gates are configured.

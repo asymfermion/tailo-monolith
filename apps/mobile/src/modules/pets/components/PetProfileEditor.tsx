@@ -21,6 +21,7 @@ import { createPetProfileEditorStyles } from './petProfileEditorStyles';
 type PetProfileEditorProps = {
   profile: LocalPetProfile | null;
   isLoading?: boolean;
+  onProfileSaved?: () => Promise<void> | void;
 };
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -35,6 +36,7 @@ export function canSavePetProfileDraft(input: {
 export function PetProfileEditor({
   profile,
   isLoading = false,
+  onProfileSaved,
 }: PetProfileEditorProps) {
   useAppLocale();
   const { colors } = useAppearance();
@@ -94,11 +96,12 @@ export function PetProfileEditor({
         profilePhotoLocalAssetId: profile.profilePhotoLocalAssetId,
         profilePhotoUri: profile.profilePhotoUri,
       });
+      await onProfileSaved?.();
       setSaveStatus('saved');
     } catch {
       setSaveStatus('error');
     }
-  }, [birthday, canSave, gender, petName, petType, profile]);
+  }, [birthday, canSave, gender, onProfileSaved, petName, petType, profile]);
 
   useEffect(() => {
     if (skipAutoSaveRef.current || !profile) {

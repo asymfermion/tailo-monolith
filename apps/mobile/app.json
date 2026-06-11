@@ -64,7 +64,8 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-apple-authentication",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "tsconfigPaths": true,

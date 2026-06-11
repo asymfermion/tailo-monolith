@@ -1,2 +1,5 @@
 # Monorepo: see root .gitignore for shared patterns.
 # Mobile-only overrides below (if any).
+
+# Local EAS/Apple hints (copy from eas.local.env.example)
+eas.local.env

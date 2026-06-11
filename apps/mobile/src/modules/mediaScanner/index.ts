@@ -24,4 +24,17 @@ export {
   getScanProgressHeadline,
 } from './scanProgress';
 export { shouldEnableHistoricalScan } from './scanDepthPolicy';
+export {
+  ONBOARDING_SCAN_LIMITS,
+  ONBOARDING_SCAN_MAX_IMAGES,
+  ONBOARDING_SCAN_TARGET_MOMENTS,
+  ONBOARDING_SCAN_WINDOW_DAYS,
+  getOnboardingScanCreatedAfterMs,
+  hasReachedOnboardingMomentTarget,
+} from './onboardingScanPolicy';
+export {
+  runOnboardingLocalPipeline,
+  type OnboardingLocalPipelineResult,
+} from './runOnboardingLocalPipeline';
+export { runOnboardingPetTypeTopUp } from './runOnboardingPetTypeTopUp';
 export { usePhotoAccess, type PhotoAccessState } from './usePhotoAccess';

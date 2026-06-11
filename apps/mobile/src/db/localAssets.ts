@@ -311,6 +311,24 @@ export async function countLocalAssets(
   return row?.count ?? 0;
 }
 
+export async function countLocalAssetsCreatedAfter(
+  db: SQLite.SQLiteDatabase,
+  createdAfterMs: number,
+): Promise<number> {
+  const createdAfterIso = new Date(createdAfterMs).toISOString();
+  const row = await db.getFirstAsync<PetCandidateCountRow>(
+    `
+      SELECT COUNT(*) AS count
+      FROM local_assets
+      WHERE media_type = 'photo'
+        AND created_at >= ?
+    `,
+    [createdAfterIso],
+  );
+
+  return row?.count ?? 0;
+}
+
 export type LocalAssetUploadSource = {
   localAssetId: string;
   uri: string;

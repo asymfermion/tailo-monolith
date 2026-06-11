@@ -794,7 +794,7 @@ Local device direction also now says:
 - hosted Supabase email templates must match OTP UX, including `Reset password` OTP copy
 - Apple provider on **prod/staging** still needs per-environment apply (dev configured; see `supabase/SETUP.md`)
 - provider flows need environment-specific redirect and provider config validation across dev/staging/prod
-- **3.1.17** Apple auth device QA matrix in `docs/DEVELOPER.md` — pending physical iPhone / TestFlight run
+- **3.1.17** Apple auth device QA matrix in `docs/DEVELOPER.md` — verified on physical iPhone via TestFlight (2026-06-10)
 
 ---
 
@@ -803,6 +803,7 @@ Local device direction also now says:
 | Date       | Change                                                                                                                                                                                  |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-06-10 | Native Apple sign-in/link: onboarding + login direct sign-in, Settings anonymous upgrade with link-first + conflict fallback, dev Supabase Apple provider (`com.mtxforge.tailo`), first-authorization name persisted to `user_metadata`. Device QA checklist in `DEVELOPER.md`; prod provider apply still per-environment. |
+| 2026-06-10 | **3.1.17** device QA passed on physical iPhone via EAS TestFlight production build (Sign in with Apple). |
 | 2026-06-06 | Notification inbox first slice shipped (`3.6.1`–`3.6.4`, `3.6.8`): shared contract + local inbox schema, Settings unread entry, account/sync/AI/continuity producers, and test coverage. |
 | 2026-05-25 | Google auth flow now documents link-first behavior for anonymous upgrades, plus fallback to existing-account sign-in when identity is already linked (with local anonymous data clear). |
 | 2026-05-25 | OAuth handoff UX now documents full-screen blocking loading during redirect/callback transitions to avoid intermediate auth screen flashes.                                             |

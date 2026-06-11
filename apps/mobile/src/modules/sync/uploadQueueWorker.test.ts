@@ -11,6 +11,7 @@ import {
   isRemoteAuthConfigured,
 } from '@/modules/auth/authService';
 import { loadLocalPetProfile } from '@/modules/pets/petProfile';
+import { getCloudImageUploadsEnabled } from './cloudImageUploadSetting';
 import { createUploadUrls } from './createUploadUrls';
 import { prepareEventMediaUpload } from './prepareEventMediaUpload';
 import { prepareCloudUploadPrerequisites } from './prepareCloudUploadPrerequisites';
@@ -30,6 +31,10 @@ jest.mock('@/modules/pets/petProfile', () => ({
 
 jest.mock('./prepareCloudUploadPrerequisites', () => ({
   prepareCloudUploadPrerequisites: jest.fn(),
+}));
+
+jest.mock('./cloudImageUploadSetting', () => ({
+  getCloudImageUploadsEnabled: jest.fn(),
 }));
 
 jest.mock('./createUploadUrls', () => ({
@@ -80,6 +85,7 @@ describe('runUploadQueueWorker', () => {
     jest.mocked(resetStuckUploadingQueueItems).mockResolvedValue();
     jest.mocked(getPendingUploadQueueItems).mockResolvedValue([]);
     jest.mocked(isRemoteAuthConfigured).mockReturnValue(true);
+    jest.mocked(getCloudImageUploadsEnabled).mockReturnValue(true);
     jest.mocked(getAuthSession).mockResolvedValue({
       userId: 'user-1',
       isAnonymous: true,
@@ -115,6 +121,19 @@ describe('runUploadQueueWorker', () => {
     await runUploadQueueWorker(database);
 
     expect(prepareCloudUploadPrerequisites).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips when cloud image uploads are disabled in dev settings', async () => {
+    jest.mocked(getCloudImageUploadsEnabled).mockReturnValue(false);
+
+    await expect(runUploadQueueWorker(database)).resolves.toEqual({
+      processedBatches: 0,
+      uploadedAssets: 0,
+      failedAssets: 0,
+      skippedReason: 'disabled_in_dev_settings',
+    });
+
+    expect(prepareCloudUploadPrerequisites).not.toHaveBeenCalled();
   });
 
   it('skips when remote pet id is missing', async () => {

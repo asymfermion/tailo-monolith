@@ -36,6 +36,7 @@ import {
   useEventUpdatesPoll,
 } from '@/modules/sync';
 import { CaptureFab } from '@/modules/timeline/components/CaptureFab';
+import { TimelineAnonymousUpgradeCard } from '@/modules/timeline/components/TimelineAnonymousUpgradeCard';
 import { TimelineTopBar } from '@/modules/timeline/components/TimelineTopBar';
 import type { TimelineListFilter } from '@/modules/timeline/components/TimelineFilterDropdown';
 import { MomentPhotoViewer } from '@/modules/timeline/components/MomentPhotoViewer';
@@ -49,8 +50,21 @@ import {
 import type { TimelineEvent } from '@/types';
 import { getDatabase } from '@/db';
 
-function keyExtractor(item: TimelineEvent): string {
-  return item.localEventId;
+type TimelineListItem =
+  | {
+      kind: 'event';
+      event: TimelineEvent;
+    }
+  | {
+      kind: 'anonymous_upgrade';
+    };
+
+function keyExtractor(item: TimelineListItem): string {
+  if (item.kind === 'event') {
+    return item.event.localEventId;
+  }
+
+  return 'timeline-anonymous-upgrade';
 }
 
 function createTimelineScreenStyles({
@@ -165,7 +179,7 @@ export function TimelineScreen() {
     photoAccess.isClusteringEvents ||
     photoAccess.isSelectingImages;
   const wasPipelineActiveRef = useRef(isPipelineActive);
-  const listRef = useRef<FlatList<TimelineEvent>>(null);
+  const listRef = useRef<FlatList<TimelineListItem>>(null);
   const [timelineScrollY, setTimelineScrollY] = useState(0);
   const [cloudBackfillPending, setCloudBackfillPending] = useState(false);
   const [cloudBackfillTipDismissed, setCloudBackfillTipDismissed] =
@@ -179,6 +193,19 @@ export function TimelineScreen() {
     favoritesOnly,
   });
   const hasTimelineValue = timeline.events.length > 0;
+  const showAnonymousUpgradeMoment =
+    !favoritesOnly &&
+    account.session?.isAnonymous === true &&
+    timeline.events.length > 0;
+  const timelineItems = useMemo<TimelineListItem[]>(
+    () => [
+      ...timeline.events.map((event) => ({ kind: 'event' as const, event })),
+      ...(showAnonymousUpgradeMoment
+        ? ([{ kind: 'anonymous_upgrade' as const }] satisfies TimelineListItem[])
+        : []),
+    ],
+    [showAnonymousUpgradeMoment, timeline.events],
+  );
 
   useEffect(() => {
     if (wasPipelineActiveRef.current && !isPipelineActive) {
@@ -328,22 +355,35 @@ export function TimelineScreen() {
     );
   }, []);
 
-  const renderItem: ListRenderItem<TimelineEvent> = useCallback(
-    ({ item }) => (
-      <TimelineMomentCard
-        event={item}
-        onDelete={handleDeleteMoment}
-        onEdit={openMomentDetail}
-        onPress={openMomentDetail}
-        onPressPhoto={openMomentPhoto}
-        onShare={handleShareMoment}
-        onToggleFavorite={handleToggleFavorite}
-      />
-    ),
+  const renderItem: ListRenderItem<TimelineListItem> = useCallback(
+    ({ item }) => {
+      if (item.kind === 'anonymous_upgrade') {
+        return (
+          <TimelineAnonymousUpgradeCard
+            onCreateAccount={() =>
+              navigation.push('AccountSettings', { mode: 'create' })
+            }
+          />
+        );
+      }
+
+      return (
+        <TimelineMomentCard
+          event={item.event}
+          onDelete={handleDeleteMoment}
+          onEdit={openMomentDetail}
+          onPress={openMomentDetail}
+          onPressPhoto={openMomentPhoto}
+          onShare={handleShareMoment}
+          onToggleFavorite={handleToggleFavorite}
+        />
+      );
+    },
     [
       handleDeleteMoment,
       handleShareMoment,
       handleToggleFavorite,
+      navigation,
       openMomentDetail,
       openMomentPhoto,
     ],
@@ -396,8 +436,8 @@ export function TimelineScreen() {
           { paddingBottom: tabBarContentInset },
         ]}
         contentInsetAdjustmentBehavior="never"
-        data={timeline.events}
-        extraData={`${locale}:${timelineRefreshKey}:${timeline.events.length}`}
+        data={timelineItems}
+        extraData={`${locale}:${timelineRefreshKey}:${timelineItems.length}:${showAnonymousUpgradeMoment ? 'anon-cta' : 'no-cta'}`}
         initialNumToRender={6}
         keyExtractor={keyExtractor}
         maxToRenderPerBatch={8}

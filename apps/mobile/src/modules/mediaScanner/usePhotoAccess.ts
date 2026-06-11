@@ -27,6 +27,7 @@ import {
   shouldStartInitialScan,
 } from './pipelineResume';
 import { beginLocalPipeline, endLocalPipeline } from '@/db/localPipelineLock';
+import { runOnboardingLocalPipeline } from './runOnboardingLocalPipeline';
 import { resumeLocalPipeline, runLocalPipeline } from './runLocalPipeline';
 import {
   checkPhotoLibraryPermission,
@@ -82,6 +83,8 @@ export type UsePhotoAccessOptions = {
   autoResumeOnMount?: boolean;
   /** Linked accounts can run deeper historical scan passes. */
   historicalScanEnabled?: boolean;
+  /** Onboarding uses bounded scan: 10 moments, 300 images, or 90-day window. */
+  onboardingScanMode?: boolean;
 };
 
 export function usePhotoAccess(
@@ -91,7 +94,11 @@ export function usePhotoAccess(
   startScan: () => Promise<void>;
   redetectPets: () => Promise<void>;
 } {
-  const { autoResumeOnMount = true, historicalScanEnabled = true } = options;
+  const {
+    autoResumeOnMount = true,
+    historicalScanEnabled = true,
+    onboardingScanMode = false,
+  } = options;
   const pipelineInFlightRef = useRef(false);
   const [state, setState] = useState<PhotoAccessState>({
     permissionStatus: 'checking',
@@ -245,6 +252,14 @@ export function usePhotoAccess(
 
   const startScan = useCallback(async () => {
     await runPipeline(async (database) => {
+      if (onboardingScanMode) {
+        await runOnboardingLocalPipeline({
+          database,
+          progress: pipelineProgress,
+        });
+        return;
+      }
+
       await runLocalPipeline({
         database,
         includeRecentScan: true,
@@ -252,7 +267,12 @@ export function usePhotoAccess(
         progress: pipelineProgress,
       });
     });
-  }, [historicalScanEnabled, pipelineProgress, runPipeline]);
+  }, [
+    historicalScanEnabled,
+    onboardingScanMode,
+    pipelineProgress,
+    runPipeline,
+  ]);
 
   const resumeIfNeeded = useCallback(async () => {
     const permission = await checkPhotoLibraryPermission();

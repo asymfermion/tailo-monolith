@@ -107,15 +107,34 @@ export function ScanProgressIndicator({
 }: ScanProgressIndicatorProps) {
   const { colors } = useAppearance();
   const styles = useThemedStyles(createScanProgressIndicatorStyles);
-  const progress = computeOnboardingScanProgress(photoAccess);
+  const rawProgress = computeOnboardingScanProgress(photoAccess);
   const isActive = isOnboardingScanPipelineActive(photoAccess);
   const steps = getScanPipelineSteps(photoAccess);
-  const animatedWidth = useRef(new Animated.Value(progress)).current;
+  const animatedWidth = useRef(new Animated.Value(rawProgress)).current;
+  const displayedProgressRef = useRef(rawProgress);
+
+  const progress = (() => {
+    if (photoAccess.initialScanCompleted) {
+      displayedProgressRef.current = 1;
+      return 1;
+    }
+
+    if (isActive) {
+      displayedProgressRef.current = Math.max(
+        displayedProgressRef.current,
+        rawProgress,
+      );
+      return displayedProgressRef.current;
+    }
+
+    displayedProgressRef.current = rawProgress;
+    return rawProgress;
+  })();
 
   useEffect(() => {
     Animated.timing(animatedWidth, {
       toValue: progress,
-      duration: 320,
+      duration: 520,
       useNativeDriver: false,
     }).start();
   }, [animatedWidth, progress]);

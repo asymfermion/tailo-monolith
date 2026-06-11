@@ -154,7 +154,7 @@ export async function resumeLocalPipeline({
   await setPipelinePhase(database, 'idle');
 }
 
-async function runPipelineProcessingStages(
+export async function runPipelineProcessingStages(
   database: Awaited<ReturnType<typeof getDatabase>>,
   progress?: LocalPipelineProgress,
 ): Promise<void> {

@@ -4,7 +4,7 @@ export const SAVE_MEMORIES_REMINDER = {
   firstValueDelayMs: 30 * 60 * 1000,
   repeatIntervalMs: 3 * DAY_MS,
   snoozeIntervalMs: 3 * DAY_MS,
-  openedIntervalMs: 14 * DAY_MS,
+  openedIntervalMs: 3 * DAY_MS,
 } as const;
 
 export type SaveMemoriesReminderInput = {

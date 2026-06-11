@@ -418,7 +418,7 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - [x] **3.1.14** Wire Apple direct entry points from onboarding and login while keeping `Start on this device` as the default anonymous-first path
 - [x] **3.1.15** Update social sign-in UI/copy and account method status so Apple is enabled only where native Apple auth is available; keep non-iOS or unavailable states disabled without dead controls
 - [x] **3.1.16** Add focused tests for Apple auth mode selection, native credential error handling, linked-account rejection, anonymous-link preservation, conflict fallback, and post-sign-in bootstrap
-- [ ] **3.1.17** Verify Apple auth on a real iOS dev/TestFlight build: direct sign-up, direct sign-in, anonymous link, cancel/error path, reinstall return, and first-authorization name/email capture — QA matrix in [DEVELOPER.md § Apple Sign in QA](./DEVELOPER.md#apple-sign-in-qa); requires physical device run
+- [x] **3.1.17** Verify Apple auth on a real iOS dev/TestFlight build: direct sign-up, direct sign-in, anonymous link, cancel/error path, reinstall return, and first-authorization name/email capture — QA matrix in [DEVELOPER.md § Apple Sign in QA](./DEVELOPER.md#apple-sign-in-qa); verified on TestFlight (physical iPhone)
 - [x] **3.1.18** Direct sign-in / sign-up with Google
 
 ### 3.2 Onboarding & permissions
@@ -444,6 +444,7 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - [ ] **3.3.12** Paid multi-pet profiles: support multiple pets in product UI and sync, with per-pet selection and editing surfaces
 - [ ] **3.3.13** Paid merged timeline: add “All pets” merged timeline mode with per-event pet identity labels and per-pet filters
 - [ ] **3.3.14** Paid multi-moment/day controls: add account-level setting/flag to enable multiple passive auto-detected moments per day per pet, while preserving free-tier one-per-day behavior
+- [x] **3.3.15** Onboarding scan bounds: stop at **10 promoted moments**, **300 images**, or **90-day window** — whichever comes first; timeline scans keep existing depth policy
 
 ### 3.4 Pet profile
 
@@ -485,7 +486,7 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 ### 3.9 Release readiness
 
 - [ ] **3.9.1** App icons and splash aligned with brand
-- [ ] **3.9.2** iOS build via EAS (or dev client) with correct entitlements
+- [x] **3.9.2** iOS build via EAS (or dev client) with correct entitlements — `apps/mobile/eas.json` + `npm run eas:ios` script added; first TestFlight upload complete (Sign in with Apple verified)
 - [ ] **3.9.3** TestFlight checklist from [Manual QA checklist](./DEVELOPER.md#manual-qa-checklist)
 - [x] **3.9.4** Prepare auth-provider configuration checklist for `dev` and `prod`: Supabase redirect URLs, email templates, Apple capability, Google OAuth clients
 - [ ] **3.9.5** Document the canonical hosted-email-template setup in `supabase/SETUP.md` and `docs/DEVELOPER.md`: which auth flow uses which template, expected mobile UX, and dashboard locations for `Confirm sign up`, `Change email address`, and `Reset password`
@@ -494,6 +495,91 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - [ ] **3.9.8** Add GitHub Actions release automation for iOS: on version tag / GitHub release, run Expo/EAS build and submit to App Store Connect using GitHub secrets for Expo and App Store Connect credentials, with a manual approval gate before production App Store submission
 - [ ] **3.9.9** Manual test matrix: full / limited / denied photo access; many vs few pet photos; duplicates
 - [ ] **3.9.10** Performance pass: first useful events visible within ~60s on real device
+- [ ] **3.9.11** Continuous TestFlight from `main`: GitHub Actions workflow that builds and submits iOS on push to `main` (see plan below)
+
+### 3.9.11 plan — Continuous TestFlight from `main`
+
+**Goal:** Every merge to `main` that affects the mobile app produces a new TestFlight build automatically — no manual `npm run eas:ios -- release`.
+
+**Scope split (keep separate from 3.9.8):**
+
+| Workflow | Trigger | Destination | Gate |
+| -------- | ------- | ----------- | ---- |
+| **3.9.11** (this task) | Push to `main` | TestFlight (internal testing) | CI checks only |
+| **3.9.8** (existing) | Version tag / GitHub Release | App Store production | Manual approval before store release |
+
+**Recommended trigger (not literally every file on `main`):**
+
+```yaml
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/shared/**'
+      - 'packages/ai/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy-ios-testflight.yml'
+  workflow_dispatch:   # manual re-run without a commit
+```
+
+Path filters avoid burning EAS minutes on landing-only or docs-only merges. Drop or widen filters if you truly want every `main` commit.
+
+**Workflow shape (mirror `deploy-landing.yml` / `deploy-supabase.yml` patterns):**
+
+```mermaid
+flowchart LR
+  push[Push to main] --> filter{Mobile paths changed?}
+  filter -->|no| skip[Skip]
+  filter -->|yes| ci[Checkout + npm ci]
+  ci --> checks[mobile:typecheck + mobile tests]
+  checks --> build[EAS build production]
+  build --> submit[EAS submit to ASC]
+  submit --> tf[TestFlight processing]
+```
+
+**Implementation checklist:**
+
+- [ ] **3.9.11.1** Create `.github/workflows/deploy-ios-testflight.yml` with `concurrency: deploy-ios-testflight-main` + `cancel-in-progress: true` so rapid merges only keep the latest build
+- [ ] **3.9.11.2** Add pre-build gates: `npm run mobile:typecheck` and `npm run test:mobile` (fail fast before EAS billing)
+- [ ] **3.9.11.3** Run EAS non-interactively from `apps/mobile`: `eas build --platform ios --profile production --non-interactive --auto-submit` (or `eas build` + `eas submit --latest` as two steps)
+- [ ] **3.9.11.4** Configure GitHub repository secrets (see table below); document in workflow header + `docs/DEVELOPER.md`
+- [ ] **3.9.11.5** Store App Store Connect API key in EAS (preferred) or pass via GitHub secrets for submit; Apple **build** signing already lives on EAS after `npm run eas:ios -- credentials`
+- [ ] **3.9.11.6** Confirm `EXPO_PUBLIC_*` vars remain in EAS `production` environment (not GitHub) — CI should not need `.env.local`
+- [ ] **3.9.11.7** Post workflow summary: EAS build URL, build id, submit status (use `eas build --json` or Expo GitHub Action)
+- [ ] **3.9.11.8** First green run: verify build appears in App Store Connect → TestFlight → internal group
+
+**GitHub secrets (repository settings):**
+
+| Secret | Purpose |
+| ------ | ------- |
+| `EXPO_TOKEN` | Expo personal access token ([expo.dev/settings/access-tokens](https://expo.dev/settings/access-tokens)) |
+| `ASC_API_KEY_ID` | App Store Connect API key id (submit) |
+| `ASC_API_KEY_ISSUER_ID` | App Store Connect issuer id |
+| `ASC_API_KEY` | Base64 `.p8` key contents (submit) |
+| `ASC_APP_ID` | Optional — App Store Connect app Apple ID; skips lookup prompts |
+
+**Prerequisites before enabling the workflow:**
+
+1. First manual TestFlight upload succeeds (`npm run eas:ios -- release`) — **3.9.2**
+2. EAS `production` env vars pushed — secrets step already done locally
+3. Apple distribution cert + provisioning profile on EAS — credentials step already done
+4. App Store Connect app exists for `com.mtxforge.tailo`
+5. TestFlight internal testing group has at least one tester
+
+**Operational notes:**
+
+- **Cost / queue:** EAS cloud builds take ~15–25 min and count against Expo plan limits. Rapid `main` merges with `cancel-in-progress` help, but consider a nightly cadence later if volume grows.
+- **Build numbers:** `eas.json` `production.autoIncrement: true` handles iOS build numbers remotely.
+- **No Metro on device:** TestFlight builds are standalone; QA still follows [DEVELOPER.md § Before TestFlight](./DEVELOPER.md#before-testflight).
+- **Failure alerts:** Enable GitHub Actions failure notifications (email or Slack) so a broken `main` does not silently stop TestFlight updates.
+
+**Acceptance criteria:**
+
+- Merge to `main` touching `apps/mobile/` produces a new TestFlight build without local CLI steps
+- Workflow fails clearly when typecheck/tests/build/submit fail
+- Docs list required secrets and how to re-run manually (`workflow_dispatch`)
 
 ### 3.10 Model readiness & Android path
 
@@ -516,10 +602,13 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 - 2026-06-06: Notification system split — the reminder/account prompt surface is now a dedicated Phase 3 feature area under `3.6`, separate from settings and timeline polish.
 - 2026-06-06: **3.1.11** — Apple anonymous upgrade now shares the Google conflict fallback path: linked-elsewhere identities sign into the existing account, clear local anonymous device data, and run account bootstrap.
 - 2026-06-06: **3.1.16** — Apple auth now has focused unit coverage for upgrade mode selection, native credential failures, linked-account rejection, anonymous link preservation, identity conflict fallback, and post-sign-in bootstrap ordering.
-- 2026-06-10: **3.1.6–3.1.8, 3.1.13, 3.9.4** — Apple sign-in/link shipped in mobile (onboarding, login, account upgrade); dev Supabase Apple provider enabled via `config push`; runbooks and device QA checklist in `supabase/SETUP.md` and `docs/DEVELOPER.md`. **3.1.17** remains a physical-device QA pass.
+- 2026-06-10: **3.1.6–3.1.8, 3.1.13, 3.9.4** — Apple sign-in/link shipped in mobile (onboarding, login, account upgrade); dev Supabase Apple provider enabled via `config push`; runbooks and device QA checklist in `supabase/SETUP.md` and `docs/DEVELOPER.md`.
+- 2026-06-10: **3.1.17** — Apple auth verified on physical iPhone via TestFlight (EAS production build). **3.9.2** — first TestFlight upload complete.
+- 2026-06-10: **3.3.15** — onboarding scan now stops at 10 moments, 300 images, or a 90-day photo window (first limit wins); post-onboarding timeline scans unchanged.
 - 2026-06-06: **3.6.1–3.6.4, 3.6.8 (first slice)** — added shared notifications contract + SQLite schema v13, mobile repository/service, Settings inbox entry + unread badge, inbox modal screen, initial producers (account reminder, continuity risk, sync completion, AI completion), push delivery fallback helper, read-state reconciliation helper, and unit tests.
 - 2026-06-06: **3.6.5 + 3.6.7** — added cloud notification sync contract and unified API action (`sync-notifications` push+pull), Supabase `notification_items` + RLS migration, mobile notification sync metadata/schema v14, background sync pass with cursor, and cross-device read-state merge (`newest read_at` wins).
 - 2026-06-06: Release automation direction — add GitHub Actions + EAS release workflow so a GitHub version release can build and submit iOS to App Store Connect once Apple credentials, Expo token, and approval gates are configured.
+- 2026-06-10: **3.9.11** — planned continuous TestFlight workflow on `main` (path-filtered), separate from **3.9.8** tag-based App Store release with manual approval.
 - 2026-05-25: Account profile seeding now treats blank cloud display names as missing and backfills from provider identity metadata (for example Google `full_name`).
 - 2026-05-25: Supabase backend APIs are now consolidated under router functions (`api-auth`, `api-account`, `api-pet`, `api-events`); redundant legacy single-action Edge Functions were removed.
 

@@ -3,6 +3,9 @@ import type { NewLocalMediaScore } from '@/types';
 
 const MIN_SELECTED_MEDIA = 2;
 const MAX_SELECTED_MEDIA = 5;
+const NEAR_DUPLICATE_WINDOW_MS = 8_000;
+const MIN_DIMENSION_SIMILARITY = 0.94;
+const MAX_ASPECT_RATIO_DELTA = 0.05;
 
 export type ScoreEventMediaOptions = {
   localEventId: string;
@@ -20,27 +23,29 @@ export function scoreEventMedia({
   assets,
 }: ScoreEventMediaOptions): ScoreEventMediaResult {
   const uniquenessByAssetId = calculateUniquenessScores(assets);
-  const rankedScores = assets
+  const rankedEntries = assets
     .map((asset) =>
-      scoreAsset({
+      ({
         asset,
-        localEventId,
-        uniqueness: uniquenessByAssetId.get(asset.localAssetId) ?? 1,
-      }),
+        score: scoreAsset({
+          asset,
+          localEventId,
+          uniqueness: uniquenessByAssetId.get(asset.localAssetId) ?? 1,
+        }),
+      }) as const,
     )
     .sort((left, right) => {
-      if (right.overallScore !== left.overallScore) {
-        return right.overallScore - left.overallScore;
+      if (right.score.overallScore !== left.score.overallScore) {
+        return right.score.overallScore - left.score.overallScore;
       }
 
-      return left.localAssetId.localeCompare(right.localAssetId);
+      return left.score.localAssetId.localeCompare(right.score.localAssetId);
     });
-  const selectedCount = Math.min(MAX_SELECTED_MEDIA, rankedScores.length);
-  const selectedScores = rankedScores.slice(0, selectedCount);
+  const selectedScores = selectDiverseScores(rankedEntries);
   const primaryAssetId = selectedScores[0]?.localAssetId ?? null;
   const selectedAssetIds = selectedScores.map((score) => score.localAssetId);
   const selectedAssetIdSet = new Set(selectedAssetIds);
-  const scores = rankedScores.map((score) => ({
+  const scores = rankedEntries.map(({ score }) => ({
     ...score,
     isPrimary: score.localAssetId === primaryAssetId,
   }));
@@ -50,11 +55,94 @@ export function scoreEventMedia({
     selectedAssetIds:
       selectedScores.length >= MIN_SELECTED_MEDIA
         ? selectedAssetIds
-        : rankedScores
+        : rankedEntries
+            .map(({ score }) => score)
             .filter((score) => selectedAssetIdSet.has(score.localAssetId))
             .map((score) => score.localAssetId),
     primaryAssetId,
   };
+}
+
+function selectDiverseScores(
+  rankedEntries: ReadonlyArray<{
+    asset: LocalAssetScoringInput;
+    score: NewLocalMediaScore;
+  }>,
+): NewLocalMediaScore[] {
+  if (rankedEntries.length === 0) {
+    return [];
+  }
+
+  const selected: Array<{
+    asset: LocalAssetScoringInput;
+    score: NewLocalMediaScore;
+  }> = [];
+
+  for (const entry of rankedEntries) {
+    if (selected.length >= MAX_SELECTED_MEDIA) {
+      break;
+    }
+
+    const isNearDuplicate = selected.some((kept) =>
+      areNearDuplicatePose(entry.asset, kept.asset),
+    );
+    if (isNearDuplicate) {
+      continue;
+    }
+
+    selected.push(entry);
+  }
+
+  // Preserve minimum coverage when most inputs are burst-like duplicates.
+  const minRequired = Math.min(MIN_SELECTED_MEDIA, rankedEntries.length);
+  if (selected.length < minRequired) {
+    for (const entry of rankedEntries) {
+      if (selected.length >= Math.min(MAX_SELECTED_MEDIA, minRequired)) {
+        break;
+      }
+
+      if (
+        selected.some(
+          (kept) => kept.score.localAssetId === entry.score.localAssetId,
+        )
+      ) {
+        continue;
+      }
+
+      selected.push(entry);
+    }
+  }
+
+  return selected.map((entry) => entry.score);
+}
+
+function areNearDuplicatePose(
+  left: LocalAssetScoringInput,
+  right: LocalAssetScoringInput,
+): boolean {
+  const timeDistanceMs = Math.abs(
+    new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+  );
+  if (timeDistanceMs > NEAR_DUPLICATE_WINDOW_MS) {
+    return false;
+  }
+
+  const leftAspect = left.height === 0 ? 1 : left.width / left.height;
+  const rightAspect = right.height === 0 ? 1 : right.width / right.height;
+  const aspectDelta = Math.abs(leftAspect - rightAspect);
+  if (aspectDelta > MAX_ASPECT_RATIO_DELTA) {
+    return false;
+  }
+
+  const widthSimilarity =
+    Math.min(left.width, right.width) / Math.max(left.width, right.width);
+  const heightSimilarity =
+    Math.min(left.height, right.height) / Math.max(left.height, right.height);
+
+  return (
+    widthSimilarity >= MIN_DIMENSION_SIMILARITY &&
+    heightSimilarity >= MIN_DIMENSION_SIMILARITY
+  );
 }
 
 function scoreAsset({

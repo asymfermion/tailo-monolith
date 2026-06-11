@@ -18,6 +18,7 @@
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.mtxforge.tailo",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "Tailo scans your recent photos to find pet moments for your timeline.",
         "NSPhotoLibraryAddUsageDescription": "Tailo can save photos you capture in the app to your photo library.",
         "NSCameraUsageDescription": "Tailo uses the camera so you can capture new pet moments.",
@@ -68,6 +69,12 @@
     "experiments": {
       "tsconfigPaths": true,
       "autolinkingModuleResolution": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9e7c7c1d-583b-47d4-a1cd-463d5029c28a"
+      }
+    },
+    "owner": "brendan.zj"
   }
 }

@@ -16,67 +16,64 @@ export function getScanPipelineSteps(
   photoAccess: PhotoAccessState,
 ): ScanPipelineStep[] {
   const { initialScanCompleted } = photoAccess;
+  const scanStarted =
+    photoAccess.isScanning ||
+    photoAccess.progress.batchCount > 0 ||
+    photoAccess.progress.scannedCount > 0;
+  const processingStarted =
+    photoAccess.isDetectingPets ||
+    photoAccess.isClusteringEvents ||
+    photoAccess.isSelectingImages ||
+    photoAccess.petDetectionProgress.processedCount > 0 ||
+    photoAccess.eventClusteringProgress.eventCandidateCount > 0 ||
+    photoAccess.eventClusteringProgress.persistedCount > 0 ||
+    photoAccess.bestImageSelectionProgress.scoredAssetCount > 0 ||
+    photoAccess.bestImageSelectionProgress.selectedAssetCount > 0;
 
-  const scanComplete =
-    initialScanCompleted ||
-    (!photoAccess.isScanning &&
-      (photoAccess.progress.scannedCount > 0 ||
-        photoAccess.isDetectingPets ||
-        photoAccess.isClusteringEvents ||
-        photoAccess.isSelectingImages));
+  const scanStatus: ScanPipelineStep['status'] = initialScanCompleted
+    ? 'complete'
+    : processingStarted
+      ? 'complete'
+      : scanStarted
+        ? 'active'
+        : 'pending';
 
-  const detectComplete =
-    initialScanCompleted ||
-    (!photoAccess.isDetectingPets &&
-      (photoAccess.petDetectionProgress.processedCount > 0 ||
-        photoAccess.isClusteringEvents ||
-        photoAccess.isSelectingImages));
+  const detectStatus: ScanPipelineStep['status'] = initialScanCompleted
+    ? 'complete'
+    : processingStarted
+      ? 'active'
+      : 'pending';
 
-  const clusterComplete =
-    initialScanCompleted ||
-    (!photoAccess.isClusteringEvents &&
-      (photoAccess.eventClusteringProgress.persistedCount > 0 ||
-        photoAccess.isSelectingImages));
+  const clusterStatus: ScanPipelineStep['status'] = initialScanCompleted
+    ? 'complete'
+    : 'pending';
 
-  const selectComplete = initialScanCompleted;
+  const selectStatus: ScanPipelineStep['status'] = initialScanCompleted
+    ? 'complete'
+    : 'pending';
 
   return [
     {
       id: 'scan',
       label: getScanPipelineStepLabel('scan'),
-      status: getStepStatus(photoAccess.isScanning, scanComplete),
+      status: scanStatus,
     },
     {
       id: 'detect',
       label: getScanPipelineStepLabel('detect'),
-      status: getStepStatus(photoAccess.isDetectingPets, detectComplete),
+      status: detectStatus,
     },
     {
       id: 'cluster',
       label: getScanPipelineStepLabel('cluster'),
-      status: getStepStatus(photoAccess.isClusteringEvents, clusterComplete),
+      status: clusterStatus,
     },
     {
       id: 'select',
       label: getScanPipelineStepLabel('select'),
-      status: getStepStatus(photoAccess.isSelectingImages, selectComplete),
+      status: selectStatus,
     },
   ];
-}
-
-function getStepStatus(
-  isActive: boolean,
-  isComplete: boolean,
-): ScanPipelineStep['status'] {
-  if (isActive) {
-    return 'active';
-  }
-
-  if (isComplete) {
-    return 'complete';
-  }
-
-  return 'pending';
 }
 
 export function computeOnboardingScanProgress(
@@ -86,27 +83,31 @@ export function computeOnboardingScanProgress(
     return 1;
   }
 
-  if (photoAccess.isScanning) {
-    const scanRatio = Math.min(photoAccess.progress.scannedCount / 250, 1);
-    return 0.08 + scanRatio * 0.27;
+  const scanStarted =
+    photoAccess.isScanning ||
+    photoAccess.progress.batchCount > 0 ||
+    photoAccess.progress.scannedCount > 0;
+  const processingStarted =
+    photoAccess.isDetectingPets ||
+    photoAccess.isClusteringEvents ||
+    photoAccess.isSelectingImages ||
+    photoAccess.petDetectionProgress.processedCount > 0 ||
+    photoAccess.eventClusteringProgress.eventCandidateCount > 0 ||
+    photoAccess.eventClusteringProgress.persistedCount > 0 ||
+    photoAccess.bestImageSelectionProgress.scoredAssetCount > 0 ||
+    photoAccess.bestImageSelectionProgress.selectedAssetCount > 0;
+
+  if (processingStarted) {
+    const stage = Math.min(photoAccess.petDetectionProgress.batchCount, 10);
+    return 0.5 + stage * 0.02;
   }
 
-  if (photoAccess.isDetectingPets) {
-    const { processedCount, totalCount } = photoAccess.petDetectionProgress;
-    const detectRatio =
-      totalCount > 0 ? Math.min(processedCount / totalCount, 1) : 0.15;
-    return 0.35 + detectRatio * 0.3;
+  if (scanStarted) {
+    const stage = Math.min(photoAccess.progress.batchCount, 6);
+    return 0.12 + stage * 0.05;
   }
 
-  if (photoAccess.isClusteringEvents) {
-    return 0.72;
-  }
-
-  if (photoAccess.isSelectingImages) {
-    return 0.88;
-  }
-
-  return 0.05;
+  return photoAccess.permissionStatus === 'checking' ? 0.04 : 0.08;
 }
 
 export function isOnboardingScanPipelineActive(

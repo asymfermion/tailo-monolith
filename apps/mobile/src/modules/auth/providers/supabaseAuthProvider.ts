@@ -3,6 +3,7 @@ import {
   isStrongPassword,
 } from '@tailo/shared';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Linking } from 'react-native';
 
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
@@ -41,8 +42,29 @@ import type {
 } from '../authTypes';
 
 const EMAIL_OTP_LENGTH = 8;
-const OAUTH_REDIRECT_URI = 'tailo://auth/callback';
+const OAUTH_REDIRECT_PATH = 'auth/callback';
 const OAUTH_TIMEOUT_MS = 120_000;
+
+export function resolveOAuthRedirectUri(options?: {
+  executionEnvironment?: ExecutionEnvironment;
+  linkingUri?: string | null;
+  scheme?: string | null;
+}): string {
+  const executionEnvironment =
+    options?.executionEnvironment ?? Constants.executionEnvironment;
+  const linkingUri = options?.linkingUri ?? Constants.linkingUri ?? null;
+  const scheme = options?.scheme ?? Constants.expoConfig?.scheme ?? 'tailo';
+
+  if (
+    executionEnvironment === ExecutionEnvironment.StoreClient &&
+    typeof linkingUri === 'string' &&
+    linkingUri.length > 0
+  ) {
+    return `${linkingUri.replace(/\/?$/, '/')}${OAUTH_REDIRECT_PATH}`;
+  }
+
+  return `${scheme}://${OAUTH_REDIRECT_PATH}`;
+}
 
 type IdTokenAuthResponse = Awaited<
   ReturnType<SupabaseClient['auth']['signInWithIdToken']>
@@ -76,7 +98,10 @@ function composeDisplayName(
   familyName: unknown,
 ): string | null {
   const parts = [givenName, familyName]
-    .filter((part): part is string => typeof part === 'string' && part.trim())
+    .filter(
+      (part): part is string =>
+        typeof part === 'string' && Boolean(part.trim()),
+    )
     .map((part) => part.trim());
 
   return parts.length > 0 ? parts.join(' ') : null;
@@ -95,10 +120,10 @@ function resolveDisplayNameFromUserMetadata(
 
 type AuthUserNameSource = {
   user_metadata?: Record<string, unknown>;
-  identities?: Array<{
+  identities?: {
     provider?: string;
     identity_data?: Record<string, unknown>;
-  }>;
+  }[];
 };
 
 function resolveDisplayNameFromAuthUser(
@@ -268,6 +293,8 @@ async function completeOAuthInApp(
     }
   | { status: 'error'; message: string }
 > {
+  const redirectUri = resolveOAuthRedirectUri();
+
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       subscription.remove();
@@ -278,7 +305,7 @@ async function completeOAuthInApp(
     }, OAUTH_TIMEOUT_MS);
 
     const subscription = Linking.addEventListener('url', async ({ url }) => {
-      if (!url.startsWith(OAUTH_REDIRECT_URI)) {
+      if (!url.startsWith(redirectUri)) {
         return;
       }
 
@@ -954,7 +981,7 @@ export function createSupabaseAuthProvider(): AuthProvider {
         const { data, error } = await client.auth.linkIdentity({
           provider: 'google',
           options: {
-            redirectTo: OAUTH_REDIRECT_URI,
+            redirectTo: resolveOAuthRedirectUri(),
             skipBrowserRedirect: true,
           },
         });
@@ -1001,7 +1028,7 @@ export function createSupabaseAuthProvider(): AuthProvider {
       const { data, error } = await client.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: OAUTH_REDIRECT_URI,
+          redirectTo: resolveOAuthRedirectUri(),
           skipBrowserRedirect: true,
         },
       });

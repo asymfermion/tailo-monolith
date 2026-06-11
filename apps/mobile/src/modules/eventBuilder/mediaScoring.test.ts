@@ -41,4 +41,36 @@ describe('scoreEventMedia', () => {
     expect(result.scores).toHaveLength(7);
     expect(result.selectedAssetIds).toHaveLength(5);
   });
+
+  it('keeps only the best representative from near-duplicate burst photos', () => {
+    const result = scoreEventMedia({
+      localEventId: 'event-1',
+      assets: [
+        {
+          localAssetId: 'burst-best',
+          createdAt: '2026-05-17T03:00:00.000Z',
+          width: 1920,
+          height: 1080,
+          petConfidence: 0.99,
+          detectedPetType: 'cat',
+        },
+        {
+          localAssetId: 'burst-similar',
+          createdAt: '2026-05-17T03:00:02.000Z',
+          width: 1918,
+          height: 1079,
+          petConfidence: 0.96,
+          detectedPetType: 'cat',
+        },
+        asset('other-1', 6, 0.88),
+        asset('other-2', 12, 0.86),
+      ],
+    });
+
+    const selectedBurstIds = result.selectedAssetIds.filter(
+      (id) => id === 'burst-best' || id === 'burst-similar',
+    );
+    expect(selectedBurstIds).toHaveLength(1);
+    expect(result.selectedAssetIds.length).toBeGreaterThanOrEqual(2);
+  });
 });

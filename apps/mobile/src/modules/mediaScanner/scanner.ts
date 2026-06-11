@@ -31,6 +31,10 @@ export type ScanRecentPhotosOptions = {
   /** When set, only assets created after this time are fetched (incremental). */
   createdAfterMs?: number | null;
   startAfter?: string;
+  /** Stop after this many photos have been scanned in this call. */
+  maxImages?: number;
+  /** Stop after this many paginated batches (default: unlimited). */
+  maxPages?: number;
 };
 
 export type ScanOlderPhotosOptions = ScanRecentPhotosOptions & {
@@ -62,6 +66,8 @@ export async function scanRecentPhotos({
   windowDays = INITIAL_SCAN_WINDOW_DAYS,
   createdAfterMs = null,
   startAfter,
+  maxImages,
+  maxPages,
 }: ScanRecentPhotosOptions): Promise<ScanProgress> {
   const createdAfter =
     createdAfterMs ?? Date.now() - windowDays * 24 * 60 * 60 * 1000;
@@ -71,23 +77,37 @@ export async function scanRecentPhotos({
   let persistedCount = 0;
   let hasNextPage = true;
 
-  while (hasNextPage) {
+  while (hasNextPage && (maxPages == null || batchCount < maxPages)) {
+    const remainingImages =
+      maxImages == null ? pageSize : Math.max(maxImages - scannedCount, 0);
+    if (remainingImages === 0) {
+      break;
+    }
+
     const page = await MediaLibrary.getAssetsAsync({
-      first: pageSize,
+      first: Math.min(pageSize, remainingImages),
       after,
       createdAfter,
       mediaType: MediaLibrary.MediaType.photo,
       sortBy: [[MediaLibrary.SortBy.creationTime, false]],
     });
 
-    const localAssets = page.assets.map(mapMediaLibraryAssetToLocalAsset);
+    const assetsForPage =
+      maxImages == null
+        ? page.assets
+        : page.assets.slice(0, Math.max(maxImages - scannedCount, 0));
+    const localAssets = assetsForPage.map(mapMediaLibraryAssetToLocalAsset);
     const savedCount = await upsertLocalAssets(database, localAssets);
 
     batchCount += 1;
-    scannedCount += page.assets.length;
+    scannedCount += assetsForPage.length;
     persistedCount += savedCount;
     hasNextPage = page.hasNextPage;
     after = page.endCursor;
+
+    if (maxImages != null && scannedCount >= maxImages) {
+      hasNextPage = page.hasNextPage;
+    }
 
     await onProgress?.({
       batchCount,
@@ -97,8 +117,12 @@ export async function scanRecentPhotos({
       endCursor: page.endCursor,
     });
 
-    if (!page.endCursor || page.assets.length === 0) {
+    if (!page.endCursor || assetsForPage.length === 0) {
       hasNextPage = false;
+    }
+
+    if (maxImages != null && scannedCount >= maxImages) {
+      break;
     }
   }
 

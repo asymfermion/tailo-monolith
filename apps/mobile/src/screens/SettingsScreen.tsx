@@ -5,9 +5,10 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { getDatabase } from '@/db';
 import { getFontFamilyForStyle } from '@/constants/typography';
 import { spacing, type AppTheme } from '@/constants/theme';
 import { t, useAppLocale, type AppLocale } from '@/i18n';
@@ -17,7 +18,12 @@ import {
   type AppFontStyle,
 } from '@/lib/appFontStyle';
 import { useAppTheme } from '@/lib/appTheme';
-import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
+import {
+  useAppearance,
+  useThemedStyles,
+  type AppearanceContextValue,
+} from '@/lib/appearance';
+import { appEnv } from '@/lib/env';
 import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
 import { useNavigation } from '@/navigation/NavigationContext';
 import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
@@ -34,6 +40,11 @@ import {
   useRemoteAccountProfile,
 } from '@/modules/auth';
 import { useUnreadNotificationsCount } from '@/modules/notifications';
+import {
+  runCloudSyncPass,
+  setCloudImageUploadsEnabled,
+  useCloudImageUploadsEnabled,
+} from '@/modules/sync';
 
 import { SettingsOptionPicker } from './settings/SettingsOptionPicker';
 
@@ -110,15 +121,19 @@ function createSettingsStyles({
     },
     rowInner: {
       flex: 1,
+      flexShrink: 1,
+      minWidth: 0,
     },
     rowLabel: {
       color: colors.text,
+      flexShrink: 1,
       fontFamily: getFontFamily('600'),
       fontSize: 16,
       fontWeight: '600' as const,
     },
     rowDescription: {
       color: colors.textMuted,
+      flexShrink: 1,
       fontFamily: getFontFamily('400'),
       fontSize: 14,
       lineHeight: 20,
@@ -148,6 +163,18 @@ function createSettingsStyles({
     },
     rowLast: {
       borderBottomWidth: 0,
+    },
+    toggleControl: {
+      marginLeft: spacing.md,
+    },
+    toggleLabel: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('600'),
+      fontSize: 13,
+      fontWeight: '600' as const,
+      marginLeft: spacing.sm,
+      minWidth: 28,
+      textAlign: 'right' as const,
     },
     logoutFooter: {
       marginTop: 'auto' as const,
@@ -185,9 +212,11 @@ export function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const tabBarContentInset = useTabBarContentInset();
+  const { colors } = useAppearance();
   const locale = useAppLocale();
   const theme = useAppTheme();
   const fontStyle = useAppFontStyle();
+  const cloudImageUploadsEnabled = useCloudImageUploadsEnabled();
   const account = useAuthAccountStatus();
   const { profile: accountProfile, refresh: refreshAccountProfile } =
     useRemoteAccountProfile();
@@ -367,6 +396,31 @@ export function SettingsScreen() {
     [handlePreferenceSyncResult, shouldSyncProfile],
   );
 
+  const handleCloudImageUploadsToggle = useCallback(
+    (enabled: boolean) => {
+      void (async () => {
+        try {
+          await setCloudImageUploadsEnabled(enabled);
+
+          if (!enabled) {
+            return;
+          }
+
+          const database = await getDatabase();
+          await runCloudSyncPass(database);
+        } catch (error) {
+          Alert.alert(
+            t('settings.preferenceSyncFailedTitle'),
+            error instanceof Error
+              ? error.message
+              : t('settings.preferenceSyncFailedMessage'),
+          );
+        }
+      })();
+    },
+    [],
+  );
+
   const languageOptions = [
     { value: 'en' as const, label: t('settings.languages.english') },
     {
@@ -533,13 +587,23 @@ export function SettingsScreen() {
         />
       </SettingsSection>
 
-      {__DEV__ ? (
+      {appEnv.showDeveloperSettings ? (
         <SettingsSection
           styles={styles}
           title={t('settings.sections.developer')}
         >
+          <SettingsToggleRow
+            isLast={false}
+            iosBackgroundColor={colors.border}
+            label={t('settings.developerImageUploadsLabel')}
+            styles={styles}
+            thumbColor={colors.surface}
+            trackFalseColor={colors.border}
+            trackTrueColor={colors.accent}
+            value={cloudImageUploadsEnabled}
+            onValueChange={handleCloudImageUploadsToggle}
+          />
           <SettingsRow
-            description={t('settings.resetLocalDataDescription')}
             isLast
             label={t('settings.resetLocalDataLabel')}
             styles={styles}
@@ -631,6 +695,65 @@ function SettingsRow({
     >
       {content}
       <Text style={styles.chevron}>›</Text>
+    </Pressable>
+  );
+}
+
+function SettingsToggleRow({
+  description,
+  isLast = false,
+  iosBackgroundColor,
+  label,
+  onValueChange,
+  styles,
+  thumbColor,
+  trackFalseColor,
+  trackTrueColor,
+  value,
+}: {
+  description?: string;
+  isLast?: boolean;
+  iosBackgroundColor: string;
+  label: string;
+  onValueChange: (value: boolean) => void;
+  styles: SettingsStyles;
+  thumbColor: string;
+  trackFalseColor: string;
+  trackTrueColor: string;
+  value: boolean;
+}) {
+  const stateLabel = value ? t('common.on') : t('common.off');
+
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      style={({ pressed }) => [
+        styles.row,
+        isLast && styles.rowLast,
+        pressed && styles.rowPressed,
+      ]}
+      onPress={() => onValueChange(!value)}
+    >
+      <View style={styles.rowInner}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {description ? (
+          <Text style={styles.rowDescription}>{description}</Text>
+        ) : null}
+      </View>
+      <Text style={styles.toggleLabel}>{stateLabel}</Text>
+      <Switch
+        ios_backgroundColor={iosBackgroundColor}
+        pointerEvents="none"
+        style={styles.toggleControl}
+        thumbColor={thumbColor}
+        trackColor={{
+          false: trackFalseColor,
+          true: trackTrueColor,
+        }}
+        value={value}
+        onValueChange={onValueChange}
+      />
     </Pressable>
   );
 }

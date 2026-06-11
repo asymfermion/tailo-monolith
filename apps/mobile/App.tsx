@@ -26,7 +26,11 @@ import { countPendingUploadQueueItems } from '@/db/uploadQueue';
 import { hydrateAppLocale, t, useAppLocale } from '@/i18n';
 import { prepareAppRemoteAuth } from '@/modules/auth';
 import { syncRemotePetProfileIfNeeded } from '@/modules/pets';
-import { runPendingCloudSync, runUploadQueueWorker } from '@/modules/sync';
+import {
+  hydrateCloudImageUploadsEnabled,
+  runPendingCloudSync,
+  runUploadQueueWorker,
+} from '@/modules/sync';
 import { AppShell } from '@/navigation/AppShell';
 
 configureTextAccessibility();
@@ -99,6 +103,7 @@ export default function App() {
           hydrateAppLocale(),
           hydrateAppTheme(),
           hydrateAppFontStyle(),
+          hydrateCloudImageUploadsEnabled(),
         ]);
         const authResult = await prepareAppRemoteAuth();
 
@@ -169,6 +174,7 @@ export default function App() {
                 hydrateAppLocale(),
                 hydrateAppTheme(),
                 hydrateAppFontStyle(),
+                hydrateCloudImageUploadsEnabled(),
               ]);
               const authResult = await prepareAppRemoteAuth();
               if (

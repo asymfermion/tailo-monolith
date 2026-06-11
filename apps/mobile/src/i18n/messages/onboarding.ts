@@ -4,20 +4,25 @@ import type { PhotoAccessState } from '@/modules/mediaScanner/usePhotoAccess';
 export function getOnboardingPipelineTitle(
   photoAccess: PhotoAccessState,
 ): string {
-  if (photoAccess.isScanning) {
-    return t('onboarding.pipelineScanning');
-  }
-
-  if (photoAccess.isDetectingPets) {
+  const processingStarted =
+    photoAccess.isDetectingPets ||
+    photoAccess.isClusteringEvents ||
+    photoAccess.isSelectingImages ||
+    photoAccess.petDetectionProgress.processedCount > 0 ||
+    photoAccess.eventClusteringProgress.eventCandidateCount > 0 ||
+    photoAccess.eventClusteringProgress.persistedCount > 0 ||
+    photoAccess.bestImageSelectionProgress.scoredAssetCount > 0 ||
+    photoAccess.bestImageSelectionProgress.selectedAssetCount > 0;
+  if (processingStarted) {
     return t('onboarding.pipelineDetecting');
   }
 
-  if (photoAccess.isClusteringEvents) {
-    return t('onboarding.pipelineClustering');
-  }
-
-  if (photoAccess.isSelectingImages) {
-    return t('onboarding.pipelineSelecting');
+  const scanStarted =
+    photoAccess.isScanning ||
+    photoAccess.progress.batchCount > 0 ||
+    photoAccess.progress.scannedCount > 0;
+  if (scanStarted) {
+    return t('onboarding.pipelineScanning');
   }
 
   if (!photoAccess.initialScanCompleted) {

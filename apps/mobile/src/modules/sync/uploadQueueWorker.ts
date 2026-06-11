@@ -24,6 +24,7 @@ import { logTailo } from '@/lib/tailoLogger';
 
 import { prepareCloudUploadPrerequisites } from './prepareCloudUploadPrerequisites';
 
+import { getCloudImageUploadsEnabled } from './cloudImageUploadSetting';
 import { createUploadUrls } from './createUploadUrls';
 import { groupUploadQueueByEvent } from './groupUploadQueueByEvent';
 import { prepareEventMediaUpload } from './prepareEventMediaUpload';
@@ -52,6 +53,18 @@ type PreparedAssetUpload = {
 export async function runUploadQueueWorker(
   databaseArg?: SQLite.SQLiteDatabase,
 ): Promise<RunUploadQueueWorkerResult> {
+  if (!getCloudImageUploadsEnabled()) {
+    logTailo('Upload', 'Cloud upload worker skipped', {
+      reason: 'disabled_in_dev_settings',
+    });
+    return {
+      processedBatches: 0,
+      uploadedAssets: 0,
+      failedAssets: 0,
+      skippedReason: 'disabled_in_dev_settings',
+    };
+  }
+
   if (!isRemoteAuthConfigured()) {
     logTailo('Upload', 'Cloud upload worker skipped', {
       reason: 'remote_auth_unconfigured',

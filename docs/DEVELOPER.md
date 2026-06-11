@@ -150,6 +150,62 @@ Use this checklist before TestFlight or release builds, and when validating chan
 - Event edit persistence
 - Native dog/cat detection on a physical iPhone dev client when that path changed
 
+### TestFlight (EAS Build + Submit)
+
+**Do you need an Expo account?** Yes — a free [expo.dev](https://expo.dev/signup) account is required for EAS cloud builds. You also need an **Apple Developer Program** membership and an **App Store Connect** app for bundle id `com.mtxforge.tailo`.
+
+Tailo ships iOS through [EAS Build](https://docs.expo.dev/build/introduction/). Config lives in `apps/mobile/eas.json`; the repo script is `scripts/eas-ios.sh`.
+
+#### One-time setup
+
+```bash
+# 1. Log in to Expo (creates/links the EAS project)
+npm run eas:ios -- setup
+
+# 2. Supabase keys for release builds (copy from .env.example first)
+cp apps/mobile/.env.example apps/mobile/.env.local
+# edit EXPO_PUBLIC_SUPABASE_URL + EXPO_PUBLIC_SUPABASE_ANON_KEY
+
+# 3. Push those vars to the EAS production environment
+npm run eas:ios -- secrets --environment production
+
+# 4. Apple signing (distribution cert, provisioning, Sign in with Apple)
+npm run eas:ios -- credentials
+```
+
+Optional: copy `apps/mobile/eas.local.env.example` → `eas.local.env` and set `ASC_APP_ID` (App Store Connect → App Information → Apple ID) to skip submit prompts.
+
+Create the App Store Connect record before the first submit if it does not exist yet.
+
+#### Build and upload to TestFlight
+
+```bash
+# Build only (production → App Store / TestFlight)
+npm run eas:ios -- build --profile production
+
+# Submit the latest production build
+npm run eas:ios -- submit --profile production --latest
+
+# Or both in one step
+npm run eas:ios -- release
+```
+
+After upload, open **App Store Connect → TestFlight**, wait for processing, answer export-compliance questions, then add internal or external testers.
+
+#### Profiles
+
+| Profile       | Use |
+| ------------- | --- |
+| `production`  | TestFlight and App Store (`distribution: store`) |
+| `preview`     | Internal ad-hoc installs for the team |
+| `development` | Dev client with `expo-dev-client` |
+
+#### Before TestFlight
+
+Run the [Manual QA checklist](#manual-qa-checklist) and [Apple Sign in QA](#apple-sign-in-qa) on a **physical iPhone**. TestFlight builds are standalone — no Metro dev server.
+
+Monorepo note: EAS runs `npm ci` from the repo root via the `eas-build-pre-install` script in `apps/mobile/package.json` so workspace packages (`@tailo/shared`, etc.) resolve correctly.
+
 ### Apple Sign in QA
 
 Run on a **physical iPhone** dev client or TestFlight build (not Simulator). Requires Supabase Apple provider + Apple Developer capability — see [supabase/SETUP.md](../supabase/SETUP.md#apple-sign-in-with-apple-setup-dev--prod-runbook).

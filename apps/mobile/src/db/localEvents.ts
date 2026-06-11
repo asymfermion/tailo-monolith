@@ -148,6 +148,117 @@ export async function getLocalEventCount(
   return Number(row?.count ?? 0);
 }
 
+/**
+ * Largest promoted-moment count for any single detected pet type.
+ * Uses each event's primary asset pet type and does not sum dog+cat together.
+ */
+export async function getMaxLocalEventCountByDetectedPetType(
+  db: SQLite.SQLiteDatabase,
+): Promise<number> {
+  const row = await db.getFirstAsync<{ count: number }>(`
+    SELECT COALESCE(MAX(type_count), 0) AS count
+    FROM (
+      SELECT
+        assets.detected_pet_type,
+        COUNT(DISTINCT events.local_event_id) AS type_count
+      FROM local_events AS events
+      INNER JOIN local_media_scores AS scores
+        ON scores.local_event_id = events.local_event_id
+      INNER JOIN local_assets AS assets
+        ON assets.local_asset_id = scores.local_asset_id
+      WHERE events.deleted_at IS NULL
+        AND scores.is_primary = 1
+        AND assets.is_pet_candidate = 1
+        AND assets.detected_pet_type IN ('dog', 'cat')
+      GROUP BY assets.detected_pet_type
+    ) AS grouped
+  `);
+
+  return Number(row?.count ?? 0);
+}
+
+export async function getLocalEventCountByDetectedPetType(
+  db: SQLite.SQLiteDatabase,
+  petType: LocalPetType,
+): Promise<number> {
+  const row = await db.getFirstAsync<{ count: number }>(
+    `
+      SELECT COUNT(DISTINCT events.local_event_id) AS count
+      FROM local_events AS events
+      INNER JOIN local_media_scores AS scores
+        ON scores.local_event_id = events.local_event_id
+      INNER JOIN local_assets AS assets
+        ON assets.local_asset_id = scores.local_asset_id
+      WHERE events.deleted_at IS NULL
+        AND scores.is_primary = 1
+        AND assets.is_pet_candidate = 1
+        AND assets.detected_pet_type = ?
+    `,
+    [petType],
+  );
+
+  return Number(row?.count ?? 0);
+}
+
+/**
+ * Largest promoted-moment count for any single detected pet type where the
+ * primary image meets a minimum overall media score.
+ */
+export async function getMaxQualifiedLocalEventCountByDetectedPetType(
+  db: SQLite.SQLiteDatabase,
+  minPrimaryOverallScore: number,
+): Promise<number> {
+  const row = await db.getFirstAsync<{ count: number }>(
+    `
+      SELECT COALESCE(MAX(type_count), 0) AS count
+      FROM (
+        SELECT
+          assets.detected_pet_type,
+          COUNT(DISTINCT events.local_event_id) AS type_count
+        FROM local_events AS events
+        INNER JOIN local_media_scores AS scores
+          ON scores.local_event_id = events.local_event_id
+        INNER JOIN local_assets AS assets
+          ON assets.local_asset_id = scores.local_asset_id
+        WHERE events.deleted_at IS NULL
+          AND scores.is_primary = 1
+          AND scores.overall_score >= ?
+          AND assets.is_pet_candidate = 1
+          AND assets.detected_pet_type IN ('dog', 'cat')
+        GROUP BY assets.detected_pet_type
+      ) AS grouped
+    `,
+    [minPrimaryOverallScore],
+  );
+
+  return Number(row?.count ?? 0);
+}
+
+export async function getQualifiedLocalEventCountByDetectedPetType(
+  db: SQLite.SQLiteDatabase,
+  petType: LocalPetType,
+  minPrimaryOverallScore: number,
+): Promise<number> {
+  const row = await db.getFirstAsync<{ count: number }>(
+    `
+      SELECT COUNT(DISTINCT events.local_event_id) AS count
+      FROM local_events AS events
+      INNER JOIN local_media_scores AS scores
+        ON scores.local_event_id = events.local_event_id
+      INNER JOIN local_assets AS assets
+        ON assets.local_asset_id = scores.local_asset_id
+      WHERE events.deleted_at IS NULL
+        AND scores.is_primary = 1
+        AND scores.overall_score >= ?
+        AND assets.is_pet_candidate = 1
+        AND assets.detected_pet_type = ?
+    `,
+    [minPrimaryOverallScore, petType],
+  );
+
+  return Number(row?.count ?? 0);
+}
+
 export async function getLocalEventById(
   db: SQLite.SQLiteDatabase,
   localEventId: string,

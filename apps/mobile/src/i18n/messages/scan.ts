@@ -1,4 +1,4 @@
-import { formatCount, pluralSuffix, t } from '../t';
+import { t } from '../t';
 import type { PhotoAccessState } from '@/modules/mediaScanner/usePhotoAccess';
 
 export function getScanPipelineStepLabel(
@@ -21,20 +21,22 @@ export function getScanProgressHeadline(photoAccess: PhotoAccessState): string {
     return t('scanPipeline.headlineReady');
   }
 
-  if (photoAccess.isScanning) {
-    return t('scanPipeline.headlineScanning');
-  }
+  const processingStarted =
+    photoAccess.isDetectingPets ||
+    photoAccess.isClusteringEvents ||
+    photoAccess.isSelectingImages ||
+    photoAccess.petDetectionProgress.processedCount > 0 ||
+    photoAccess.eventClusteringProgress.eventCandidateCount > 0 ||
+    photoAccess.eventClusteringProgress.persistedCount > 0 ||
+    photoAccess.bestImageSelectionProgress.scoredAssetCount > 0 ||
+    photoAccess.bestImageSelectionProgress.selectedAssetCount > 0;
 
-  if (photoAccess.isDetectingPets) {
+  if (processingStarted) {
     return t('scanPipeline.headlineDetecting');
   }
 
-  if (photoAccess.isClusteringEvents) {
-    return t('scanPipeline.headlineClustering');
-  }
-
-  if (photoAccess.isSelectingImages) {
-    return t('scanPipeline.headlineSelecting');
+  if (photoAccess.isScanning) {
+    return t('scanPipeline.headlineScanning');
   }
 
   if (photoAccess.permissionStatus === 'checking') {
@@ -46,47 +48,25 @@ export function getScanProgressHeadline(photoAccess: PhotoAccessState): string {
 
 export function getScanProgressDetail(photoAccess: PhotoAccessState): string {
   if (photoAccess.initialScanCompleted) {
-    const count = photoAccess.petDetectionProgress.petCandidateCount;
-
-    return t('scanPipeline.detailReady', {
-      count: formatCount(count),
-      plural: pluralSuffix(count),
-    });
+    return t('scanPipeline.detailReady');
   }
 
-  if (photoAccess.isScanning) {
-    const count = photoAccess.progress.scannedCount;
+  const processingStarted =
+    photoAccess.isDetectingPets ||
+    photoAccess.isClusteringEvents ||
+    photoAccess.isSelectingImages ||
+    photoAccess.petDetectionProgress.processedCount > 0 ||
+    photoAccess.eventClusteringProgress.eventCandidateCount > 0 ||
+    photoAccess.eventClusteringProgress.persistedCount > 0 ||
+    photoAccess.bestImageSelectionProgress.scoredAssetCount > 0 ||
+    photoAccess.bestImageSelectionProgress.selectedAssetCount > 0;
 
-    return t('scanPipeline.detailScanning', {
-      count: formatCount(count),
-      photoPlural: pluralSuffix(count),
-    });
-  }
-
-  if (photoAccess.isDetectingPets) {
-    const { processedCount, totalCount } = photoAccess.petDetectionProgress;
-
-    if (totalCount > 0) {
-      return t('scanPipeline.detailDetectingProgress', {
-        processed: formatCount(processedCount),
-        total: formatCount(totalCount),
-      });
-    }
-
+  if (processingStarted) {
     return t('scanPipeline.detailDetecting');
   }
 
-  if (photoAccess.isClusteringEvents) {
-    return t('scanPipeline.detailClustering');
-  }
-
-  if (photoAccess.isSelectingImages) {
-    const count = photoAccess.bestImageSelectionProgress.selectedAssetCount;
-
-    return t('scanPipeline.detailSelecting', {
-      count: formatCount(count),
-      photoPlural: pluralSuffix(count),
-    });
+  if (photoAccess.isScanning) {
+    return t('scanPipeline.detailScanning');
   }
 
   return t('scanPipeline.detailDefault');

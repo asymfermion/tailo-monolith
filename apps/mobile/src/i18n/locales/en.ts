@@ -16,6 +16,8 @@ export const en = {
     createAccount: 'Create account',
     finish: 'Finish',
     choosePhotos: 'Choose Photos',
+    off: 'Off',
+    on: 'On',
     signIn: 'Sign in',
     alreadyHaveAccountSignIn: 'Already have an account? Sign in.',
     saving: 'Saving...',
@@ -106,12 +108,12 @@ export const en = {
     headlineSelecting: 'Choosing the best photos',
     headlineChecking: 'Getting started',
     headlinePreparing: 'Preparing your scan',
-    detailReady: '{{count}} pet moment{{plural}} found',
-    detailScanning: '{{count}} photo{{photoPlural}} checked so far',
-    detailDetectingProgress: '{{processed}} of {{total}} photos reviewed',
+    detailReady: 'Your first moments are ready',
+    detailScanning: 'Looking through recent photos on this device',
+    detailDetectingProgress: 'Reviewing photos for pets',
     detailDetecting: 'Reviewing photos for pets',
     detailClustering: 'Turning nearby pet photos into moments',
-    detailSelecting: '{{count}} photo{{photoPlural}} picked for moments',
+    detailSelecting: 'Picking the best photos for each moment',
     detailDefault: 'This usually takes under a minute',
   },
   home: {
@@ -185,6 +187,12 @@ export const en = {
   timeline: {
     scrollToTop: 'Back to top of timeline',
     defaultCaption: 'A small moment from today.',
+    anonymousUpgrade: {
+      eyebrow: 'Keep these moments safe',
+      title: 'Create an account to protect your timeline',
+      body: 'This timeline is currently on this device only. Create an account to unlock full-history scan and find more of your pet moments with email, Google, or Apple.',
+      createAccount: 'Create account',
+    },
     cloudBackfill: {
       title: 'Building your full story from older photos',
       message:
@@ -266,6 +274,9 @@ export const en = {
     preferenceSyncFailedTitle: 'Could not save preference',
     preferenceSyncFailedMessage:
       'This device is using your choice, but it could not be saved to your account. Try again in a moment.',
+    developerImageUploadsLabel: 'Upload images to cloud',
+    developerImageUploadsDescription:
+      'Keeps new moment photos queued on this device until you turn uploads back on.',
     languageLabel: 'Language',
     themeLabel: 'Theme',
     themes: {

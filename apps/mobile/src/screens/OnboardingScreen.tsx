@@ -19,7 +19,11 @@ import {
   useThemedStyles,
   type AppearanceContextValue,
 } from '@/lib/appearance';
-import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
+import { ModalBackButton } from '@/navigation/components/ModalBackButton';
+import {
+  getModalHeaderTopInset,
+  getTabScreenTopPadding,
+} from '@/navigation/modalHeaderInset';
 import { useNavigation } from '@/navigation/NavigationContext';
 import {
   formatPetOptionPhotoCount,
@@ -61,6 +65,7 @@ import {
 import {
   ScanProgressIndicator,
   canScanPhotos,
+  runOnboardingPetTypeTopUp,
   shouldEnableHistoricalScan,
   usePhotoAccess,
 } from '@/modules/mediaScanner';
@@ -70,6 +75,7 @@ import {
   saveSelectedPetType,
   type LocalPetType,
 } from '@/modules/pets';
+import { logTailo } from '@/lib/tailoLogger';
 
 /** Set true to show the privacy consent checkbox on onboarding welcome. */
 const SHOW_WELCOME_PRIVACY_CONSENT = false;
@@ -99,28 +105,12 @@ function createOnboardingStyles({
       justifyContent: 'center' as const,
       paddingHorizontal: spacing.lg,
     },
-    logo: {
-      color: colors.text,
-      fontFamily: getFontFamily('600'),
-      fontSize: 32,
-      fontWeight: '600' as const,
-      marginBottom: spacing.xl,
-    },
-    topBackButton: {
-      alignSelf: 'flex-start' as const,
-      marginBottom: spacing.lg,
-      paddingVertical: spacing.xs,
-    },
-    topBackText: {
-      color: colors.accent,
-      fontFamily: getFontFamily('600'),
-      fontSize: 15,
-      fontWeight: '600' as const,
+    navigationHeader: {
+      backgroundColor: colors.background,
+      paddingHorizontal: spacing.lg,
     },
     panel: {
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      paddingTop: spacing.xl,
+      paddingTop: spacing.lg,
     },
     eyebrow: {
       color: colors.accent,
@@ -369,6 +359,7 @@ export function OnboardingScreen({
   const { isLinked } = useAuthAccountStatus();
   const photoAccess = usePhotoAccess({
     autoResumeOnMount: false,
+    onboardingScanMode: true,
     historicalScanEnabled: shouldEnableHistoricalScan({
       isLinkedAccount: isLinked,
     }),
@@ -575,10 +566,54 @@ export function OnboardingScreen({
     }
   }, [onComplete, petName, petType, selectedProfilePhoto]);
 
+  const continueAfterPetTypeSelection = useCallback(
+    async (nextPetType: LocalPetType) => {
+      setIsSaving(true);
+      try {
+        await saveSelectedPetType(nextPetType);
+        await onStepChange('pet_profile', {
+          petSelected: true,
+          petTypeSet: true,
+        });
+
+        // Top-up runs quietly in background while profile step stays interactive.
+        void runOnboardingPetTypeTopUp({ petType: nextPetType }).catch(
+          (error) => {
+            logTailo(
+              'Scan',
+              'Quiet onboarding top-up failed after pet selection',
+              {
+                petType: nextPetType,
+                message:
+                  error instanceof Error ? error.message : 'Unknown error.',
+              },
+            );
+          },
+        );
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [onStepChange],
+  );
+
   const previousStep = useMemo(
     () => getPreviousStep(step, onboardingState.completedFlags.scanStarted),
     [onboardingState.completedFlags.scanStarted, step],
   );
+
+  const goToPreviousStep = useCallback(() => {
+    if (!previousStep) {
+      return;
+    }
+
+    void onStepChange(previousStep).catch((error) => {
+      logTailo('Auth', 'Failed to move to previous onboarding step', {
+        message: error instanceof Error ? error.message : 'Unknown error.',
+        previousStep,
+      });
+    });
+  }, [onStepChange, previousStep]);
 
   const openAccountSignIn = useCallback(async () => {
     setAccountErrorMessage(null);
@@ -785,7 +820,7 @@ export function OnboardingScreen({
             eyebrow={t('onboarding.findingMomentsEyebrow')}
             title={getOnboardingPipelineTitle(photoAccess)}
             text={
-              isPipelineActive
+              !photoAccess.initialScanCompleted
                 ? t('onboarding.scanActiveText')
                 : t('onboarding.scanIdleText')
             }
@@ -846,17 +881,7 @@ export function OnboardingScreen({
                 if (!petType) {
                   return;
                 }
-
-                setIsSaving(true);
-                try {
-                  await saveSelectedPetType(petType);
-                  await onStepChange('pet_profile', {
-                    petSelected: true,
-                    petTypeSet: true,
-                  });
-                } finally {
-                  setIsSaving(false);
-                }
+                await continueAfterPetTypeSelection(petType);
               }}
             />
           </Panel>
@@ -887,17 +912,7 @@ export function OnboardingScreen({
                 if (!petType) {
                   return;
                 }
-
-                setIsSaving(true);
-                try {
-                  await saveSelectedPetType(petType);
-                  await onStepChange('pet_profile', {
-                    petTypeSet: true,
-                    petSelected: true,
-                  });
-                } finally {
-                  setIsSaving(false);
-                }
+                await continueAfterPetTypeSelection(petType);
               }}
             />
           </Panel>
@@ -1001,30 +1016,34 @@ export function OnboardingScreen({
   ]);
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.container,
-        {
-          paddingTop: getTabScreenTopPadding(insets.top),
-          paddingBottom: insets.bottom + spacing.lg,
-        },
-      ]}
-      contentInsetAdjustmentBehavior="never"
-      keyboardShouldPersistTaps="handled"
-      style={styles.screen}
-    >
+    <View style={styles.screen}>
       {previousStep ? (
-        <Pressable
-          accessibilityRole="button"
-          style={styles.topBackButton}
-          onPress={() => onStepChange(previousStep)}
+        <View
+          style={[
+            styles.navigationHeader,
+            { paddingTop: getModalHeaderTopInset(insets.top) },
+          ]}
         >
-          <Text style={styles.topBackText}>{`< ${t('common.back')}`}</Text>
-        </Pressable>
+          <ModalBackButton align="leading" onPress={goToPreviousStep} />
+        </View>
       ) : null}
-      <Text style={styles.logo}>{t('common.appName')}</Text>
-      {body}
-    </ScrollView>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingTop: previousStep
+              ? spacing.sm
+              : getTabScreenTopPadding(insets.top),
+            paddingBottom: insets.bottom + spacing.lg,
+          },
+        ]}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        style={styles.screen}
+      >
+        {body}
+      </ScrollView>
+    </View>
   );
 }
 

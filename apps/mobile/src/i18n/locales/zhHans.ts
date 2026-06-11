@@ -11,6 +11,8 @@ export const zhHans: TranslationTree = {
     createAccount: '创建账户',
     finish: '完成',
     choosePhotos: '选择照片',
+    off: '关闭',
+    on: '开启',
     signIn: '登录',
     alreadyHaveAccountSignIn: '已有账户？登录',
     saving: '保存中...',
@@ -101,12 +103,12 @@ export const zhHans: TranslationTree = {
     headlineSelecting: '正在挑选最佳照片',
     headlineChecking: '正在开始',
     headlinePreparing: '正在准备扫描',
-    detailReady: '已找到 {{count}} 个宠物瞬间',
-    detailScanning: '目前已检查 {{count}} 张照片',
-    detailDetectingProgress: '已查看 {{processed}} / {{total}} 张照片',
+    detailReady: '你的第一批瞬间已准备好',
+    detailScanning: '正在查看这台设备上的最近照片',
+    detailDetectingProgress: '正在检查照片里的宠物',
     detailDetecting: '正在检查照片里的宠物',
     detailClustering: '正在把相近的宠物照片整理成瞬间',
-    detailSelecting: '已为瞬间选出 {{count}} 张照片',
+    detailSelecting: '正在为每个瞬间挑选最佳照片',
     detailDefault: '通常一分钟内可以完成',
   },
   home: {
@@ -176,6 +178,12 @@ export const zhHans: TranslationTree = {
   timeline: {
     scrollToTop: '回到时间线顶部',
     defaultCaption: '今天的一个小瞬间。',
+    anonymousUpgrade: {
+      eyebrow: '保护这些瞬间',
+      title: '创建账户，保存你的时间线',
+      body: '这些瞬间目前只保存在这台设备上。创建账户可解锁完整历史扫描，找到更多宠物瞬间，并继续选择邮箱、Google 或 Apple。',
+      createAccount: '创建账户',
+    },
     moment: {
       addFavorite: '加入收藏',
       removeFavorite: '取消收藏',
@@ -249,6 +257,9 @@ export const zhHans: TranslationTree = {
     preferenceSyncFailedTitle: '无法保存偏好设置',
     preferenceSyncFailedMessage:
       '这台设备已应用你的选择，但未能保存到你的账户。请稍后再试。',
+    developerImageUploadsLabel: '上传图片到云端',
+    developerImageUploadsDescription:
+      '关闭后，新瞬间的照片会继续留在本机队列中，直到你重新开启上传。',
     languageLabel: '语言',
     themeLabel: '主题',
     themes: {

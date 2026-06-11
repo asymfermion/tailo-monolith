@@ -116,7 +116,7 @@ Per-asset scores within an event.
 
 ### 1. Media scan (`mediaScanner`)
 
-- **Window:** last **28 days** first (`INITIAL_SCAN_WINDOW_DAYS`)
+- **Window:** timeline scans use last **28 days** first (`INITIAL_SCAN_WINDOW_DAYS`); **onboarding-only** scans use a **90-day** window capped at **300 images** and stop once **10 moments** are promoted
 - **Page size:** 50 photos, **newest first** (`SortBy.creationTime` desc)
 - **Older pass:** up to **4** additional pages beyond window (`scanOlderPhotos`)
 - **Persist:** `upsertLocalAssets` — idempotent by `local_asset_id`
@@ -213,3 +213,4 @@ Continued in **[phase-1-local-mvp.md](./phase-1-local-mvp.md)**:
 | 2026-05-17 | Added `TailoPetClassifier` local Expo module for iOS Vision/Core ML classification with built-in Vision fallback              |
 | 2026-05-18 | Pet detection: `VNRecognizeAnimalsRequest`, confidence floor 0.35, non-pet heuristic fallback; 0.3a.6 device validation noted |
 | 2026-05-18 | Moved Phase 1.1+ content to [phase-1-local-mvp.md](./phase-1-local-mvp.md); restored Phase 0 scope in this doc                |
+| 2026-06-10 | Onboarding-only scan bounds: 10 promoted moments, 300 images, or 90-day window (first limit wins) via `runOnboardingLocalPipeline` |

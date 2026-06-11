@@ -21,6 +21,7 @@
     "format": "prettier --write \"apps/**/*.{ts,tsx,js,json}\" \"packages/**/*.{ts,tsx,js,json}\" \"*.{json,md}\" \"docs/**/*.md\" \".prettierrc\"",
     "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,json}\" \"packages/**/*.{ts,tsx,js,json}\" \"*.{json,md}\" \"docs/**/*.md\" \".prettierrc\"",
     "supabase": "npx supabase",
+    "eas:ios": "bash scripts/eas-ios.sh",
     "deploy:landing": "bash scripts/deploy-landing.sh",
     "deploy:supabase": "bash scripts/deploy-supabase.sh",
     "setup:ai-job-cron": "bash scripts/setup-ai-job-cron.sh",

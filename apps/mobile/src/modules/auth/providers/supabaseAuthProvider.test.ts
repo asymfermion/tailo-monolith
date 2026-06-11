@@ -1,6 +1,10 @@
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
 import { saveLocalAccountProfile } from '../localAccountProfile';
-import { createSupabaseAuthProvider } from './supabaseAuthProvider';
+import {
+  createSupabaseAuthProvider,
+  resolveOAuthRedirectUri,
+} from './supabaseAuthProvider';
+import { ExecutionEnvironment } from 'expo-constants';
 
 jest.mock('@/lib/supabase', () => ({
   isSupabaseConfigured: jest.fn(),
@@ -467,6 +471,13 @@ describe('createSupabaseAuthProvider', () => {
     });
     expect(signOut).toHaveBeenCalledTimes(1);
     expect(signInWithOAuth).toHaveBeenCalledTimes(1);
+    expect(signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: {
+        redirectTo: 'tailo://auth/callback',
+        skipBrowserRedirect: true,
+      },
+    });
   });
 
   it('does not sign out linked session before google sign-in', async () => {
@@ -497,6 +508,26 @@ describe('createSupabaseAuthProvider', () => {
     });
     expect(signOut).not.toHaveBeenCalled();
     expect(signInWithOAuth).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses Expo linking URI for OAuth redirects in Expo Go', () => {
+    expect(
+      resolveOAuthRedirectUri({
+        executionEnvironment: ExecutionEnvironment.StoreClient,
+        linkingUri: 'exp://127.0.0.1:8081/--/',
+        scheme: 'tailo',
+      }),
+    ).toBe('exp://127.0.0.1:8081/--/auth/callback');
+  });
+
+  it('uses app scheme for OAuth redirects in native builds', () => {
+    expect(
+      resolveOAuthRedirectUri({
+        executionEnvironment: ExecutionEnvironment.Standalone,
+        linkingUri: 'exp://127.0.0.1:8081/--/',
+        scheme: 'tailo',
+      }),
+    ).toBe('tailo://auth/callback');
   });
 
   it('signs in with Apple id token', async () => {

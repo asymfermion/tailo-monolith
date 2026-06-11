@@ -159,6 +159,7 @@ site_url = "https://tailo.mtxforge.com"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = [
   "https://tailo.mtxforge.com",
+  "tailo://auth/callback",
   "http://127.0.0.1:3000",
   "https://127.0.0.1:3000",
   "http://localhost:3000",

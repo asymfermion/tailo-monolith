@@ -44,7 +44,11 @@ Use this when enabling Google sign-in/link now or later in a new GCP account.
    - Client ID = **Web client ID**
    - Client Secret = **Web client secret**
 4. Save
-5. Confirm **Authentication → URL Configuration** is correct for your environment.
+5. **Authentication → URL Configuration** — add mobile OAuth redirect allow-list entries (required for Google sign-in in the app):
+   - `tailo://auth/callback` (dev client, TestFlight, App Store builds)
+   - For Expo Go only, also add your machine-specific URL, e.g. `exp://192.168.1.10:8081/--/auth/callback` (find it in Metro logs or `npx expo start`)
+   - Keep `site_url` as the landing page (`https://tailo.mtxforge.com`); do **not** point `redirectTo` at the landing page for mobile OAuth.
+   - If `tailo://auth/callback` is missing, Supabase falls back to `site_url` after Google auth and the user lands on the website instead of returning to the app.
 
 ### 3) Local app config
 

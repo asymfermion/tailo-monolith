@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 16.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "base": {
@@ -36,7 +36,6 @@
     "production": {
       "extends": "base",
       "distribution": "store",
-      "autoIncrement": true,
       "ios": {
         "resourceClass": "m-medium"
       }
@@ -44,7 +43,10 @@
   },
   "submit": {
     "production": {
-      "ios": {}
+      "ios": {
+        "ascAppId": "6778817791",
+        "appleTeamId": "SG9S2999A2"
+      }
     }
   }
 }

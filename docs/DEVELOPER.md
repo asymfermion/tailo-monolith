@@ -173,22 +173,24 @@ npm run eas:ios -- secrets --environment production
 npm run eas:ios -- credentials
 ```
 
-Optional: copy `apps/mobile/eas.local.env.example` → `eas.local.env` and set `ASC_APP_ID` (App Store Connect → App Information → Apple ID) to skip submit prompts.
+Optional: copy `apps/mobile/eas.local.env.example` → `eas.local.env`. Set `EXPO_APPLE_TEAM_ID`, `EXPO_APPLE_PROVIDER_ID`, and `EXPO_APPLE_ID` to skip EAS Apple login prompts on build. Submit uses `ascAppId` / `appleTeamId` from `eas.json` plus `EXPO_APPLE_ID` from `eas.local.env`. Add `EXPO_APPLE_APP_SPECIFIC_PASSWORD` if submit runs non-interactively (`APPLE_*` aliases also work).
 
 Create the App Store Connect record before the first submit if it does not exist yet.
 
 #### Build and upload to TestFlight
 
 ```bash
-# Build only (production → App Store / TestFlight)
+# Build only — compiles on EAS; does not upload to TestFlight
 npm run eas:ios -- build --profile production
 
-# Submit the latest production build
+# Submit an existing build to TestFlight (no new compile)
 npm run eas:ios -- submit --profile production --latest
 
-# Or both in one step
+# Build + submit in one step (typical TestFlight upload)
 npm run eas:ios -- release
 ```
+
+For production `build` and `release`, the script prompts whether to bump `expo.version` and `ios.buildNumber` in `apps/mobile/app.json` before the EAS build. Commit `app.json` after you bump. Use `--bump` or `--no-bump` to skip the prompt.
 
 After upload, open **App Store Connect → TestFlight**, wait for processing, answer export-compliance questions, then add internal or external testers.
 

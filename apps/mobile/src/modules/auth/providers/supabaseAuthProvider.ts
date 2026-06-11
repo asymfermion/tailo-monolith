@@ -4,7 +4,7 @@ import {
 } from '@tailo/shared';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { Linking } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
 import { logAuth } from '../authLogger';
@@ -43,7 +43,8 @@ import type {
 
 const EMAIL_OTP_LENGTH = 8;
 const OAUTH_REDIRECT_PATH = 'auth/callback';
-const OAUTH_TIMEOUT_MS = 120_000;
+
+WebBrowser.maybeCompleteAuthSession();
 
 export function resolveOAuthRedirectUri(options?: {
   executionEnvironment?: ExecutionEnvironment;
@@ -295,94 +296,90 @@ async function completeOAuthInApp(
 > {
   const redirectUri = resolveOAuthRedirectUri();
 
-  return new Promise((resolve) => {
-    const timeout = setTimeout(() => {
-      subscription.remove();
-      resolve({
+  let authSessionResult: WebBrowser.WebBrowserAuthSessionResult;
+
+  try {
+    authSessionResult = await WebBrowser.openAuthSessionAsync(
+      authUrl,
+      redirectUri,
+    );
+  } catch (error) {
+    return {
+      status: 'error',
+      message:
+        error instanceof Error
+          ? error.message
+          : 'Could not open Google sign-in.',
+    };
+  }
+
+  if (authSessionResult.type === 'cancel') {
+    return {
+      status: 'error',
+      message: 'Google sign-in was canceled.',
+    };
+  }
+
+  if (authSessionResult.type !== 'success') {
+    return {
+      status: 'error',
+      message: 'Could not complete Google sign-in.',
+    };
+  }
+
+  try {
+    const { query, hash } = parseUrlParams(authSessionResult.url);
+    const errorDescription =
+      hash.get('error_description') ?? query.get('error_description');
+
+    if (errorDescription) {
+      return {
         status: 'error',
-        message: 'Google sign-in timed out. Please try again.',
+        message: decodeURIComponent(errorDescription),
+      };
+    }
+
+    const accessToken = hash.get('access_token');
+    const refreshToken = hash.get('refresh_token');
+    const code = query.get('code');
+
+    if (accessToken && refreshToken) {
+      const { error } = await client.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
       });
-    }, OAUTH_TIMEOUT_MS);
 
-    const subscription = Linking.addEventListener('url', async ({ url }) => {
-      if (!url.startsWith(redirectUri)) {
-        return;
+      if (error) {
+        return { status: 'error', message: error.message };
       }
+    } else if (code) {
+      const { error } = await client.auth.exchangeCodeForSession(code);
 
-      subscription.remove();
-      clearTimeout(timeout);
-
-      try {
-        const { query, hash } = parseUrlParams(url);
-        const errorDescription =
-          hash.get('error_description') ?? query.get('error_description');
-
-        if (errorDescription) {
-          resolve({
-            status: 'error',
-            message: decodeURIComponent(errorDescription),
-          });
-          return;
-        }
-
-        const accessToken = hash.get('access_token');
-        const refreshToken = hash.get('refresh_token');
-        const code = query.get('code');
-
-        if (accessToken && refreshToken) {
-          const { error } = await client.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (error) {
-            resolve({ status: 'error', message: error.message });
-            return;
-          }
-        } else if (code) {
-          const { error } = await client.auth.exchangeCodeForSession(code);
-
-          if (error) {
-            resolve({ status: 'error', message: error.message });
-            return;
-          }
-        }
-
-        const {
-          data: { session },
-        } = await client.auth.getSession();
-        const user = session?.user;
-
-        if (!user) {
-          resolve({
-            status: 'error',
-            message: 'Could not complete Google sign-in.',
-          });
-          return;
-        }
-
-        resolve({ status: 'signed_in', session: mapUser(user) });
-      } catch (error) {
-        resolve({
-          status: 'error',
-          message:
-            error instanceof Error ? error.message : 'Google sign-in failed.',
-        });
+      if (error) {
+        return { status: 'error', message: error.message };
       }
-    });
+    }
 
-    void Linking.openURL(authUrl).catch((error) => {
-      subscription.remove();
-      clearTimeout(timeout);
-      resolve({
+    const {
+      data: { session },
+    } = await client.auth.getSession();
+    const user = session?.user;
+
+    if (!user) {
+      return {
         status: 'error',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Could not open Google sign-in.',
-      });
-    });
-  });
+        message: 'Could not complete Google sign-in.',
+      };
+    }
+
+    return { status: 'signed_in', session: mapUser(user) };
+  } catch (error) {
+    return {
+      status: 'error',
+      message:
+        error instanceof Error ? error.message : 'Google sign-in failed.',
+    };
+  }
 }
 
 export function createSupabaseAuthProvider(): AuthProvider {

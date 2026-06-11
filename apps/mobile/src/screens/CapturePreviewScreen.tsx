@@ -14,12 +14,18 @@ import {
   createInAppCaptureEvent,
   persistCaptureImage,
 } from '@/modules/capture';
+import {
+  loadLocalPetProfile,
+  saveLocalPetProfilePhoto,
+} from '@/modules/pets/petProfile';
 import { useNavigation } from '@/navigation/NavigationContext';
+import type { CapturePurpose } from '@/navigation/routes';
 
 type CapturePreviewScreenProps = {
   tempUri: string;
   width: number;
   height: number;
+  purpose?: CapturePurpose;
 };
 
 function createCapturePreviewScreenStyles({
@@ -109,6 +115,7 @@ export function CapturePreviewScreen({
   tempUri,
   width,
   height,
+  purpose = 'timelineMoment',
 }: CapturePreviewScreenProps) {
   const navigation = useNavigation();
   const [isSaving, setIsSaving] = useState(false);
@@ -127,7 +134,11 @@ export function CapturePreviewScreen({
 
       <View style={styles.footer}>
         <Text style={styles.title}>{t('capture.previewTitle')}</Text>
-        <Text style={styles.message}>{t('capture.previewMessage')}</Text>
+        <Text style={styles.message}>
+          {purpose === 'petProfilePhoto'
+            ? t('petProfile.photoPreviewMessage')
+            : t('capture.previewMessage')}
+        </Text>
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
         <View style={styles.actions}>
@@ -156,7 +167,9 @@ export function CapturePreviewScreen({
               <ActivityIndicator color={colors.surface} />
             ) : (
               <Text style={styles.primaryButtonText}>
-                {t('capture.addToTimeline')}
+                {purpose === 'petProfilePhoto'
+                  ? t('petProfile.usePhoto')
+                  : t('capture.addToTimeline')}
               </Text>
             )}
           </Pressable>
@@ -170,6 +183,25 @@ export function CapturePreviewScreen({
     setErrorMessage(null);
 
     try {
+      if (purpose === 'petProfilePhoto') {
+        const profile = await loadLocalPetProfile();
+
+        if (!profile) {
+          throw new Error(t('petProfile.emptyState'));
+        }
+
+        const persisted = await persistCaptureImage(tempUri);
+
+        await saveLocalPetProfilePhoto(profile, {
+          profilePhotoLocalAssetId: persisted.localAssetId,
+          profilePhotoUri: persisted.uri,
+        });
+
+        navigation.pop();
+        navigation.pop();
+        return;
+      }
+
       const persisted = await persistCaptureImage(tempUri);
       const database = await getDatabase();
 

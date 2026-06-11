@@ -11,6 +11,8 @@ export const MAIN_TAB_ORDER = [
 ] as const satisfies readonly MainTabId[];
 
 /** Full-screen flows pushed above the tab shell (3.0.4). */
+export type CapturePurpose = 'timelineMoment' | 'petProfilePhoto';
+
 export type ModalStackParamList = {
   AccountSettings:
     | {
@@ -28,11 +30,16 @@ export type ModalStackParamList = {
   EventDetail: {
     localEventId: string;
   };
-  Capture: undefined;
+  Capture:
+    | {
+        purpose?: CapturePurpose;
+      }
+    | undefined;
   CapturePreview: {
     tempUri: string;
     width: number;
     height: number;
+    purpose?: CapturePurpose;
   };
   NotificationsInbox: undefined;
   PetProfileDetails: undefined;

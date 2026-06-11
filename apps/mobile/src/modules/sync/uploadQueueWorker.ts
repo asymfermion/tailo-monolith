@@ -54,9 +54,6 @@ export async function runUploadQueueWorker(
   databaseArg?: SQLite.SQLiteDatabase,
 ): Promise<RunUploadQueueWorkerResult> {
   if (!getCloudImageUploadsEnabled()) {
-    logTailo('Upload', 'Cloud upload worker skipped', {
-      reason: 'disabled_in_dev_settings',
-    });
     return {
       processedBatches: 0,
       uploadedAssets: 0,

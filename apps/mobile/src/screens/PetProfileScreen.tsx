@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +12,11 @@ import {
 import { spacing } from '@/constants/theme';
 import { formatCount, getIntlLocale, t } from '@/i18n';
 import { formatPetType } from '@/lib/formatMoment';
-import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
+import {
+  useAppearance,
+  useThemedStyles,
+  type AppearanceContextValue,
+} from '@/lib/appearance';
 import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
 import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
 import { useNavigation } from '@/navigation/NavigationContext';
@@ -57,6 +62,7 @@ function createPetProfileScreenStyles({
       marginTop: spacing.lg,
       overflow: 'hidden' as const,
       padding: spacing.lg,
+      position: 'relative' as const,
     },
     summaryHeader: {
       alignItems: 'center' as const,
@@ -86,20 +92,29 @@ function createPetProfileScreenStyles({
     summaryHeaderText: {
       flex: 1,
       minWidth: 0,
-    },
-    summaryEyebrow: {
-      color: colors.accent,
-      fontFamily: getFontFamily('700'),
-      fontSize: 12,
-      fontWeight: '700' as const,
-      textTransform: 'uppercase' as const,
+      paddingRight: 56,
     },
     summaryTitle: {
       color: colors.text,
       fontFamily: getFontFamily('600'),
       fontSize: 24,
       fontWeight: '600' as const,
-      marginTop: spacing.xs,
+      minWidth: 0,
+    },
+    summaryTopAction: {
+      alignItems: 'center' as const,
+      backgroundColor: colors.accent,
+      borderRadius: 22,
+      height: 44,
+      justifyContent: 'center' as const,
+      position: 'absolute' as const,
+      right: spacing.lg,
+      top: spacing.lg,
+      width: 44,
+      zIndex: 1,
+    },
+    summaryTopActionPressed: {
+      opacity: 0.78,
     },
     summaryMeta: {
       color: colors.textMuted,
@@ -117,33 +132,6 @@ function createPetProfileScreenStyles({
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
       gap: spacing.md,
-    },
-    summaryActionButton: {
-      alignItems: 'center' as const,
-      backgroundColor: colors.background,
-      borderRadius: 14,
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      marginTop: spacing.lg,
-      minHeight: 52,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-    },
-    summaryActionButtonPressed: {
-      opacity: 0.78,
-    },
-    summaryActionText: {
-      color: colors.text,
-      flex: 1,
-      fontFamily: getFontFamily('600'),
-      fontSize: 15,
-      fontWeight: '600' as const,
-    },
-    summaryActionChevron: {
-      color: colors.textMuted,
-      fontFamily: getFontFamily('400'),
-      fontSize: 24,
-      marginLeft: spacing.md,
     },
     statCard: {
       backgroundColor: colors.background,
@@ -214,6 +202,7 @@ export function PetProfileScreen() {
   const tabBarContentInset = useTabBarContentInset();
   const navigation = useNavigation();
   const petProfile = useLocalPetProfile();
+  const { colors } = useAppearance();
   const [askTailoOpen, setAskTailoOpen] = useState(false);
   const [storySummary, setStorySummary] = useState<PetStorySummary>({
     isLoading: true,
@@ -326,6 +315,20 @@ export function PetProfileScreen() {
       <Text style={styles.subtitle}>{t('petProfile.screenSubtitle')}</Text>
 
       <View style={styles.summaryCard}>
+        <Pressable
+          accessibilityHint={t('petProfile.detailsTitle')}
+          accessibilityLabel={t('petProfile.editDetails')}
+          accessibilityRole="button"
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.summaryTopAction,
+            pressed && styles.summaryTopActionPressed,
+          ]}
+          onPress={() => navigation.push('PetProfileDetails')}
+        >
+          <Ionicons color={colors.surface} name="create" size={20} />
+        </Pressable>
+
         <View style={styles.summaryHeader}>
           {profile?.profilePhotoUri ? (
             <Image
@@ -344,9 +347,6 @@ export function PetProfileScreen() {
             </View>
           )}
           <View style={styles.summaryHeaderText}>
-            <Text style={styles.summaryEyebrow}>
-              {t('petProfile.storyEyebrow')}
-            </Text>
             <Text style={styles.summaryTitle}>
               {profile?.name.trim() || t('petProfile.fallbackName')}
             </Text>
@@ -366,20 +366,6 @@ export function PetProfileScreen() {
             <Text style={styles.statValue}>{latestMemoryLabel}</Text>
           </View>
         </View>
-
-        <Pressable
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.summaryActionButton,
-            pressed && styles.summaryActionButtonPressed,
-          ]}
-          onPress={() => navigation.push('PetProfileDetails')}
-        >
-          <Text style={styles.summaryActionText}>
-            {t('petProfile.editDetails')}
-          </Text>
-          <Text style={styles.summaryActionChevron}>›</Text>
-        </Pressable>
       </View>
 
       <Text style={styles.sectionLabel}>{t('petProfile.askTailo')}</Text>

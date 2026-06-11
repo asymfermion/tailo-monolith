@@ -12,6 +12,7 @@ import {
 } from '@/lib/appearance';
 import { ModalBackButton } from '@/navigation/components/ModalBackButton';
 import { useNavigation } from '@/navigation/NavigationContext';
+import type { CapturePurpose } from '@/navigation/routes';
 
 function createCaptureScreenStyles({
   colors,
@@ -105,7 +106,13 @@ function createCaptureScreenStyles({
   };
 }
 
-export function CaptureScreen() {
+type CaptureScreenProps = {
+  purpose?: CapturePurpose;
+};
+
+export function CaptureScreen({
+  purpose = 'timelineMoment',
+}: CaptureScreenProps) {
   const navigation = useNavigation();
   const cameraRef = useRef<CameraViewInstance>(null);
   const [permission, requestPermission] = useCameraPermissions();
@@ -185,6 +192,7 @@ export function CaptureScreen() {
       }
 
       navigation.push('CapturePreview', {
+        purpose,
         tempUri: photo.uri,
         width: photo.width,
         height: photo.height,

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,6 +16,22 @@ export function PetProfileDetailsScreen() {
   const navigation = useNavigation();
   const petProfile = useLocalPetProfile();
   const { colors, getFontFamily } = useAppearance();
+  const previousModalDepthRef = useRef(navigation.modalStack.length);
+  const modalDepth = navigation.modalStack.length;
+  const refreshProfile = petProfile.refresh;
+
+  useEffect(() => {
+    const previousModalDepth = previousModalDepthRef.current;
+    const currentModalDepth = modalDepth;
+
+    previousModalDepthRef.current = currentModalDepth;
+
+    if (previousModalDepth <= currentModalDepth) {
+      return;
+    }
+
+    void refreshProfile();
+  }, [modalDepth, refreshProfile]);
 
   return (
     <View

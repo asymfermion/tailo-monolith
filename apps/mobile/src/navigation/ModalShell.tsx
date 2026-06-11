@@ -56,11 +56,12 @@ export function ModalShell({ route }: ModalShellProps) {
       return <EventDetailScreen localEventId={localEventId} />;
     }
     case 'Capture':
-      return <CaptureScreen />;
+      return <CaptureScreen purpose={route.params?.purpose} />;
     case 'CapturePreview':
       return (
         <CapturePreviewScreen
           height={route.params.height}
+          purpose={route.params.purpose}
           tempUri={route.params.tempUri}
           width={route.params.width}
         />

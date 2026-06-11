@@ -133,8 +133,31 @@ export async function saveLocalPetProfile(
   return profile;
 }
 
+export async function saveLocalPetProfilePhoto(
+  profile: LocalPetProfile,
+  input: {
+    profilePhotoLocalAssetId: string | null;
+    profilePhotoUri: string | null;
+  },
+  storage: SecureStorage = workspaceSecureStorage,
+): Promise<LocalPetProfile> {
+  return saveLocalPetProfile(
+    {
+      name: profile.name,
+      type: profile.type,
+      gender: profile.gender,
+      birthday: profile.birthday,
+      profilePhotoLocalAssetId: input.profilePhotoLocalAssetId,
+      profilePhotoUri: input.profilePhotoUri,
+    },
+    storage,
+  );
+}
+
 function scheduleCloudUploadAfterPetProfileSave(): void {
   /* eslint-disable @typescript-eslint/no-require-imports */
+  const { getCloudImageUploadsEnabled } =
+    require('@/modules/sync/cloudImageUploadSetting') as typeof import('@/modules/sync/cloudImageUploadSetting');
   const { prepareCloudUploadPrerequisites } =
     require('@/modules/sync/prepareCloudUploadPrerequisites') as typeof import('@/modules/sync/prepareCloudUploadPrerequisites');
   const { runUploadQueueWorker } =
@@ -144,7 +167,10 @@ function scheduleCloudUploadAfterPetProfileSave(): void {
   void (async () => {
     try {
       await prepareCloudUploadPrerequisites();
-      void runUploadQueueWorker();
+
+      if (getCloudImageUploadsEnabled()) {
+        void runUploadQueueWorker();
+      }
     } catch (error) {
       logTailo('Sync', 'Background cloud upload prep failed after pet save', {
         message: error instanceof Error ? error.message : 'Unknown error.',

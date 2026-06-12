@@ -491,6 +491,62 @@ For manual release or TestFlight QA, use the checklist in `docs/DEVELOPER.md`.
 
 ---
 
+# Tailo UI Agent Rules
+
+Before making UI or UX changes, read:
+
+1. `docs/UI/product-principles.md`
+2. `docs/UI/style.md`
+3. `docs/UI/ux-decisions.md`
+
+Tailo is a memory-first pet story app.
+
+Prioritize:
+
+- Photos
+- Story
+- Simplicity
+- Fast path to first memory
+- Anonymous-first usage
+- Privacy by default
+
+Avoid:
+
+- Dashboard UI
+- Pet tracker UI
+- Excessive onboarding
+- Excessive forms
+- Generic startup blue
+- Default green/blue accent drift
+- Social network assumptions
+
+Use user-facing language like:
+
+- Story
+- Memory
+- Life with Link
+- Highlights
+- Recap
+
+Avoid user-facing language like:
+
+- Event
+- Record
+- Activity
+- Tracker
+- Log
+
+Implementation guidance:
+
+- Prefer surgical changes over rewrites.
+- Preserve working navigation and data flow.
+- Keep internal type names unless a refactor is explicitly requested.
+- Do not add Save buttons to pet profile editing; use auto-save.
+- Do not force account creation before the user sees value.
+- Keep hero photos visually clean; do not place full transparent text covers over every memory image.
+
+---
+
 ## Security and dependencies
 
 When dependency or lockfiles change, run:

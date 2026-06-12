@@ -27,6 +27,8 @@ Each memory:
 
 Hero photos should stay visually clean. Do not place a full transparent text cover over every memory image; keep story/title text in the card body and metadata below.
 
+Visual styling should follow the three sketch references: warm ivory background, ink primary and selected states, soft taupe dividers, rounded photo-led cards, and quiet brown-gray secondary text. Green and blue should not be used as the default UI accent.
+
 ## Pet Profile
 
 - Hero photo

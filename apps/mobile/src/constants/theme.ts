@@ -1,27 +1,27 @@
-/** Calm, timeline-first palette from product guidelines. */
+/** Warm, photo-first palette derived from the UI sketches. */
 export const lightColors = {
-  background: '#F7F5F2',
-  surface: '#FFFFFF',
-  text: '#1C1C1A',
-  textMuted: '#6B6B66',
-  accent: '#5A738A',
-  border: '#E8E4DE',
-  timelineDivider: '#D8D2C8',
-  tabBarBorder: 'rgba(232, 228, 222, 0.4)',
-  destructive: '#8A3A2B',
-  shadow: '#1C1C1A',
+  background: '#FBF7F1',
+  surface: '#FFFDF9',
+  text: '#151412',
+  textMuted: '#6F665D',
+  accent: '#151412',
+  border: '#E7DDD2',
+  timelineDivider: '#D8CBBE',
+  tabBarBorder: 'rgba(231, 221, 210, 0.52)',
+  destructive: '#9A3E32',
+  shadow: '#151412',
 } as const;
 
 export const darkColors = {
   background: '#141413',
   surface: '#1E1E1C',
   text: '#F5F3EF',
-  textMuted: '#A8A6A0',
-  accent: '#8FA8BF',
-  border: '#2E2E2B',
-  timelineDivider: '#3A3834',
-  tabBarBorder: 'rgba(60, 58, 54, 0.55)',
-  destructive: '#D48478',
+  textMuted: '#B5ACA2',
+  accent: '#F6EFE7',
+  border: '#332F2A',
+  timelineDivider: '#413A33',
+  tabBarBorder: 'rgba(82, 74, 66, 0.58)',
+  destructive: '#DA8A7E',
   shadow: '#000000',
 } as const;
 

@@ -12,6 +12,13 @@ Life with Link
 
 428 memories · 2 years together
 
+Visual language:
+
+- Warm ivory background
+- Ink selected states and primary controls
+- Soft taupe borders/dividers
+- Rounded, photo-led memory cards
+
 Memory:
 
 - Hero image

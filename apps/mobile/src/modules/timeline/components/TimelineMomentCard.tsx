@@ -31,7 +31,11 @@ function createTimelineMomentCardStyles({
 }: AppearanceContextValue) {
   return {
     card: {
-      gap: spacing.sm,
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 22,
+      borderWidth: 1,
+      overflow: 'hidden' as const,
     },
     headerRow: {
       alignItems: 'flex-start' as const,
@@ -55,27 +59,31 @@ function createTimelineMomentCardStyles({
       width: 40,
     },
     momentType: {
-      color: colors.accent,
-      fontFamily: getFontFamily('700'),
-      fontSize: 13,
-      fontWeight: '700' as const,
-      textTransform: 'uppercase' as const,
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 23,
+      fontWeight: '600' as const,
+      lineHeight: 29,
     },
     momentTime: {
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),
       fontSize: 13,
     },
+    storyBody: {
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
     caption: {
       color: colors.text,
       fontFamily: getFontFamily('500'),
-      fontSize: 17,
+      fontSize: 16,
       fontWeight: '500' as const,
-      lineHeight: 24,
-      marginTop: spacing.sm,
+      lineHeight: 23,
     },
     mediaGrid: {
       gap: spacing.sm,
+      padding: spacing.md,
     },
     imageFrame: {
       flex: 1,
@@ -89,6 +97,32 @@ function createTimelineMomentCardStyles({
       borderRadius: 14,
       backgroundColor: colors.border,
     },
+    favoriteOverlayButton: {
+      alignItems: 'center' as const,
+      backgroundColor: 'rgba(255, 255, 255, 0.82)',
+      borderRadius: 18,
+      height: 36,
+      justifyContent: 'center' as const,
+      position: 'absolute' as const,
+      right: spacing.sm,
+      top: spacing.sm,
+      width: 36,
+    },
+    photoCountBadge: {
+      backgroundColor: 'rgba(28, 28, 26, 0.58)',
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      position: 'absolute' as const,
+      right: spacing.sm,
+      top: 52,
+    },
+    photoCountBadgeText: {
+      color: '#FFFFFF',
+      fontFamily: getFontFamily('700'),
+      fontSize: 12,
+      fontWeight: '700' as const,
+    },
     secondaryGrid: {
       flexDirection: 'row' as const,
       gap: spacing.sm,
@@ -100,6 +134,32 @@ function createTimelineMomentCardStyles({
       overflow: 'hidden' as const,
       borderRadius: 10,
       backgroundColor: colors.border,
+    },
+    metadataRow: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: spacing.sm,
+      paddingBottom: spacing.md,
+      paddingHorizontal: spacing.md,
+    },
+    metadataText: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    metadataDot: {
+      backgroundColor: colors.border,
+      borderRadius: 2,
+      height: 4,
+      width: 4,
+    },
+    cardActionRow: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      gap: spacing.xs,
+      marginLeft: 'auto' as const,
     },
   };
 }
@@ -117,64 +177,15 @@ function TimelineMomentCardComponent({
   const { colors } = useAppearance();
   const styles = useThemedStyles(createTimelineMomentCardStyles);
   const primaryMedia = event.media[0];
-  const secondaryMedia = event.media.slice(1, 5);
+  const secondaryMedia = event.media.slice(1, 4);
+  const photoCount = event.media.length;
+  const photoCountLabel =
+    photoCount === 1
+      ? t('timeline.moment.photoCountSingle')
+      : t('timeline.moment.photoCountPlural', { count: String(photoCount) });
 
   return (
     <View style={styles.card}>
-      <View style={styles.headerRow}>
-        <Pressable
-          accessibilityRole="button"
-          style={styles.headerMain}
-          onPress={() => onPress(event.localEventId)}
-        >
-          <Text style={styles.momentType}>
-            {formatEventType(event.eventType)}
-          </Text>
-          <Text style={styles.momentTime}>
-            {formatTimestamp(event.timestamp)}
-          </Text>
-        </Pressable>
-
-        <View style={styles.headerActions}>
-          <Pressable
-            accessibilityLabel={
-              event.isFavorite
-                ? t('timeline.moment.removeFavorite')
-                : t('timeline.moment.addFavorite')
-            }
-            accessibilityRole="button"
-            hitSlop={8}
-            style={styles.iconButton}
-            onPress={() =>
-              onToggleFavorite(event.localEventId, !event.isFavorite)
-            }
-          >
-            <Ionicons
-              color={event.isFavorite ? colors.accent : colors.textMuted}
-              name={event.isFavorite ? 'star' : 'star-outline'}
-              size={24}
-            />
-          </Pressable>
-          <Pressable
-            accessibilityLabel={t('timeline.moment.share')}
-            accessibilityRole="button"
-            hitSlop={8}
-            style={styles.iconButton}
-            onPress={() => onShare(event.localEventId)}
-          >
-            <Ionicons
-              color={colors.textMuted}
-              name="paper-plane-outline"
-              size={22}
-            />
-          </Pressable>
-          <MomentActionMenu
-            onDelete={() => onDelete(event.localEventId)}
-            onEdit={() => onEdit(event.localEventId)}
-          />
-        </View>
-      </View>
-
       {primaryMedia ? (
         <View style={styles.mediaGrid}>
           <Pressable
@@ -188,6 +199,32 @@ function TimelineMomentCardComponent({
                 source={{ uri: primaryMedia.uri }}
                 style={styles.primaryImage}
               />
+              <Pressable
+                accessibilityLabel={
+                  event.isFavorite
+                    ? t('timeline.moment.removeFavorite')
+                    : t('timeline.moment.addFavorite')
+                }
+                accessibilityRole="button"
+                hitSlop={8}
+                style={styles.favoriteOverlayButton}
+                onPress={() =>
+                  onToggleFavorite(event.localEventId, !event.isFavorite)
+                }
+              >
+                <Ionicons
+                  color={event.isFavorite ? colors.accent : colors.text}
+                  name={event.isFavorite ? 'heart' : 'heart-outline'}
+                  size={21}
+                />
+              </Pressable>
+              {photoCount > 1 ? (
+                <View style={styles.photoCountBadge}>
+                  <Text style={styles.photoCountBadgeText}>
+                    {photoCountLabel}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </Pressable>
           {secondaryMedia.length > 0 ? (
@@ -204,14 +241,45 @@ function TimelineMomentCardComponent({
         </View>
       ) : null}
 
-      {event.caption ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => onPress(event.localEventId)}
-        >
+      <Pressable
+        accessibilityRole="button"
+        style={styles.storyBody}
+        onPress={() => onPress(event.localEventId)}
+      >
+        <Text style={styles.momentType}>
+          {formatEventType(event.eventType)}
+        </Text>
+        {event.caption ? (
           <Text style={styles.caption}>{event.caption}</Text>
-        </Pressable>
-      ) : null}
+        ) : null}
+      </Pressable>
+
+      <View style={styles.metadataRow}>
+        <Text style={styles.metadataText}>
+          {formatTimestamp(event.timestamp)}
+        </Text>
+        <View style={styles.metadataDot} />
+        <Text style={styles.metadataText}>{photoCountLabel}</Text>
+        <View style={styles.cardActionRow}>
+          <Pressable
+            accessibilityLabel={t('timeline.moment.share')}
+            accessibilityRole="button"
+            hitSlop={8}
+            style={styles.iconButton}
+            onPress={() => onShare(event.localEventId)}
+          >
+            <Ionicons
+              color={colors.textMuted}
+              name="paper-plane-outline"
+              size={20}
+            />
+          </Pressable>
+          <MomentActionMenu
+            onDelete={() => onDelete(event.localEventId)}
+            onEdit={() => onEdit(event.localEventId)}
+          />
+        </View>
+      </View>
     </View>
   );
 }

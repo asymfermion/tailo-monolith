@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { spacing } from '@/constants/theme';
 import {
+  formatCount,
   getTimelineEmptyMessage,
   getTimelineEmptyTitle,
   t,
@@ -31,6 +32,7 @@ import { SaveMemoriesLink } from '@/modules/auth';
 import { useAuthAccountStatus } from '@/modules/auth/useAuthAccountStatus';
 import { usePhotoAccess } from '@/modules/mediaScanner';
 import { shouldEnableHistoricalScan } from '@/modules/mediaScanner/scanDepthPolicy';
+import { useLocalPetProfile } from '@/modules/pets/useLocalPetProfile';
 import {
   getCloudTimelineBackfillStatus,
   useEventUpdatesPoll,
@@ -89,8 +91,29 @@ function createTimelineScreenStyles({
       paddingHorizontal: spacing.lg,
     },
     header: {
-      paddingBottom: spacing.md,
-      paddingTop: spacing.sm,
+      gap: spacing.sm,
+      paddingBottom: spacing.lg,
+      paddingTop: spacing.lg,
+    },
+    feedTitle: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 34,
+      fontWeight: '600' as const,
+      lineHeight: 40,
+    },
+    feedSubtitle: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    feedSectionLabel: {
+      color: colors.text,
+      fontFamily: getFontFamily('700'),
+      fontSize: 16,
+      fontWeight: '700' as const,
+      marginTop: spacing.md,
     },
     backfillTip: {
       borderRadius: 8,
@@ -158,6 +181,7 @@ export function TimelineScreen() {
   const navigation = useNavigation();
   const tabBarContentInset = useTabBarContentInset();
   const account = useAuthAccountStatus();
+  const petProfile = useLocalPetProfile();
   const photoAccess = usePhotoAccess({
     historicalScanEnabled: shouldEnableHistoricalScan({
       isLinkedAccount: account.isLinked,
@@ -201,7 +225,9 @@ export function TimelineScreen() {
     () => [
       ...timeline.events.map((event) => ({ kind: 'event' as const, event })),
       ...(showAnonymousUpgradeMoment
-        ? ([{ kind: 'anonymous_upgrade' as const }] satisfies TimelineListItem[])
+        ? ([
+            { kind: 'anonymous_upgrade' as const },
+          ] satisfies TimelineListItem[])
         : []),
     ],
     [showAnonymousUpgradeMoment, timeline.events],
@@ -266,8 +292,7 @@ export function TimelineScreen() {
         return;
       }
 
-      const pending =
-        status.hasHydratedTimeline && !status.isBackfillCompleted;
+      const pending = status.hasHydratedTimeline && !status.isBackfillCompleted;
       setCloudBackfillPending(pending);
 
       if (!pending) {
@@ -413,11 +438,18 @@ export function TimelineScreen() {
     () => (
       <TimelineHeader
         hasTimelineValue={hasTimelineValue}
+        memoryCount={timeline.events.length}
+        petName={petProfile.profile?.name.trim() || null}
         showCloudBackfillTip={showCloudBackfillTip}
         onDismissCloudBackfillTip={() => setCloudBackfillTipDismissed(true)}
       />
     ),
-    [hasTimelineValue, showCloudBackfillTip],
+    [
+      hasTimelineValue,
+      petProfile.profile?.name,
+      showCloudBackfillTip,
+      timeline.events.length,
+    ],
   );
 
   return (
@@ -480,17 +512,34 @@ export function TimelineScreen() {
 
 function TimelineHeader({
   hasTimelineValue,
+  memoryCount,
+  petName,
   showCloudBackfillTip,
   onDismissCloudBackfillTip,
 }: {
   hasTimelineValue: boolean;
+  memoryCount: number;
+  petName: string | null;
   showCloudBackfillTip: boolean;
   onDismissCloudBackfillTip: () => void;
 }) {
   const styles = useThemedStyles(createTimelineScreenStyles);
+  const displayName = petName || t('common.yourPet');
+  const memoryLabel =
+    memoryCount === 1
+      ? t('timeline.feed.memoryCountSingle')
+      : t('timeline.feed.memoryCountPlural', {
+          count: formatCount(memoryCount),
+        });
 
   return (
     <View style={styles.header}>
+      <View>
+        <Text style={styles.feedTitle}>
+          {t('timeline.feed.title', { name: displayName })}
+        </Text>
+        <Text style={styles.feedSubtitle}>{memoryLabel}</Text>
+      </View>
       <SaveMemoriesLink hasTimelineValue={hasTimelineValue} />
       {showCloudBackfillTip ? (
         <View style={styles.backfillTip}>
@@ -510,6 +559,11 @@ function TimelineHeader({
             </Text>
           </Pressable>
         </View>
+      ) : null}
+      {hasTimelineValue ? (
+        <Text style={styles.feedSectionLabel}>
+          {t('timeline.feed.thisWeek')}
+        </Text>
       ) : null}
     </View>
   );

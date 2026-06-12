@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { spacing } from '@/constants/theme';
@@ -8,7 +8,6 @@ import { useAppearance } from '@/lib/appearance';
 import { PetProfileEditor } from '@/modules/pets/components/PetProfileEditor';
 import { useLocalPetProfile } from '@/modules/pets/useLocalPetProfile';
 import { useNavigation } from '@/navigation/NavigationContext';
-import { ModalBackButton } from '@/navigation/components/ModalBackButton';
 import { getModalHeaderTopInset } from '@/navigation/modalHeaderInset';
 
 export function PetProfileDetailsScreen() {
@@ -43,8 +42,54 @@ export function PetProfileDetailsScreen() {
         },
       ]}
     >
-      <View style={styles.backButtonRow}>
-        <ModalBackButton align="leading" onPress={navigation.pop} />
+      <View style={styles.headerRow}>
+        <Pressable
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={navigation.pop}
+        >
+          <Text
+            style={[
+              styles.headerAction,
+              {
+                color: colors.accent,
+                fontFamily: getFontFamily('500'),
+              },
+            ]}
+          >
+            {t('common.cancel')}
+          </Text>
+        </Pressable>
+        <Text
+          style={[
+            styles.headerTitle,
+            {
+              color: colors.text,
+              fontFamily: getFontFamily('600'),
+            },
+          ]}
+        >
+          {petProfile.profile?.name
+            ? t('petProfile.editNamedPet', { name: petProfile.profile.name })
+            : t('petProfile.detailsTitle')}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={navigation.pop}
+        >
+          <Text
+            style={[
+              styles.headerAction,
+              {
+                color: colors.accent,
+                fontFamily: getFontFamily('500'),
+              },
+            ]}
+          >
+            {t('common.done')}
+          </Text>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -53,18 +98,6 @@ export function PetProfileDetailsScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
       >
-        <Text
-          style={[
-            styles.title,
-            {
-              color: colors.text,
-              fontFamily: getFontFamily('600'),
-            },
-          ]}
-        >
-          {t('petProfile.detailsTitle')}
-        </Text>
-
         <PetProfileEditor
           isLoading={petProfile.isLoading}
           profile={petProfile.profile}
@@ -80,8 +113,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.lg,
   },
-  backButtonRow: {
-    marginBottom: spacing.md,
+  headerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+    minHeight: 44,
   },
   scrollView: {
     flex: 1,
@@ -90,9 +127,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: spacing.lg,
   },
-  title: {
-    fontSize: 28,
+  headerAction: {
+    fontSize: 15,
+    minWidth: 56,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
     fontWeight: '600',
-    marginBottom: spacing.lg,
+    textAlign: 'center',
   },
 });

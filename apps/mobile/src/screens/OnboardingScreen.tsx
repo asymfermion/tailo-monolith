@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Pressable,
@@ -9,6 +10,7 @@ import {
 } from 'react-native';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { AppIconMark } from '@/components/AppIconMark';
 import { SocialSignInControls } from '@/components/SocialSignInControls';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -112,6 +114,82 @@ function createOnboardingStyles({
     panel: {
       paddingTop: spacing.lg,
     },
+    welcomePanel: {
+      paddingTop: spacing.sm,
+    },
+    welcomeVisual: {
+      alignSelf: 'center' as const,
+      backgroundColor: colors.border,
+      borderColor: colors.border,
+      borderRadius: 28,
+      borderWidth: 1,
+      height: 360,
+      marginBottom: spacing.xl,
+      overflow: 'hidden' as const,
+      position: 'relative' as const,
+      width: '100%' as const,
+    },
+    welcomeLogo: {
+      height: 44,
+      left: spacing.lg,
+      position: 'absolute' as const,
+      top: spacing.lg,
+      width: 104,
+      zIndex: 2,
+    },
+    welcomeHeroWash: {
+      backgroundColor: colors.accent,
+      bottom: 0,
+      left: 0,
+      opacity: 0.18,
+      position: 'absolute' as const,
+      right: 0,
+      top: 0,
+    },
+    welcomeHeroMark: {
+      alignItems: 'center' as const,
+      backgroundColor: 'rgba(255, 255, 255, 0.78)',
+      borderColor: 'rgba(255, 255, 255, 0.88)',
+      borderRadius: 48,
+      borderWidth: 1,
+      height: 96,
+      justifyContent: 'center' as const,
+      left: '50%' as const,
+      marginLeft: -48,
+      marginTop: -48,
+      position: 'absolute' as const,
+      top: '50%' as const,
+      width: 96,
+      zIndex: 2,
+    },
+    welcomeHeroCaption: {
+      bottom: spacing.xl,
+      color: colors.text,
+      fontFamily: getFontFamily('700'),
+      fontSize: 38,
+      fontWeight: '700' as const,
+      left: spacing.xl,
+      lineHeight: 44,
+      position: 'absolute' as const,
+      right: spacing.xl,
+    },
+    welcomePrivacyRow: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+      justifyContent: 'center' as const,
+      marginTop: spacing.xl,
+      paddingHorizontal: spacing.md,
+    },
+    welcomePrivacyText: {
+      color: colors.textMuted,
+      flex: 1,
+      fontFamily: getFontFamily('400'),
+      fontSize: 12,
+      lineHeight: 17,
+      maxWidth: 260,
+      textAlign: 'center' as const,
+    },
     eyebrow: {
       color: colors.accent,
       fontFamily: getFontFamily('700'),
@@ -122,9 +200,9 @@ function createOnboardingStyles({
     title: {
       color: colors.text,
       fontFamily: getFontFamily('600'),
-      fontSize: 29,
+      fontSize: 34,
       fontWeight: '600' as const,
-      lineHeight: 36,
+      lineHeight: 40,
       marginTop: spacing.sm,
     },
     text: {
@@ -149,7 +227,10 @@ function createOnboardingStyles({
       alignItems: 'center' as const,
       alignSelf: 'stretch' as const,
       backgroundColor: colors.accent,
-      borderRadius: 8,
+      borderRadius: 999,
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+      justifyContent: 'center' as const,
       marginTop: spacing.lg,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
@@ -261,6 +342,46 @@ function createOnboardingStyles({
       fontFamily: getFontFamily('400'),
       fontSize: 15,
       lineHeight: 22,
+    },
+    discoveryGrid: {
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    discoveryCard: {
+      alignItems: 'center' as const,
+      backgroundColor: 'transparent',
+      flexDirection: 'row' as const,
+      gap: spacing.md,
+      minHeight: 34,
+    },
+    discoveryIcon: {
+      alignItems: 'center' as const,
+      borderColor: colors.border,
+      borderRadius: 11,
+      borderWidth: 1,
+      height: 22,
+      justifyContent: 'center' as const,
+      width: 22,
+    },
+    discoveryIconActive: {
+      borderColor: colors.accent,
+    },
+    discoveryIconComplete: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+    },
+    discoveryValue: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 14,
+      fontWeight: '600' as const,
+    },
+    discoveryLabel: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 13,
+      lineHeight: 18,
+      marginTop: 2,
     },
     loadingState: {
       alignItems: 'center' as const,
@@ -693,7 +814,7 @@ export function OnboardingScreen({
       case 'photo_permission':
         return (
           <Panel
-            eyebrow={t('onboarding.welcomeEyebrow')}
+            showWelcomeVisual
             title={t('onboarding.welcomeTitle')}
             text={t(
               showAccountActionsOnWelcome
@@ -709,6 +830,7 @@ export function OnboardingScreen({
             ) : preferSignInOnWelcome && showAccountActionsOnWelcome ? (
               <>
                 <SocialSignInControls
+                  variant="labeled"
                   onGooglePress={
                     privacyAcknowledged
                       ? () => void continueWithSocialSignIn('google')
@@ -734,13 +856,15 @@ export function OnboardingScreen({
             ) : (
               <>
                 <PrimaryButton
+                  icon="image-outline"
                   disabled={!privacyAcknowledged}
-                  label={t('common.startOnThisDevice')}
+                  label={t('onboarding.startWithMyPhotos')}
                   onPress={() => void startOnThisDevice()}
                 />
                 {showAccountActionsOnWelcome ? (
                   <>
                     <SocialSignInControls
+                      variant="labeled"
                       onGooglePress={
                         privacyAcknowledged
                           ? () => void continueWithSocialSignIn('google')
@@ -826,6 +950,7 @@ export function OnboardingScreen({
             }
           >
             <ScanProgressIndicator photoAccess={photoAccess} />
+            <DiscoverySummary photoAccess={photoAccess} />
             {photoAccess.errorMessage ? (
               <Text style={styles.mutedText}>{photoAccess.errorMessage}</Text>
             ) : null}
@@ -979,7 +1104,7 @@ export function OnboardingScreen({
     canContinueAfterScan,
     completeProfile,
     colors.textMuted,
-    isPipelineActive,
+    continueAfterPetTypeSelection,
     detectedPetOptions,
     isLoadingPetOptions,
     isSaving,
@@ -1007,12 +1132,15 @@ export function OnboardingScreen({
     styles.consentRow,
     styles.consentText,
     styles.consentTextWrap,
+    styles.loadingState,
+    styles.loadingText,
     styles.mutedText,
     styles.petOptionList,
     styles.profilePhotoLabel,
     styles.profilePhotoRow,
     step,
     privacyAcknowledged,
+    storedPrivacyAcknowledged,
   ]);
 
   return (
@@ -1049,20 +1177,143 @@ export function OnboardingScreen({
 
 type PanelProps = {
   children: ReactNode;
-  eyebrow: string;
+  eyebrow?: string;
+  showWelcomeVisual?: boolean;
   title: string;
   text: string;
 };
 
-function Panel({ children, eyebrow, title, text }: PanelProps) {
+function Panel({
+  children,
+  eyebrow,
+  showWelcomeVisual = false,
+  title,
+  text,
+}: PanelProps) {
   const styles = useThemedStyles(createOnboardingStyles);
+
+  if (showWelcomeVisual) {
+    return (
+      <View style={styles.welcomePanel}>
+        <WelcomeVisual title={title} />
+        <Text style={styles.text}>{text}</Text>
+        <View style={styles.panelBody}>{children}</View>
+        <View style={styles.welcomePrivacyRow}>
+          <Ionicons name="lock-closed-outline" size={14} />
+          <Text style={styles.welcomePrivacyText}>
+            {t('onboarding.welcomePrivacyFooter')}
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.eyebrow}>{eyebrow}</Text>
+      {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.text}>{text}</Text>
       <View style={styles.panelBody}>{children}</View>
+    </View>
+  );
+}
+
+function WelcomeVisual({ title }: { title: string }) {
+  const styles = useThemedStyles(createOnboardingStyles);
+
+  return (
+    <View style={styles.welcomeVisual}>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.welcomeHeroWash}
+      />
+      <Image
+        accessibilityLabel={t('common.appName')}
+        contentFit="contain"
+        source={require('../../assets/brand/logo-lockup-horizontal.png')}
+        style={styles.welcomeLogo}
+      />
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.welcomeHeroMark}
+      >
+        <AppIconMark size={56} />
+      </View>
+      <Text style={styles.welcomeHeroCaption}>{title}</Text>
+    </View>
+  );
+}
+
+function DiscoverySummary({
+  photoAccess,
+}: {
+  photoAccess: ReturnType<typeof usePhotoAccess>;
+}) {
+  const styles = useThemedStyles(createOnboardingStyles);
+  const petMoments = photoAccess.petDetectionProgress.petCandidateCount;
+  const groupedMoments =
+    photoAccess.eventClusteringProgress.eventCandidateCount;
+  const selectedPhotos =
+    photoAccess.bestImageSelectionProgress.selectedAssetCount;
+
+  return (
+    <View style={styles.discoveryGrid}>
+      <DiscoveryRow
+        isActive={photoAccess.isScanning || photoAccess.isDetectingPets}
+        isComplete={petMoments > 0}
+        label={t('onboarding.discoveryAnalyzing')}
+      />
+      <DiscoveryRow
+        isComplete={petMoments > 0}
+        label={t('onboarding.discoveryPetMoments')}
+      />
+      <DiscoveryRow
+        isComplete={groupedMoments > 0}
+        label={t('onboarding.discoveryGroupedMoments')}
+      />
+      <DiscoveryRow
+        isComplete={selectedPhotos > 0}
+        label={t('onboarding.discoveryBestPhotos')}
+      />
+      <DiscoveryRow
+        isActive={photoAccess.isSelectingImages}
+        isComplete={selectedPhotos > 0}
+        label={t('onboarding.discoveryCreating')}
+      />
+    </View>
+  );
+}
+
+function DiscoveryRow({
+  isActive = false,
+  isComplete = false,
+  label,
+}: {
+  isActive?: boolean;
+  isComplete?: boolean;
+  label: string;
+}) {
+  const { colors } = useAppearance();
+  const styles = useThemedStyles(createOnboardingStyles);
+
+  return (
+    <View style={styles.discoveryCard}>
+      <View
+        style={[
+          styles.discoveryIcon,
+          isActive ? styles.discoveryIconActive : null,
+          isComplete ? styles.discoveryIconComplete : null,
+        ]}
+      >
+        {isComplete ? (
+          <Ionicons color={colors.surface} name="checkmark" size={14} />
+        ) : null}
+      </View>
+      <View>
+        <Text style={styles.discoveryValue}>{label}</Text>
+      </View>
     </View>
   );
 }
@@ -1099,13 +1350,16 @@ function ProfilePhotoOption({
 
 function PrimaryButton({
   disabled,
+  icon,
   label,
   onPress,
 }: {
   disabled?: boolean;
+  icon?: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
 }) {
+  const { colors } = useAppearance();
   const styles = useThemedStyles(createOnboardingStyles);
 
   return (
@@ -1115,6 +1369,7 @@ function PrimaryButton({
       style={[styles.primaryButton, disabled ? styles.disabledButton : null]}
       onPress={onPress}
     >
+      {icon ? <Ionicons color={colors.surface} name={icon} size={18} /> : null}
       <Text style={styles.primaryButtonText}>{label}</Text>
     </Pressable>
   );

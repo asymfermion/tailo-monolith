@@ -1,11 +1,24 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  View,
+  useWindowDimensions,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { AuthFormTextInput } from '@/components/AuthFormTextInput';
+import { FormErrorBanner } from '@/components/FormErrorBanner';
 import { SocialSignInControls } from '@/components/SocialSignInControls';
 import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
 import { useAppearance, useThemedStyles } from '@/lib/appearance';
+import {
+  getForgotPasswordLayoutMetrics,
+  getForgotPasswordTitleMetrics,
+} from '@/lib/authWelcomeLayout';
 import {
   isAuthEmailSubmitReady,
   isAuthOtpSubmitReady,
@@ -31,7 +44,10 @@ import {
 } from '@/modules/auth/socialSignInFlow';
 import { useBlockingAuthAction } from '@/modules/auth/useBlockingAuthAction';
 import { clearLocalAnonymousAccountDataForAccountSwitch } from '@/modules/auth/clearLocalAnonymousAccountData';
-import { createAccountSettingsStyles } from './accountSettingsStyles';
+import {
+  createAccountAuthStyles,
+  createAccountSettingsStyles,
+} from './accountSettingsStyles';
 
 type FormStep = 'email' | 'code';
 
@@ -147,6 +163,7 @@ export function AnonymousAccountUpgradeForm({
   onLinkFlowStart,
   onLinked,
 }: AnonymousAccountUpgradeFormProps) {
+  const { height, width } = useWindowDimensions();
   const navigation = useNavigation();
   const account = useAuthAccountStatus();
   const [step, setStep] = useState<FormStep>('email');
@@ -161,6 +178,12 @@ export function AnonymousAccountUpgradeForm({
     useBlockingAuthAction();
   const { colors } = useAppearance();
   const styles = useThemedStyles(createAccountSettingsStyles);
+  const authStyles = useThemedStyles(createAccountAuthStyles);
+  const createLayoutMetrics = getForgotPasswordLayoutMetrics(height);
+  const createTitleMetrics = getForgotPasswordTitleMetrics(
+    width,
+    createLayoutMetrics.bucket,
+  );
   const handleEmailChange = useCallback((value: string) => {
     setEmailInput(value);
   }, []);
@@ -287,12 +310,171 @@ export function AnonymousAccountUpgradeForm({
 
   const showStandaloneHeader = presentation === 'standalone';
   const isProfileLink = presentation === 'profile' && mode === 'link';
+  const isStandaloneCreate = showStandaloneHeader && mode === 'create';
 
   if (isBlockingAuthInProgress) {
     return (
       <View style={styles.loadingState}>
         <ActivityIndicator color={colors.accent} />
         <Text style={styles.loadingText}>{t('signIn.signingIn')}</Text>
+      </View>
+    );
+  }
+
+  if (isStandaloneCreate) {
+    return (
+      <View>
+        <View style={authStyles.headlineBlock}>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.88}
+            numberOfLines={1}
+            style={[
+              authStyles.title,
+              {
+                fontSize: createTitleMetrics.fontSize,
+                lineHeight: createTitleMetrics.lineHeight,
+              },
+            ]}
+          >
+            {t('account.createTitle')}
+          </Text>
+          <Text
+            style={[
+              authStyles.body,
+              { marginTop: createLayoutMetrics.titleToCopyGap },
+            ]}
+          >
+            {t('account.createBody')}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            authStyles.form,
+            { marginTop: createLayoutMetrics.copyToFormGap },
+          ]}
+        >
+          {step === 'email' ? (
+            <>
+              <View style={authStyles.labelRow}>
+                <Text style={authStyles.fieldLabel}>
+                  {t('account.emailLabel')}
+                </Text>
+              </View>
+              <View
+                style={[
+                  authStyles.inputShell,
+                  { minHeight: createLayoutMetrics.inputHeight },
+                ]}
+              >
+                <AuthFormTextInput
+                  kind="email"
+                  placeholder={t('account.emailPlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  style={[
+                    authStyles.input,
+                    { minHeight: createLayoutMetrics.inputHeight - 2 },
+                  ]}
+                  valueRef={emailRef}
+                  onValueChange={handleEmailChange}
+                />
+              </View>
+              {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
+              <CreatePrimaryButton
+                disabled={isSubmitting || !isEmailStepReady}
+                label={
+                  isSubmitting
+                    ? t('account.sendingCode')
+                    : t('account.sendCode')
+                }
+                minHeight={createLayoutMetrics.primaryButtonHeight}
+                style={{ marginTop: createLayoutMetrics.inputToButtonGap }}
+                onPress={() => void handleSendCode()}
+              />
+              <SocialSignInControls
+                style={[authStyles.socialControls, { marginTop: spacing.lg }]}
+                onGooglePress={() => void handleSocialLink('google')}
+                onApplePress={() => void handleSocialLink('apple')}
+              />
+              <Pressable
+                accessibilityLabel={t('common.alreadyHaveAccountSignIn')}
+                accessibilityRole="link"
+                style={[authStyles.signInAction, { marginTop: spacing.sm }]}
+                onPress={() => {
+                  if (signInPresentation === 'pop') {
+                    navigation.pop();
+                    return;
+                  }
+
+                  navigation.push('Login', { variant: 'welcome' });
+                }}
+              >
+                <Text style={authStyles.signInText}>
+                  {t('onboarding.alreadyHaveAccountPrefix')}{' '}
+                  <Text style={authStyles.signInLink}>
+                    {t('onboarding.signInLink')}
+                  </Text>
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <View style={authStyles.labelRow}>
+                <Text style={authStyles.fieldLabel}>
+                  {t('account.codeLabel')}
+                </Text>
+              </View>
+              <Text style={authStyles.codeHint}>
+                {t('account.codeHint', { email: codeEmail })}
+              </Text>
+              <View
+                style={[
+                  authStyles.inputShell,
+                  { minHeight: createLayoutMetrics.inputHeight },
+                ]}
+              >
+                <AuthFormTextInput
+                  kind="code"
+                  placeholder={t('account.codePlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  style={[
+                    authStyles.input,
+                    { minHeight: createLayoutMetrics.inputHeight - 2 },
+                  ]}
+                  valueRef={codeRef}
+                  onValueChange={handleCodeChange}
+                />
+              </View>
+              {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
+              <CreatePrimaryButton
+                disabled={isSubmitting || !isCodeStepReady}
+                label={
+                  isSubmitting
+                    ? t('account.verifying')
+                    : t('account.verifyCode')
+                }
+                minHeight={createLayoutMetrics.primaryButtonHeight}
+                style={{ marginTop: createLayoutMetrics.inputToButtonGap }}
+                onPress={() => void handleVerifyCode()}
+              />
+              <Pressable
+                accessibilityRole="button"
+                style={[authStyles.secondaryAction, { marginTop: spacing.sm }]}
+                onPress={() => {
+                  setStep('email');
+                  codeRef.current = '';
+                  setCodeInput('');
+                  setErrorMessage(null);
+                }}
+              >
+                <Text style={authStyles.secondaryActionText}>
+                  {t('account.useDifferentEmail')}
+                </Text>
+              </Pressable>
+            </>
+          )}
+        </View>
       </View>
     );
   }
@@ -428,6 +610,45 @@ function PrimaryButton({
       onPress={onPress}
     >
       <Text style={styles.primaryButtonText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function CreatePrimaryButton({
+  disabled,
+  label,
+  minHeight,
+  onPress,
+  style,
+}: {
+  disabled: boolean;
+  label: string;
+  minHeight: number;
+  onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const styles = useThemedStyles(createAccountAuthStyles);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      style={[
+        styles.primaryButton,
+        { minHeight },
+        disabled ? styles.primaryButtonDisabled : null,
+        style,
+      ]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.primaryButtonText,
+          disabled ? styles.primaryButtonTextDisabled : null,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }

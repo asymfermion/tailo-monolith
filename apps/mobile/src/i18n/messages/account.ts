@@ -12,6 +12,8 @@ export const accountMessages = {
   emailPlaceholder: 'you@example.com',
   sendCode: 'Send code',
   sendingCode: 'Sending...',
+  resendCode: 'Resend code',
+  resendCodeIn: 'Resend code in {{seconds}}s',
   codeLabel: 'Verification code',
   codePlaceholder: '8-digit code',
   codeHint: 'We sent a code to {{email}}.',

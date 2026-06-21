@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/brand/app-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F7F5F2"
+      "backgroundColor": "#FBF7F1"
     },
     "ios": {
       "supportsTablet": true,
@@ -29,7 +29,7 @@
       "package": "com.mtxforge.tailo",
       "adaptiveIcon": {
         "foregroundImage": "./assets/brand/app-icon.png",
-        "backgroundColor": "#F7F5F2"
+        "backgroundColor": "#FBF7F1"
       },
       "permissions": [
         "android.permission.CAMERA",

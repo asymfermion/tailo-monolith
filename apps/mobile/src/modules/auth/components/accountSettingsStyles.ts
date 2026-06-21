@@ -1,5 +1,138 @@
 import { spacing } from '@/constants/theme';
+import { getFontFamilyForStyle } from '@/constants/typography';
 import type { AppearanceContextValue } from '@/lib/appearance';
+import { MIN_TOUCH_TARGET } from '@/lib/responsive';
+
+export function createAccountAuthStyles({
+  colors,
+  getFontFamily,
+  theme,
+}: AppearanceContextValue) {
+  const disabledPrimaryButtonColor = theme === 'dark' ? '#6E6862' : '#A69B8F';
+
+  return {
+    headlineBlock: {
+      alignSelf: 'stretch' as const,
+    },
+    title: {
+      color: colors.text,
+      fontFamily: getFontFamilyForStyle('elegant', '500'),
+      fontSize: 40,
+      fontWeight: '500' as const,
+      lineHeight: 43,
+      textAlign: 'left' as const,
+    },
+    body: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      lineHeight: 22,
+      textAlign: 'left' as const,
+    },
+    form: {
+      alignSelf: 'stretch' as const,
+    },
+    labelRow: {
+      marginBottom: spacing.xs,
+    },
+    fieldLabel: {
+      color: colors.text,
+      fontFamily: getFontFamily('500'),
+      fontSize: 15,
+      fontWeight: '500' as const,
+    },
+    codeHint: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: spacing.sm,
+    },
+    inputShell: {
+      alignItems: 'center' as const,
+      backgroundColor: 'rgba(255, 253, 249, 0.5)',
+      borderColor: colors.timelineDivider,
+      borderRadius: 18,
+      borderWidth: 1,
+      flexDirection: 'row' as const,
+    },
+    input: {
+      color: colors.text,
+      flex: 1,
+      fontFamily: getFontFamily('400'),
+      fontSize: 16,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 0,
+    },
+    primaryButton: {
+      alignItems: 'center' as const,
+      alignSelf: 'stretch' as const,
+      backgroundColor: colors.text,
+      borderRadius: 999,
+      justifyContent: 'center' as const,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+    },
+    primaryButtonDisabled: {
+      backgroundColor: disabledPrimaryButtonColor,
+    },
+    primaryButtonText: {
+      color: colors.surface,
+      fontFamily: getFontFamily('600'),
+      fontSize: 15,
+      fontWeight: '600' as const,
+    },
+    primaryButtonTextDisabled: {
+      color: colors.surface,
+      opacity: 0.82,
+    },
+    socialControls: {
+      alignSelf: 'stretch' as const,
+    },
+    signInAction: {
+      alignItems: 'center' as const,
+      alignSelf: 'center' as const,
+      justifyContent: 'center' as const,
+      minHeight: MIN_TOUCH_TARGET,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    signInText: {
+      color: colors.text,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      lineHeight: 20,
+      textAlign: 'center' as const,
+    },
+    signInLink: {
+      fontFamily: getFontFamily('600'),
+      fontWeight: '600' as const,
+      textDecorationLine: 'underline' as const,
+    },
+    secondaryAction: {
+      alignItems: 'center' as const,
+      alignSelf: 'center' as const,
+      justifyContent: 'center' as const,
+      minHeight: MIN_TOUCH_TARGET,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    secondaryActionText: {
+      color: colors.text,
+      fontFamily: getFontFamily('500'),
+      fontSize: 14,
+      fontWeight: '500' as const,
+      textDecorationLine: 'underline' as const,
+    },
+    errorText: {
+      color: colors.destructive,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      lineHeight: 20,
+      marginTop: spacing.md,
+    },
+  };
+}
 
 export function createAccountSettingsStyles({
   colors,

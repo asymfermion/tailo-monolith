@@ -16,6 +16,51 @@ import {
   type AppearanceContextValue,
 } from '@/lib/appearance';
 
+let keyboardDismissBarSuppressionCount = 0;
+const keyboardDismissBarSuppressionListeners = new Set<() => void>();
+
+function notifyKeyboardDismissBarSuppressionChange() {
+  for (const listener of keyboardDismissBarSuppressionListeners) {
+    listener();
+  }
+}
+
+/** Hide the global Android Done bar while mounted (for screens that opt out). */
+export function useSuppressKeyboardDismissBar(): void {
+  useEffect(() => {
+    keyboardDismissBarSuppressionCount += 1;
+    notifyKeyboardDismissBarSuppressionChange();
+
+    return () => {
+      keyboardDismissBarSuppressionCount = Math.max(
+        0,
+        keyboardDismissBarSuppressionCount - 1,
+      );
+      notifyKeyboardDismissBarSuppressionChange();
+    };
+  }, []);
+}
+
+function useKeyboardDismissBarSuppressed(): boolean {
+  const [suppressed, setSuppressed] = useState(
+    keyboardDismissBarSuppressionCount > 0,
+  );
+
+  useEffect(() => {
+    const listener = () => {
+      setSuppressed(keyboardDismissBarSuppressionCount > 0);
+    };
+
+    keyboardDismissBarSuppressionListeners.add(listener);
+
+    return () => {
+      keyboardDismissBarSuppressionListeners.delete(listener);
+    };
+  }, []);
+
+  return suppressed;
+}
+
 function createAccessoryStyles({
   colors,
   getFontFamily,
@@ -101,6 +146,7 @@ export function KeyboardDismissInputAccessoryView({
 /** Android fallback: bar pinned above the keyboard while it is visible. */
 export function KeyboardDismissAndroidBar() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const suppressed = useKeyboardDismissBarSuppressed();
   const styles = useThemedStyles(createAccessoryStyles);
 
   useEffect(() => {
@@ -131,7 +177,7 @@ export function KeyboardDismissAndroidBar() {
     };
   }, []);
 
-  if (Platform.OS !== 'android' || keyboardHeight === 0) {
+  if (Platform.OS !== 'android' || keyboardHeight === 0 || suppressed) {
     return null;
   }
 

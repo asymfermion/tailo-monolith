@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -7,15 +15,20 @@ import {
   ScrollView,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 import { AppTextInput } from '@/components/AppTextInput';
-import { AppIconMark } from '@/components/AppIconMark';
-import { SocialSignInControls } from '@/components/SocialSignInControls';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 
+import {
+  AuthButtonIcon,
+  type AuthButtonIconKind,
+} from '@/components/AuthButtonIcon';
+import { AuthHeroCollage, AuthLegalCopy } from '@/components/AuthBranding';
 import { spacing } from '@/constants/theme';
+import { getFontFamilyForStyle } from '@/constants/typography';
 import {
   useAppearance,
   useThemedStyles,
@@ -34,7 +47,6 @@ import {
   t,
 } from '@/i18n';
 import { getDatabase } from '@/db';
-import { getLocalEventCount } from '@/db/localEvents';
 import {
   getDetectedPetOptions,
   type DetectedPetOption,
@@ -60,10 +72,7 @@ import {
   type SocialSignInProvider,
 } from '@/modules/auth/socialSignInFlow';
 import { useBlockingAuthAction } from '@/modules/auth/useBlockingAuthAction';
-import {
-  shouldPreferSignInOnWelcome,
-  shouldShowAccountActionsOnWelcome,
-} from '@/modules/auth/onboardingWelcomeActions';
+import { shouldShowAccountActionsOnWelcome } from '@/modules/auth/onboardingWelcomeActions';
 import {
   ScanProgressIndicator,
   canScanPhotos,
@@ -78,9 +87,24 @@ import {
   type LocalPetType,
 } from '@/modules/pets';
 import { logTailo } from '@/lib/tailoLogger';
+import {
+  defaultWelcomeLayoutMetrics,
+  getAuthHeroScrollPaddingTop,
+  getAuthTitleMetrics,
+  getWelcomeLayoutMetrics,
+  type WelcomeLayoutMetrics,
+} from '@/lib/authWelcomeLayout';
 
 /** Set true to show the privacy consent checkbox on onboarding welcome. */
 const SHOW_WELCOME_PRIVACY_CONSENT = false;
+
+const WelcomeLayoutContext = createContext<WelcomeLayoutMetrics>(
+  defaultWelcomeLayoutMetrics,
+);
+
+function useWelcomeLayoutMetrics() {
+  return useContext(WelcomeLayoutContext);
+}
 
 type OnboardingScreenProps = {
   anonymousUserId: string;
@@ -115,80 +139,139 @@ function createOnboardingStyles({
       paddingTop: spacing.lg,
     },
     welcomePanel: {
-      paddingTop: spacing.sm,
-    },
-    welcomeVisual: {
       alignSelf: 'center' as const,
-      backgroundColor: colors.border,
-      borderColor: colors.border,
-      borderRadius: 28,
-      borderWidth: 1,
-      height: 360,
-      marginBottom: spacing.xl,
-      overflow: 'hidden' as const,
-      position: 'relative' as const,
+      maxWidth: 520,
+      paddingTop: spacing.sm,
       width: '100%' as const,
     },
     welcomeLogo: {
-      height: 44,
+      alignSelf: 'center' as const,
+      height: 38,
+      marginBottom: spacing.xs,
+      width: 96,
+    },
+    welcomeHero: {
+      alignSelf: 'center' as const,
+      height: 240,
+      marginHorizontal: -spacing.md,
+      width: '108%' as const,
+    },
+    welcomeHeroCollage: {
+      marginBottom: 12,
+      marginTop: 0,
+    },
+    welcomeTitle: {
+      color: colors.text,
+      fontFamily: getFontFamilyForStyle('elegant', '500'),
+      fontSize: 38,
+      fontWeight: '500' as const,
+      lineHeight: 41,
+      marginTop: spacing.xs,
+    },
+    welcomeText: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 16,
+      lineHeight: 22,
+      marginTop: spacing.xs,
+    },
+    welcomeActions: {
+      gap: 6,
+      marginTop: spacing.sm,
+    },
+    welcomePrimaryButton: {
+      alignItems: 'center' as const,
+      alignSelf: 'stretch' as const,
+      backgroundColor: colors.text,
+      borderRadius: 999,
+      flexDirection: 'row' as const,
+      justifyContent: 'center' as const,
+      minHeight: 56,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      position: 'relative' as const,
+    },
+    welcomeButtonIconSlot: {
+      alignItems: 'center' as const,
+      bottom: 0,
+      justifyContent: 'center' as const,
       left: spacing.lg,
       position: 'absolute' as const,
-      top: spacing.lg,
-      width: 104,
-      zIndex: 2,
-    },
-    welcomeHeroWash: {
-      backgroundColor: colors.accent,
-      bottom: 0,
-      left: 0,
-      opacity: 0.18,
-      position: 'absolute' as const,
-      right: 0,
       top: 0,
+      width: 40,
     },
-    welcomeHeroMark: {
+    welcomeButtonTextSlot: {
       alignItems: 'center' as const,
-      backgroundColor: 'rgba(255, 255, 255, 0.78)',
-      borderColor: 'rgba(255, 255, 255, 0.88)',
-      borderRadius: 48,
-      borderWidth: 1,
-      height: 96,
       justifyContent: 'center' as const,
-      left: '50%' as const,
-      marginLeft: -48,
-      marginTop: -48,
-      position: 'absolute' as const,
-      top: '50%' as const,
-      width: 96,
-      zIndex: 2,
+      paddingHorizontal: 54,
+      width: '100%' as const,
     },
-    welcomeHeroCaption: {
-      bottom: spacing.xl,
+    welcomePrimaryButtonText: {
+      color: colors.surface,
+      fontFamily: getFontFamily('600'),
+      fontSize: 15,
+      fontWeight: '600' as const,
+    },
+    welcomeOutlineButton: {
+      alignItems: 'center' as const,
+      alignSelf: 'stretch' as const,
+      backgroundColor: 'rgba(255, 253, 249, 0.5)',
+      borderColor: colors.timelineDivider,
+      borderRadius: 999,
+      borderWidth: 1,
+      flexDirection: 'row' as const,
+      justifyContent: 'center' as const,
+      minHeight: 50,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      position: 'relative' as const,
+    },
+    welcomeOutlineButtonText: {
       color: colors.text,
-      fontFamily: getFontFamily('700'),
-      fontSize: 38,
-      fontWeight: '700' as const,
-      left: spacing.xl,
-      lineHeight: 44,
-      position: 'absolute' as const,
-      right: spacing.xl,
+      fontFamily: getFontFamily('600'),
+      fontSize: 15,
+      fontWeight: '600' as const,
+    },
+    welcomeSignInButton: {
+      alignItems: 'center' as const,
+      alignSelf: 'center' as const,
+      minHeight: 28,
+      justifyContent: 'center' as const,
+      paddingHorizontal: spacing.md,
+    },
+    welcomeSignInText: {
+      color: colors.text,
+      fontFamily: getFontFamily('400'),
+      fontSize: 14,
+      lineHeight: 20,
+      textAlign: 'center' as const,
+    },
+    welcomeSignInLink: {
+      fontFamily: getFontFamily('600'),
+      fontWeight: '600' as const,
+      textDecorationLine: 'underline' as const,
     },
     welcomePrivacyRow: {
       alignItems: 'center' as const,
       flexDirection: 'row' as const,
       gap: spacing.sm,
       justifyContent: 'center' as const,
-      marginTop: spacing.xl,
+      marginTop: spacing.sm,
       paddingHorizontal: spacing.md,
     },
     welcomePrivacyText: {
-      color: colors.textMuted,
+      color: colors.text,
       flex: 1,
       fontFamily: getFontFamily('400'),
       fontSize: 12,
       lineHeight: 17,
-      maxWidth: 260,
       textAlign: 'center' as const,
+    },
+    welcomePrivacyLink: {
+      textDecorationLine: 'underline' as const,
+    },
+    welcomeLegal: {
+      marginTop: spacing.xs,
     },
     eyebrow: {
       color: colors.accent,
@@ -511,7 +594,6 @@ export function OnboardingScreen({
   const { isBlockingAuthInProgress, runBlockingAuthAction } =
     useBlockingAuthAction();
   const socialSignInInFlightRef = useRef(false);
-  const [hasExistingLocalData, setHasExistingLocalData] = useState(false);
   const step = getEffectiveStep(
     onboardingState.step,
     petName,
@@ -533,19 +615,11 @@ export function OnboardingScreen({
     let isMounted = true;
 
     async function hydratePetProfile() {
-      const [profile, database] = await Promise.all([
-        loadLocalPetProfile(),
-        getDatabase(),
-      ]);
-      const eventCount = await getLocalEventCount(database);
+      const profile = await loadLocalPetProfile();
 
       if (!isMounted) {
         return;
       }
-
-      setHasExistingLocalData(
-        Boolean(profile?.name?.trim() || profile?.type || eventCount > 0),
-      );
 
       if (!profile) {
         return;
@@ -798,11 +872,6 @@ export function OnboardingScreen({
     [privacyAcknowledged, runBlockingAuthAction, startOnThisDevice],
   );
 
-  const preferSignInOnWelcome = shouldPreferSignInOnWelcome({
-    isRemoteAuthConfigured: isRemoteAuthConfigured(),
-    isLinkedAccount: isLinked,
-    hasExistingLocalData,
-  });
   const showAccountActionsOnWelcome = shouldShowAccountActionsOnWelcome({
     isRemoteAuthConfigured: isRemoteAuthConfigured(),
     isLinkedAccount: isLinked,
@@ -813,89 +882,50 @@ export function OnboardingScreen({
       case 'welcome':
       case 'photo_permission':
         return (
-          <Panel
-            showWelcomeVisual
-            title={t('onboarding.welcomeTitle')}
-            text={t(
-              showAccountActionsOnWelcome
-                ? 'onboarding.welcomeTextNoAccount'
-                : 'onboarding.welcomeText',
-            )}
-          >
+          <WelcomePanel>
             {isBlockingAuthInProgress ? (
               <View style={styles.loadingState}>
                 <ActivityIndicator color={colors.accent} />
                 <Text style={styles.loadingText}>{t('signIn.signingIn')}</Text>
               </View>
-            ) : preferSignInOnWelcome && showAccountActionsOnWelcome ? (
-              <>
-                <SocialSignInControls
-                  variant="labeled"
-                  onGooglePress={
-                    privacyAcknowledged
-                      ? () => void continueWithSocialSignIn('google')
-                      : undefined
-                  }
-                  onApplePress={
-                    privacyAcknowledged
-                      ? () => void continueWithSocialSignIn('apple')
-                      : undefined
-                  }
-                />
-                <SecondaryLinkButton
-                  disabled={!privacyAcknowledged}
-                  label={t('common.alreadyHaveAccountSignIn')}
-                  onPress={() => void openAccountSignIn()}
-                />
-                <QuietButton
-                  disabled={!privacyAcknowledged}
-                  label={t('common.startOnThisDevice')}
-                  onPress={() => void startOnThisDevice()}
-                />
-              </>
             ) : (
               <>
-                <PrimaryButton
-                  icon="image-outline"
+                <WelcomePrimaryButton
                   disabled={!privacyAcknowledged}
                   label={t('onboarding.startWithMyPhotos')}
                   onPress={() => void startOnThisDevice()}
                 />
                 {showAccountActionsOnWelcome ? (
                   <>
-                    <SocialSignInControls
-                      variant="labeled"
-                      onGooglePress={
-                        privacyAcknowledged
-                          ? () => void continueWithSocialSignIn('google')
-                          : undefined
-                      }
-                      onApplePress={
-                        privacyAcknowledged
-                          ? () => void continueWithSocialSignIn('apple')
-                          : undefined
+                    <WelcomeOutlineButton
+                      disabled={!privacyAcknowledged}
+                      iconKind="apple"
+                      label={t('onboarding.continueWithApple')}
+                      onPress={() => void continueWithSocialSignIn('apple')}
+                    />
+                    <WelcomeOutlineButton
+                      disabled={!privacyAcknowledged}
+                      iconKind="google"
+                      label={t('onboarding.continueWithGoogle')}
+                      onPress={() => void continueWithSocialSignIn('google')}
+                    />
+                    <WelcomeOutlineButton
+                      disabled={!privacyAcknowledged}
+                      iconKind="email"
+                      label={t('onboarding.registerWithEmail')}
+                      onPress={() =>
+                        navigation.push('AccountSettings', { mode: 'create' })
                       }
                     />
-                    <SecondaryLinkButton
+                    <WelcomeSignInLink
                       disabled={!privacyAcknowledged}
-                      label={t('common.alreadyHaveAccountSignIn')}
                       onPress={() => void openAccountSignIn()}
                     />
                   </>
                 ) : null}
+                <WelcomeLegalCopy />
               </>
             )}
-            {showAccountActionsOnWelcome ? (
-              <>
-                <SecondaryLinkButton
-                  disabled={!privacyAcknowledged}
-                  label={t('common.createAccount')}
-                  onPress={() =>
-                    navigation.push('AccountSettings', { mode: 'create' })
-                  }
-                />
-              </>
-            ) : null}
             {SHOW_WELCOME_PRIVACY_CONSENT ? (
               <>
                 <Pressable
@@ -936,7 +966,7 @@ export function OnboardingScreen({
             {accountErrorMessage ? (
               <Text style={styles.mutedText}>{accountErrorMessage}</Text>
             ) : null}
-          </Panel>
+          </WelcomePanel>
         );
       case 'scan':
         return (
@@ -1115,7 +1145,6 @@ export function OnboardingScreen({
     petName,
     petType,
     photoAccess,
-    preferSignInOnWelcome,
     showAccountActionsOnWelcome,
     colors.accent,
     continueWithSocialSignIn,
@@ -1159,9 +1188,15 @@ export function OnboardingScreen({
         contentContainerStyle={[
           styles.container,
           {
+            justifyContent:
+              step === 'welcome' || step === 'photo_permission'
+                ? 'flex-start'
+                : 'center',
             paddingTop: previousStep
               ? spacing.sm
-              : getTabScreenTopPadding(insets.top),
+              : step === 'welcome' || step === 'photo_permission'
+                ? getAuthHeroScrollPaddingTop(insets.top)
+                : getTabScreenTopPadding(insets.top),
             paddingBottom: insets.bottom + spacing.lg,
           },
         ]}
@@ -1178,35 +1213,12 @@ export function OnboardingScreen({
 type PanelProps = {
   children: ReactNode;
   eyebrow?: string;
-  showWelcomeVisual?: boolean;
   title: string;
   text: string;
 };
 
-function Panel({
-  children,
-  eyebrow,
-  showWelcomeVisual = false,
-  title,
-  text,
-}: PanelProps) {
+function Panel({ children, eyebrow, title, text }: PanelProps) {
   const styles = useThemedStyles(createOnboardingStyles);
-
-  if (showWelcomeVisual) {
-    return (
-      <View style={styles.welcomePanel}>
-        <WelcomeVisual title={title} />
-        <Text style={styles.text}>{text}</Text>
-        <View style={styles.panelBody}>{children}</View>
-        <View style={styles.welcomePrivacyRow}>
-          <Ionicons name="lock-closed-outline" size={14} />
-          <Text style={styles.welcomePrivacyText}>
-            {t('onboarding.welcomePrivacyFooter')}
-          </Text>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.panel}>
@@ -1218,31 +1230,72 @@ function Panel({
   );
 }
 
-function WelcomeVisual({ title }: { title: string }) {
+function WelcomePanel({ children }: { children: ReactNode }) {
+  const { height, width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createOnboardingStyles);
+  const availableHeight = Math.max(height - insets.top - insets.bottom, 0);
+  const layoutMetrics = getWelcomeLayoutMetrics(height, availableHeight);
+  const titleMetrics = getAuthTitleMetrics(width, layoutMetrics.bucket);
 
   return (
-    <View style={styles.welcomeVisual}>
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={styles.welcomeHeroWash}
-      />
-      <Image
-        accessibilityLabel={t('common.appName')}
-        contentFit="contain"
-        source={require('../../assets/brand/logo-lockup-horizontal.png')}
-        style={styles.welcomeLogo}
-      />
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={styles.welcomeHeroMark}
-      >
-        <AppIconMark size={56} />
+    <WelcomeLayoutContext.Provider value={layoutMetrics}>
+      <View style={styles.welcomePanel}>
+        <AuthHeroCollage
+          maxHeight={layoutMetrics.heroMaxHeight}
+          variant="onboarding"
+          style={[
+            styles.welcomeHeroCollage,
+            { marginBottom: layoutMetrics.heroToContentGap },
+          ]}
+        />
+        <Text
+          adjustsFontSizeToFit
+          minimumFontScale={0.88}
+          numberOfLines={1}
+          style={[
+            styles.welcomeTitle,
+            {
+              fontSize: titleMetrics.fontSize,
+              lineHeight: titleMetrics.lineHeight,
+              marginTop: 0,
+            },
+          ]}
+        >
+          {t('onboarding.welcomeTitle')}
+        </Text>
+        <Text
+          style={[
+            styles.welcomeText,
+            { marginTop: layoutMetrics.titleToCopyGap },
+          ]}
+        >
+          {t('onboarding.welcomeTextLineOne')}
+        </Text>
+        <View
+          style={[
+            styles.welcomeActions,
+            {
+              gap: layoutMetrics.buttonGap,
+              marginTop: layoutMetrics.copyToButtonsGap,
+            },
+          ]}
+        >
+          {children}
+        </View>
       </View>
-      <Text style={styles.welcomeHeroCaption}>{title}</Text>
-    </View>
+    </WelcomeLayoutContext.Provider>
+  );
+}
+
+function WelcomeLegalCopy() {
+  const styles = useThemedStyles(createOnboardingStyles);
+  const layoutMetrics = useWelcomeLayoutMetrics();
+
+  return (
+    <AuthLegalCopy
+      style={[styles.welcomeLegal, { marginTop: layoutMetrics.legalTopGap }]}
+    />
   );
 }
 
@@ -1364,6 +1417,7 @@ function PrimaryButton({
 
   return (
     <Pressable
+      accessibilityLabel={label}
       accessibilityRole="button"
       disabled={disabled}
       style={[styles.primaryButton, disabled ? styles.disabledButton : null]}
@@ -1375,7 +1429,7 @@ function PrimaryButton({
   );
 }
 
-function QuietButton({
+function WelcomePrimaryButton({
   disabled,
   label,
   onPress,
@@ -1384,40 +1438,109 @@ function QuietButton({
   label: string;
   onPress: () => void;
 }) {
+  const { colors } = useAppearance();
   const styles = useThemedStyles(createOnboardingStyles);
+  const layoutMetrics = useWelcomeLayoutMetrics();
 
   return (
     <Pressable
+      accessibilityLabel={label}
       accessibilityRole="button"
       disabled={disabled}
-      style={[styles.quietButton, disabled ? styles.disabledButton : null]}
+      style={[
+        styles.welcomePrimaryButton,
+        { minHeight: layoutMetrics.primaryButtonHeight },
+        disabled ? styles.disabledButton : null,
+      ]}
       onPress={onPress}
     >
-      <Text style={styles.quietButtonText}>{label}</Text>
+      <View style={styles.welcomeButtonIconSlot}>
+        <AuthButtonIcon color={colors.surface} kind="photos" size={23} />
+      </View>
+      <View style={styles.welcomeButtonTextSlot}>
+        <Text
+          adjustsFontSizeToFit
+          minimumFontScale={0.88}
+          numberOfLines={1}
+          style={styles.welcomePrimaryButtonText}
+        >
+          {label}
+        </Text>
+      </View>
     </Pressable>
   );
 }
 
-/** Accent text action — matches LoginScreen secondary links (sign in, create account). */
-function SecondaryLinkButton({
+function WelcomeOutlineButton({
   disabled,
+  iconKind,
   label,
   onPress,
 }: {
   disabled?: boolean;
+  iconKind: AuthButtonIconKind;
   label: string;
   onPress: () => void;
 }) {
   const styles = useThemedStyles(createOnboardingStyles);
+  const layoutMetrics = useWelcomeLayoutMetrics();
 
   return (
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
-      style={[styles.secondaryAction, disabled ? styles.disabledButton : null]}
+      style={[
+        styles.welcomeOutlineButton,
+        { minHeight: layoutMetrics.outlineButtonHeight },
+        disabled ? styles.disabledButton : null,
+      ]}
       onPress={onPress}
     >
-      <Text style={styles.secondaryActionText}>{label}</Text>
+      <View style={styles.welcomeButtonIconSlot}>
+        <AuthButtonIcon kind={iconKind} size={iconKind === 'apple' ? 23 : 22} />
+      </View>
+      <View style={styles.welcomeButtonTextSlot}>
+        <Text
+          adjustsFontSizeToFit
+          minimumFontScale={0.88}
+          numberOfLines={1}
+          style={styles.welcomeOutlineButtonText}
+        >
+          {label}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function WelcomeSignInLink({
+  disabled,
+  onPress,
+}: {
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  const styles = useThemedStyles(createOnboardingStyles);
+  const layoutMetrics = useWelcomeLayoutMetrics();
+
+  return (
+    <Pressable
+      accessibilityLabel={t('common.alreadyHaveAccountSignIn')}
+      accessibilityRole="link"
+      disabled={disabled}
+      style={[
+        styles.welcomeSignInButton,
+        { marginTop: layoutMetrics.signInTopGap },
+        disabled ? styles.disabledButton : null,
+      ]}
+      onPress={onPress}
+    >
+      <Text style={styles.welcomeSignInText}>
+        {t('onboarding.alreadyHaveAccountPrefix')}{' '}
+        <Text style={styles.welcomeSignInLink}>
+          {t('onboarding.signInLink')}
+        </Text>
+      </Text>
     </Pressable>
   );
 }

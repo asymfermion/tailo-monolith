@@ -14,11 +14,11 @@ Hosted project: copy each HTML file into **Supabase Dashboard → Authentication
 | -------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | [confirmation.html](./confirmation.html)                                   | **Confirm signup**                  | Welcome to Tailo — verify your email | Direct email signup (`signInWithOtp` + `verifyOtp` type `email`) when confirmations are enabled         |
 | [email_change.html](./email_change.html)                                   | **Change email address**            | Your Tailo verification code         | **Save your memories** / link email — `updateUser({ email })` + `verifyOtp` type `email_change`         |
-| [magic_link.html](./magic_link.html)                                       | **Magic Link**                      | Your Tailo sign-in code              | **Log in with code** — `signInWithOtp` + `verifyOtp` type `email`                                       |
+| [magic_link.html](./magic_link.html)                                       | **Magic Link**                      | `{{ .Token }}` is your Tailo sign-in code | **Log in with code** — `signInWithOtp` + `verifyOtp` type `email`                                   |
 | [recovery.html](./recovery.html)                                           | **Reset password**                  | Reset your Tailo password            | **Forgot password** — `resetPasswordForEmail` + `verifyOtp` type `recovery`                             |
 | [invite.html](./invite.html)                                               | **Invite user**                     | You're invited to Tailo              | Admin invites (optional; keep OTP-ready)                                                                |
 | [reauthentication.html](./reauthentication.html)                           | **Reauthentication**                | Confirm it's you — Tailo             | Sensitive actions if `secure_password_change` is enabled later                                          |
-| [password_changed_notification.html](./password_changed_notification.html) | **Password changed** (notification) | Your Tailo password was changed      | Informational only — no OTP                                                                             |
+| [password_changed_notification.html](./password_changed_notification.html) | **Password changed** (notification) | Your Tailo password has changed      | Informational only — no OTP                                                                             |
 
 ---
 
@@ -119,3 +119,5 @@ node scripts/verify-supabase-email-templates.mjs
 | ---------- | ------------------------------------------------------------------------------------------- |
 | 2026-05-20 | Enable email confirmations in config; document OTP-required policy and anonymous-first note |
 | 2026-05-20 | Full OTP template set for Tailo auth flows + hosted setup guide                             |
+| 2026-06-21 | Refine the password-changed security notification and account recovery guidance             |
+| 2026-06-21 | Match the hosted email limit and expose sign-in OTPs in subjects to avoid inbox threading    |

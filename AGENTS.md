@@ -495,9 +495,11 @@ For manual release or TestFlight QA, use the checklist in `docs/DEVELOPER.md`.
 
 Before making UI or UX changes, read:
 
-1. `docs/UI/product-principles.md`
-2. `docs/UI/style.md`
-3. `docs/UI/ux-decisions.md`
+1. `docs/UI/ui-product-principles.md`
+2. `docs/UI/ui-style.md`
+3. `docs/UI/ui-ux-decisions.md`
+
+Use the selected sketch images in `docs/UI/sketches/` as the visual source of truth for proportion, hierarchy, spacing, and overall feel. Use the UI markdown docs as the written contract for decisions, constraints, and known implementation gaps.
 
 Tailo is a memory-first pet story app.
 

@@ -26,10 +26,10 @@ The current architecture already fits the desired UX. Most changes should be vis
 Recommended docs under `docs/UI/`:
 
 ```text
-docs/UI/product-principles.md
-docs/UI/style.md
-docs/UI/ux-decisions.md
-docs/UI/implementation-roadmap.md
+docs/UI/ui-product-principles.md
+docs/UI/ui-style.md
+docs/UI/ui-ux-decisions.md
+docs/UI/ui-implementation-roadmap.md
 ```
 
 The first three are the core source of truth.
@@ -69,7 +69,7 @@ Changes:
 - Consider pet avatar/name for center tab
 - Use ink selected state
 - Keep labels minimal
-- Avoid large persistent create FAB
+- Current app still renders `CaptureFab` on Story; sketch target is to move manual creation into the Story header or contextual menus instead of a large persistent FAB.
 
 ## Phase 4: Pet Profile Redesign
 

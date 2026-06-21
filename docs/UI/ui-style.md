@@ -43,27 +43,33 @@ Avoid:
 
 The neutral foundation is the brand. Accent should be subtle.
 
+These tokens should match `apps/mobile/src/constants/theme.ts`.
+
 ### Light Theme
 
-- Background: `#F7F5F2`
-- Surface: `#FFFFFF`
-- Primary text / ink: `#1C1C1A`
-- Secondary text: `#6B6B66`
-- Warm muted text option: `#746D63`
-- Border: `#E8E4DE`
-- Divider: `#D8D2C8`
-- Soft chip background: `#F1ECE5`
-- Destructive: `#8A3A2B`
+- Background: `#FBF7F1`
+- Surface: `#FFFDF9`
+- Primary text / ink: `#151412`
+- Secondary text: `#6F665D`
+- Accent / selected state: `#151412`
+- Border: `#E7DDD2`
+- Divider: `#D8CBBE`
+- Tab bar border: `rgba(231, 221, 210, 0.52)`
+- Destructive: `#9A3E32`
+- Shadow: `#151412`
 
 ### Dark Theme
 
 - Background: `#141413`
 - Surface: `#1E1E1C`
 - Primary text: `#F5F3EF`
-- Secondary text: `#A8A6A0`
-- Border: `#2E2E2B`
-- Divider: `#3A3834`
-- Destructive: `#D48478`
+- Secondary text: `#B5ACA2`
+- Accent / selected state: `#F6EFE7`
+- Border: `#332F2A`
+- Divider: `#413A33`
+- Tab bar border: `rgba(82, 74, 66, 0.58)`
+- Destructive: `#DA8A7E`
+- Shadow: `#000000`
 
 ### Accent Decision
 
@@ -117,7 +123,9 @@ Keep the tab bar visually light:
 - Ink selected state
 - Quiet inactive states
 
-Avoid a large persistent create FAB in the bottom navigation. Tailo is automatic-memory-first, not creation-first.
+Current app state: Story still renders a 56x56 `CaptureFab` above the floating tab bar.
+
+Sketch target: avoid a large persistent create FAB in the bottom navigation. Tailo is automatic-memory-first, not creation-first.
 
 Manual creation can live in the Story header or contextual menus.
 

@@ -62,17 +62,23 @@ export const en = {
   },
   onboarding: {
     welcomeEyebrow: 'Welcome',
-    welcomeTitle: "Let's find your pet's story.",
+    welcomeTitle: 'Every pet has a story.',
     welcomeText:
       'Your photos stay on your device until you choose to save memories.',
     welcomeTextNoAccount:
       'Start without an account. Your photos stay on your device until you choose to save memories.',
+    welcomeTextLineOne:
+      'Tailo finds the little moments already waiting in your photos.',
+    welcomeTextLineTwo: '',
     welcomeHeroCaption: 'Photos become quiet memories, on this device first.',
     welcomePrivacyFooter:
       'Your photos stay on your device until you choose to save memories.',
-    startWithMyPhotos: 'Start with My Photos',
+    startWithMyPhotos: 'Start with my photos',
     continueWithApple: 'Continue with Apple',
     continueWithGoogle: 'Continue with Google',
+    registerWithEmail: 'Register with Email',
+    alreadyHaveAccountPrefix: 'Already have an account?',
+    signInLink: 'Sign in',
     privacyConsentText:
       'I understand Tailo scans photos on this device to find pet moments, and only selected moments are synced when I connect an account.',
     privacyConsentRequired: 'Please confirm to continue.',

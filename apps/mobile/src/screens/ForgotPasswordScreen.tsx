@@ -6,27 +6,39 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import {
+  AuthBackButtonOverlay,
+  AuthWordmarkBand,
+} from '@/components/AuthHeader';
 import { AuthFormTextInput } from '@/components/AuthFormTextInput';
 import { FormErrorBanner } from '@/components/FormErrorBanner';
+import { useSuppressKeyboardDismissBar } from '@/components/KeyboardDismissAccessory';
 import { spacing } from '@/constants/theme';
+import { getFontFamilyForStyle } from '@/constants/typography';
 import { t } from '@/i18n';
 import {
   useAppearance,
   useThemedStyles,
   type AppearanceContextValue,
 } from '@/lib/appearance';
+import { MIN_TOUCH_TARGET } from '@/lib/responsive';
+import {
+  getAuthHeaderMetrics,
+  getForgotPasswordContentInset,
+  getForgotPasswordLayoutMetrics,
+  getForgotPasswordTitleMetrics,
+} from '@/lib/authWelcomeLayout';
 import {
   getAuthPasswordResetBlockReason,
   isAuthEmailSubmitReady,
   isAuthOtpSubmitReady,
   isAuthPasswordResetSubmitReady,
 } from '@/lib/authFormReadiness';
-import { ModalBackButton } from '@/navigation/components/ModalBackButton';
 import { useNavigation } from '@/navigation/NavigationContext';
-import { getModalHeaderTopInset } from '@/navigation/modalHeaderInset';
 import {
   finalizeConnectedSignIn,
   isValidAccountEmail,
@@ -42,7 +54,10 @@ type FormStep = 'email' | 'code' | 'password';
 function createForgotPasswordScreenStyles({
   colors,
   getFontFamily,
+  theme,
 }: AppearanceContextValue) {
+  const disabledPrimaryButtonColor = theme === 'dark' ? '#6E6862' : '#A69B8F';
+
   return {
     screen: {
       backgroundColor: colors.background,
@@ -52,74 +67,102 @@ function createForgotPasswordScreenStyles({
       flexGrow: 1,
       paddingHorizontal: spacing.lg,
     },
-    modalHeader: {
-      marginBottom: spacing.lg,
+    shell: {
+      alignSelf: 'center' as const,
+      maxWidth: 520,
+      width: '100%' as const,
+    },
+    headlineBlock: {
+      alignSelf: 'stretch' as const,
     },
     title: {
       color: colors.text,
-      fontFamily: getFontFamily('600'),
-      fontSize: 28,
-      fontWeight: '600' as const,
+      fontFamily: getFontFamilyForStyle('elegant', '500'),
+      fontSize: 42,
+      fontWeight: '500' as const,
+      lineHeight: 45,
+      textAlign: 'left' as const,
     },
     body: {
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),
       fontSize: 15,
       lineHeight: 22,
-      marginTop: spacing.sm,
+      textAlign: 'left' as const,
+    },
+    bodyEmail: {
+      color: colors.text,
+      fontFamily: getFontFamily('500'),
+      fontSize: 15,
+      fontWeight: '500' as const,
+      lineHeight: 22,
+      textAlign: 'left' as const,
+    },
+    form: {
+      alignSelf: 'stretch' as const,
+    },
+    labelRow: {
+      marginBottom: spacing.xs,
     },
     fieldLabel: {
       color: colors.text,
-      fontFamily: getFontFamily('600'),
-      fontSize: 14,
-      fontWeight: '600' as const,
-      marginTop: spacing.xl,
-      marginBottom: spacing.sm,
+      fontFamily: getFontFamily('500'),
+      fontSize: 15,
+      fontWeight: '500' as const,
     },
-    codeHint: {
+    quietLinkAction: {
+      alignItems: 'center' as const,
+      alignSelf: 'center' as const,
+      justifyContent: 'center' as const,
+      marginTop: spacing.md,
+      minHeight: MIN_TOUCH_TARGET,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    quietLinkText: {
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),
       fontSize: 14,
       lineHeight: 20,
-      marginBottom: spacing.sm,
+      textDecorationLine: 'underline' as const,
+    },
+    inputShell: {
+      alignItems: 'center' as const,
+      backgroundColor: 'rgba(255, 253, 249, 0.5)',
+      borderColor: colors.timelineDivider,
+      borderRadius: 18,
+      borderWidth: 1,
+      flexDirection: 'row' as const,
     },
     input: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderRadius: 12,
-      borderWidth: 1,
       color: colors.text,
       fontFamily: getFontFamily('400'),
+      flex: 1,
       fontSize: 16,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
+      paddingVertical: 0,
     },
     primaryButton: {
       alignItems: 'center' as const,
-      backgroundColor: colors.accent,
-      borderRadius: 12,
-      marginTop: spacing.lg,
-      paddingVertical: spacing.md,
+      alignSelf: 'stretch' as const,
+      backgroundColor: colors.text,
+      borderRadius: 999,
+      justifyContent: 'center' as const,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
     },
     primaryButtonDisabled: {
-      opacity: 0.6,
+      backgroundColor: disabledPrimaryButtonColor,
     },
     primaryButtonText: {
       color: colors.surface,
       fontFamily: getFontFamily('600'),
-      fontSize: 16,
-      fontWeight: '600' as const,
-    },
-    secondaryAction: {
-      alignItems: 'center' as const,
-      marginTop: spacing.md,
-      paddingVertical: spacing.sm,
-    },
-    secondaryActionText: {
-      color: colors.accent,
-      fontFamily: getFontFamily('600'),
       fontSize: 15,
       fontWeight: '600' as const,
+    },
+    primaryButtonTextDisabled: {
+      color: colors.surface,
+      opacity: 0.82,
     },
   };
 }
@@ -134,6 +177,7 @@ export function ForgotPasswordScreen({
   onSignedIn,
 }: ForgotPasswordScreenProps) {
   const insets = useSafeAreaInsets();
+  const { height, width } = useWindowDimensions();
   const navigation = useNavigation();
   const [step, setStep] = useState<FormStep>('email');
   const emailRef = useRef('');
@@ -151,6 +195,24 @@ export function ForgotPasswordScreen({
   const confirmPasswordInputRef = useRef<TextInput>(null);
   const { colors } = useAppearance();
   const styles = useThemedStyles(createForgotPasswordScreenStyles);
+  useSuppressKeyboardDismissBar();
+  const layoutMetrics = getForgotPasswordLayoutMetrics(height);
+  const headerMetrics = getAuthHeaderMetrics(insets.top, 'utility');
+  const contentInset = getForgotPasswordContentInset(
+    height,
+    insets.top,
+    insets.bottom,
+    headerMetrics.totalHeight,
+    layoutMetrics,
+  );
+  const titleMetrics = getForgotPasswordTitleMetrics(
+    width,
+    layoutMetrics.bucket,
+  );
+  const scrollMinHeight = Math.max(
+    height - insets.top - insets.bottom,
+    layoutMetrics.bucket === 'short' ? 520 : 600,
+  );
   const handleEmailChange = useCallback((value: string) => {
     setEmailInput(value);
   }, []);
@@ -164,7 +226,7 @@ export function ForgotPasswordScreen({
     setConfirmPasswordInput(value);
   }, []);
   const isEmailStepReady = isAuthEmailSubmitReady(emailInput);
-  const isCodeStepReady = isAuthOtpSubmitReady(codeInput);
+  const isCodeStepReady = codeInput.trim().length === 8;
   const isPasswordStepReady = isAuthPasswordResetSubmitReady(
     passwordInput,
     confirmPasswordInput,
@@ -286,146 +348,293 @@ export function ForgotPasswordScreen({
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: getModalHeaderTopInset(insets.top) },
-      ]}
-      contentInsetAdjustmentBehavior="never"
-      keyboardShouldPersistTaps="handled"
-      style={styles.screen}
-    >
-      <View style={styles.modalHeader}>
-        <ModalBackButton align="leading" onPress={onBack} />
-      </View>
+    <View style={styles.screen}>
+      <AuthBackButtonOverlay onBack={onBack} />
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            minHeight: scrollMinHeight,
+            paddingBottom: insets.bottom + spacing.lg,
+          },
+        ]}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        style={styles.screen}
+      >
+        <AuthWordmarkBand variant="utility" />
+        <View style={[styles.shell, { paddingTop: contentInset }]}>
+          <View style={styles.headlineBlock}>
+            {step === 'code' ? (
+              <>
+                <Text
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.9}
+                  numberOfLines={1}
+                  style={[
+                    styles.title,
+                    {
+                      fontSize: titleMetrics.fontSize,
+                      lineHeight: titleMetrics.lineHeight,
+                    },
+                  ]}
+                >
+                  {t('signIn.forgotPasswordCodeTitle')}
+                </Text>
+                <Text
+                  style={[
+                    styles.body,
+                    { marginTop: layoutMetrics.titleToCopyGap },
+                  ]}
+                >
+                  {t('signIn.forgotPasswordCodeBodyPrefix')}
+                </Text>
+                <Text
+                  accessibilityLabel={codeEmail}
+                  style={[styles.bodyEmail, { marginTop: spacing.xs }]}
+                >
+                  {codeEmail}.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.9}
+                  numberOfLines={1}
+                  style={[
+                    styles.title,
+                    {
+                      fontSize: titleMetrics.fontSize,
+                      lineHeight: titleMetrics.lineHeight,
+                    },
+                  ]}
+                >
+                  {t('signIn.forgotPasswordTitle')}
+                </Text>
+                {step === 'email' ? (
+                  <Text
+                    style={[
+                      styles.body,
+                      { marginTop: layoutMetrics.titleToCopyGap },
+                    ]}
+                  >
+                    {t('signIn.forgotPasswordBody')}
+                  </Text>
+                ) : null}
+              </>
+            )}
+          </View>
 
-      <Text style={styles.title}>{t('signIn.forgotPasswordTitle')}</Text>
-      <Text style={styles.body}>{t('signIn.forgotPasswordBody')}</Text>
+          {step === 'email' ? (
+            <View
+              style={[styles.form, { marginTop: layoutMetrics.copyToFormGap }]}
+            >
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>
+                  {t('signIn.emailAddressLabel')}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.inputShell,
+                  { minHeight: layoutMetrics.inputHeight },
+                ]}
+              >
+                <AuthFormTextInput
+                  kind="email"
+                  blurOnSubmit={false}
+                  keyboardDismissAccessory={false}
+                  placeholder={t('account.emailPlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  returnKeyType="done"
+                  style={[
+                    styles.input,
+                    { minHeight: layoutMetrics.inputHeight - 2 },
+                  ]}
+                  valueRef={emailRef}
+                  onValueChange={handleEmailChange}
+                  onSubmitEditing={() => void handleSendCode()}
+                />
+              </View>
+              {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
+              <PrimaryButton
+                disabled={isSubmitting || !isEmailStepReady}
+                label={
+                  isSubmitting
+                    ? t('account.sendingCode')
+                    : t('signIn.forgotPasswordSendCode')
+                }
+                minHeight={layoutMetrics.primaryButtonHeight}
+                style={{ marginTop: layoutMetrics.inputToButtonGap }}
+                onPress={() => void handleSendCode()}
+              />
+            </View>
+          ) : step === 'code' ? (
+            <View
+              style={[styles.form, { marginTop: layoutMetrics.copyToFormGap }]}
+            >
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>{t('account.codeLabel')}</Text>
+              </View>
+              <View
+                style={[
+                  styles.inputShell,
+                  { minHeight: layoutMetrics.inputHeight },
+                ]}
+              >
+                <AuthFormTextInput
+                  key="password-reset-code"
+                  kind="code"
+                  accessibilityHint={t('account.codePlaceholder')}
+                  accessibilityLabel={t('account.codeLabel')}
+                  autoFocus
+                  placeholder={t('account.codePlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  style={[
+                    styles.input,
+                    { minHeight: layoutMetrics.inputHeight - 2 },
+                  ]}
+                  valueRef={codeRef}
+                  onValueChange={handleCodeChange}
+                />
+              </View>
+              {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
+              <PrimaryButton
+                disabled={isSubmitting || !isCodeStepReady}
+                label={
+                  isSubmitting
+                    ? t('account.verifying')
+                    : t('signIn.forgotPasswordVerifyCode')
+                }
+                minHeight={layoutMetrics.primaryButtonHeight}
+                style={{ marginTop: layoutMetrics.inputToButtonGap }}
+                onPress={() => void handleVerifyCode()}
+              />
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={t('account.useDifferentEmail')}
+                hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                style={styles.quietLinkAction}
+                onPress={() => {
+                  setStep('email');
+                  codeRef.current = '';
+                  setCodeInput('');
+                  setErrorMessage(null);
+                }}
+              >
+                <Text style={styles.quietLinkText}>
+                  {t('account.useDifferentEmail')}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View
+              style={[styles.form, { marginTop: layoutMetrics.copyToFormGap }]}
+            >
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>
+                  {t('account.passwordLabel')}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.inputShell,
+                  { minHeight: layoutMetrics.inputHeight },
+                ]}
+              >
+                <AuthFormTextInput
+                  key="password-reset-new-password"
+                  ref={passwordInputRef}
+                  kind="newPassword"
+                  autoFocus
+                  blurOnSubmit={false}
+                  keyboardDismissAccessory={false}
+                  placeholder={t('account.passwordPlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  returnKeyType="next"
+                  style={[
+                    styles.input,
+                    { minHeight: layoutMetrics.inputHeight - 2 },
+                  ]}
+                  valueRef={passwordRef}
+                  onValueChange={handlePasswordChange}
+                  onSubmitEditing={() =>
+                    confirmPasswordInputRef.current?.focus()
+                  }
+                />
+              </View>
+              <View
+                style={[
+                  styles.labelRow,
+                  { marginTop: layoutMetrics.formFieldGap },
+                ]}
+              >
+                <Text style={styles.fieldLabel}>
+                  {t('account.confirmPasswordLabel')}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.inputShell,
+                  { minHeight: layoutMetrics.inputHeight },
+                ]}
+              >
+                <AuthFormTextInput
+                  ref={confirmPasswordInputRef}
+                  kind="confirmPassword"
+                  keyboardDismissAccessory={false}
+                  placeholder={t('account.confirmPasswordPlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  returnKeyType="done"
+                  style={[
+                    styles.input,
+                    { minHeight: layoutMetrics.inputHeight - 2 },
+                  ]}
+                  valueRef={confirmPasswordRef}
+                  onValueChange={handleConfirmPasswordChange}
+                  onSubmitEditing={() => void handleSavePassword()}
+                />
+              </View>
+              {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
+              <PrimaryButton
+                disabled={isSubmitting || !isPasswordStepReady}
+                label={
+                  isSubmitting
+                    ? t('signIn.forgotPasswordSaving')
+                    : t('signIn.forgotPasswordSave')
+                }
+                minHeight={layoutMetrics.primaryButtonHeight}
+                style={{ marginTop: layoutMetrics.inputToButtonGap }}
+                onPress={() => void handleSavePassword()}
+              />
+            </View>
+          )}
 
-      {step === 'email' ? (
-        <>
-          <Text style={styles.fieldLabel}>{t('account.emailLabel')}</Text>
-          <AuthFormTextInput
-            kind="email"
-            blurOnSubmit={false}
-            placeholder={t('account.emailPlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            returnKeyType="done"
-            style={styles.input}
-            valueRef={emailRef}
-            onValueChange={handleEmailChange}
-            onSubmitEditing={() => void handleSendCode()}
-          />
-          {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
-          <PrimaryButton
-            disabled={isSubmitting || !isEmailStepReady}
-            label={
-              isSubmitting
-                ? t('account.sendingCode')
-                : t('signIn.forgotPasswordSendCode')
-            }
-            onPress={() => void handleSendCode()}
-          />
-        </>
-      ) : step === 'code' ? (
-        <>
-          <Text style={styles.fieldLabel}>{t('account.codeLabel')}</Text>
-          <Text style={styles.codeHint}>
-            {t('account.codeHint', { email: codeEmail })}
-          </Text>
-          <AuthFormTextInput
-            kind="code"
-            placeholder={t('account.codePlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-            valueRef={codeRef}
-            onValueChange={handleCodeChange}
-          />
-          {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
-          <PrimaryButton
-            disabled={isSubmitting || !isCodeStepReady}
-            label={
-              isSubmitting
-                ? t('account.verifying')
-                : t('signIn.forgotPasswordVerifyCode')
-            }
-            onPress={() => void handleVerifyCode()}
-          />
-          <Pressable
-            accessibilityRole="button"
-            style={styles.secondaryAction}
-            onPress={() => {
-              setStep('email');
-              codeRef.current = '';
-              setCodeInput('');
-              setErrorMessage(null);
-            }}
-          >
-            <Text style={styles.secondaryActionText}>
-              {t('account.useDifferentEmail')}
-            </Text>
-          </Pressable>
-        </>
-      ) : (
-        <>
-          <Text style={styles.fieldLabel}>{t('account.passwordLabel')}</Text>
-          <AuthFormTextInput
-            ref={passwordInputRef}
-            kind="newPassword"
-            blurOnSubmit={false}
-            placeholder={t('account.passwordPlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            returnKeyType="done"
-            style={styles.input}
-            valueRef={passwordRef}
-            onValueChange={handlePasswordChange}
-            onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
-          />
-          <Text style={styles.fieldLabel}>
-            {t('account.confirmPasswordLabel')}
-          </Text>
-          <AuthFormTextInput
-            ref={confirmPasswordInputRef}
-            kind="confirmPassword"
-            placeholder={t('account.confirmPasswordPlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            returnKeyType="done"
-            style={styles.input}
-            valueRef={confirmPasswordRef}
-            onValueChange={handleConfirmPasswordChange}
-            onSubmitEditing={() => void handleSavePassword()}
-          />
-          {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
-          <PrimaryButton
-            disabled={isSubmitting || !isPasswordStepReady}
-            label={
-              isSubmitting
-                ? t('signIn.forgotPasswordSaving')
-                : t('signIn.forgotPasswordSave')
-            }
-            onPress={() => void handleSavePassword()}
-          />
-        </>
-      )}
-
-      {isSubmitting ? (
-        <ActivityIndicator
-          color={colors.accent}
-          style={{ marginTop: spacing.lg }}
-        />
-      ) : null}
-    </ScrollView>
+          {isSubmitting ? (
+            <ActivityIndicator
+              color={colors.accent}
+              style={{ marginTop: spacing.md }}
+            />
+          ) : null}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 function PrimaryButton({
   disabled,
   label,
+  minHeight,
   onPress,
+  style,
 }: {
   disabled: boolean;
   label: string;
+  minHeight?: number;
   onPress: () => void;
+  style?: { marginTop?: number };
 }) {
   const styles = useThemedStyles(createForgotPasswordScreenStyles);
 
@@ -433,10 +642,22 @@ function PrimaryButton({
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
-      style={[styles.primaryButton, disabled && styles.primaryButtonDisabled]}
+      style={[
+        styles.primaryButton,
+        minHeight ? { minHeight } : null,
+        style,
+        disabled && styles.primaryButtonDisabled,
+      ]}
       onPress={onPress}
     >
-      <Text style={styles.primaryButtonText}>{label}</Text>
+      <Text
+        style={[
+          styles.primaryButtonText,
+          disabled && styles.primaryButtonTextDisabled,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }

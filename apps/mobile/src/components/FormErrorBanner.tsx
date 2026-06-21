@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 
 import { spacing } from '@/constants/theme';
 import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
@@ -8,21 +8,12 @@ function createFormErrorBannerStyles({
   getFontFamily,
 }: AppearanceContextValue) {
   return {
-    banner: {
-      backgroundColor: colors.surface,
-      borderColor: colors.destructive,
-      borderRadius: 12,
-      borderWidth: 1,
-      marginBottom: spacing.sm,
-      marginTop: spacing.lg,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-    },
     text: {
       color: colors.destructive,
       fontFamily: getFontFamily('400'),
       fontSize: 14,
       lineHeight: 20,
+      marginTop: spacing.sm,
     },
   };
 }
@@ -35,12 +26,12 @@ export function FormErrorBanner({ message }: FormErrorBannerProps) {
   const styles = useThemedStyles(createFormErrorBannerStyles);
 
   return (
-    <View
+    <Text
       accessibilityLiveRegion="polite"
       accessibilityRole="alert"
-      style={styles.banner}
+      style={styles.text}
     >
-      <Text style={styles.text}>{message}</Text>
-    </View>
+      {message}
+    </Text>
   );
 }

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import {
   Pressable,
   Text,
@@ -7,13 +6,10 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { AuthButtonIcon } from '@/components/AuthButtonIcon';
 import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
-import {
-  useAppearance,
-  useThemedStyles,
-  type AppearanceContextValue,
-} from '@/lib/appearance';
+import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 import { useAppleSignInAvailability } from '@/modules/auth/appleNativeAuth';
 
 function createStyles({ colors, getFontFamily }: AppearanceContextValue) {
@@ -22,7 +18,6 @@ function createStyles({ colors, getFontFamily }: AppearanceContextValue) {
       flexDirection: 'row' as const,
       gap: spacing.md,
       justifyContent: 'center' as const,
-      marginTop: spacing.lg,
     },
     labeledStack: {
       gap: spacing.sm,
@@ -30,19 +25,19 @@ function createStyles({ colors, getFontFamily }: AppearanceContextValue) {
     },
     button: {
       alignItems: 'center' as const,
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
+      backgroundColor: 'rgba(255, 253, 249, 0.5)',
+      borderColor: colors.timelineDivider,
       borderRadius: 26,
       borderWidth: 1,
+      boxShadow: '0 4px 10px rgba(21, 20, 18, 0.06)',
       height: 52,
       justifyContent: 'center' as const,
-      opacity: 0.72,
       width: 52,
     },
     labeledButton: {
       alignItems: 'center' as const,
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
+      backgroundColor: 'rgba(255, 253, 249, 0.5)',
+      borderColor: colors.timelineDivider,
       borderRadius: 999,
       borderWidth: 1,
       flexDirection: 'row' as const,
@@ -65,15 +60,16 @@ function createStyles({ colors, getFontFamily }: AppearanceContextValue) {
 export function SocialSignInControls({
   style,
   variant = 'icons',
+  iconOrder = 'google-apple',
   onGooglePress,
   onApplePress,
 }: {
   style?: StyleProp<ViewStyle>;
   variant?: 'icons' | 'labeled';
+  iconOrder?: 'apple-google' | 'google-apple';
   onGooglePress?: () => void;
   onApplePress?: () => void;
 }) {
-  const { colors } = useAppearance();
   const styles = useThemedStyles(createStyles);
   const isAppleAvailable = useAppleSignInAvailability();
   const canUseApple = Boolean(onApplePress && isAppleAvailable);
@@ -82,27 +78,27 @@ export function SocialSignInControls({
     return (
       <View style={[styles.labeledStack, style]}>
         <Pressable
-          accessibilityLabel={t('signIn.signInWithGoogle')}
+          accessibilityLabel={t('onboarding.continueWithGoogle')}
           accessibilityRole="button"
           accessibilityState={{ disabled: !onGooglePress }}
           disabled={!onGooglePress}
           style={styles.labeledButton}
           onPress={onGooglePress}
         >
-          <Ionicons color={colors.text} name="logo-google" size={20} />
+          <AuthButtonIcon kind="google" size={22} />
           <Text style={styles.labeledButtonText}>
             {t('onboarding.continueWithGoogle')}
           </Text>
         </Pressable>
         <Pressable
-          accessibilityLabel={t('signIn.signInWithApple')}
+          accessibilityLabel={t('onboarding.continueWithApple')}
           accessibilityRole="button"
           accessibilityState={{ disabled: !canUseApple }}
           disabled={!canUseApple}
           style={styles.labeledButton}
           onPress={onApplePress}
         >
-          <Ionicons color={colors.text} name="logo-apple" size={20} />
+          <AuthButtonIcon kind="apple" size={23} />
           <Text style={styles.labeledButtonText}>
             {t('onboarding.continueWithApple')}
           </Text>
@@ -111,28 +107,36 @@ export function SocialSignInControls({
     );
   }
 
-  return (
-    <View style={[styles.row, style]}>
-      <Pressable
-        accessibilityLabel={t('signIn.signInWithGoogle')}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !onGooglePress }}
-        disabled={!onGooglePress}
-        style={styles.button}
-        onPress={onGooglePress}
-      >
-        <Ionicons color={colors.text} name="logo-google" size={24} />
-      </Pressable>
-      <Pressable
-        accessibilityLabel={t('signIn.signInWithApple')}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !canUseApple }}
-        disabled={!canUseApple}
-        style={styles.button}
-        onPress={onApplePress}
-      >
-        <Ionicons color={colors.text} name="logo-apple" size={24} />
-      </Pressable>
-    </View>
+  const appleButton = (
+    <Pressable
+      key="apple"
+      accessibilityLabel={t('onboarding.continueWithApple')}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !canUseApple }}
+      disabled={!canUseApple}
+      style={styles.button}
+      onPress={onApplePress}
+    >
+      <AuthButtonIcon kind="apple" size={22} slotSize={26} />
+    </Pressable>
   );
+  const googleButton = (
+    <Pressable
+      key="google"
+      accessibilityLabel={t('onboarding.continueWithGoogle')}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !onGooglePress }}
+      disabled={!onGooglePress}
+      style={styles.button}
+      onPress={onGooglePress}
+    >
+      <AuthButtonIcon kind="google" size={19} slotSize={26} />
+    </Pressable>
+  );
+  const buttons =
+    iconOrder === 'apple-google'
+      ? [appleButton, googleButton]
+      : [googleButton, appleButton];
+
+  return <View style={[styles.row, style]}>{buttons}</View>;
 }

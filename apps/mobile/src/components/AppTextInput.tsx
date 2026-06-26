@@ -30,15 +30,18 @@ export function getAppTextInputKeyboardProps({
   }
 
   return {
-    returnKeyType: returnKeyType ?? 'done',
-    blurOnSubmit: blurOnSubmit ?? true,
+    ...(returnKeyType !== undefined || !multiline
+      ? { returnKeyType: returnKeyType ?? 'done' }
+      : {}),
+    blurOnSubmit: blurOnSubmit ?? !multiline,
   };
 }
 
 export type AppTextInputProps = TextInputProps & {
   /**
-   * When true (default), fields use returnKeyType "done" and an iOS Done toolbar.
-   * Set false for auth email/password fields that use next/done return keys explicitly.
+   * When true (default), fields use an iOS Done toolbar and Android fallback bar.
+   * Single-line fields default to a Done return key; multiline fields keep Return
+   * for new lines and use the toolbar/bar for dismissal.
    */
   keyboardDismissAccessory?: boolean;
 };

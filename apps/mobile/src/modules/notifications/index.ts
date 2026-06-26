@@ -16,6 +16,11 @@ export {
   runNotificationSyncPass,
   type RunNotificationSyncPassResult,
 } from './syncNotifications';
+export {
+  hydrateNotificationPreferences,
+  updateNotificationPreference,
+  useNotificationPreferences,
+} from './notificationPreferences';
 export { useNotificationsInbox } from './useNotificationsInbox';
 export { useUnreadNotificationsCount } from './useUnreadNotificationsCount';
 export {

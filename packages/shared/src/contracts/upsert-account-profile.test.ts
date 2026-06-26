@@ -81,6 +81,7 @@ describe('normalizeUpsertAccountProfileResponse', () => {
       preferred_locale: 'en',
       preferred_theme: null,
       preferred_font_style: null,
+      notification_preferences: null,
       created: true,
       updated_at: '2026-05-19T00:00:00.000Z',
     });

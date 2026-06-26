@@ -4,6 +4,7 @@ export type UpsertAccountProfileRequest = {
   preferred_locale?: string | null;
   preferred_theme?: string | null;
   preferred_font_style?: string | null;
+  notification_preferences?: string | null;
 };
 
 /** Success response from upsert-account-profile */
@@ -13,6 +14,7 @@ export type UpsertAccountProfileResponse = {
   preferred_locale: string | null;
   preferred_theme: string | null;
   preferred_font_style: string | null;
+  notification_preferences: string | null;
   created: boolean;
   updated_at: string;
 };
@@ -48,12 +50,17 @@ export function parseUpsertAccountProfileRequest(
     body,
     'preferred_font_style',
   );
+  const notificationPreferences = readOptionalStringField(
+    body,
+    'notification_preferences',
+  );
 
   if (
     displayName === null ||
     preferredLocale === null ||
     preferredTheme === null ||
-    preferredFontStyle === null
+    preferredFontStyle === null ||
+    notificationPreferences === null
   ) {
     return null;
   }
@@ -62,12 +69,14 @@ export function parseUpsertAccountProfileRequest(
   const hasPreferredLocale = preferredLocale !== undefined;
   const hasPreferredTheme = preferredTheme !== undefined;
   const hasPreferredFontStyle = preferredFontStyle !== undefined;
+  const hasNotificationPreferences = notificationPreferences !== undefined;
 
   if (
     !hasDisplayName &&
     !hasPreferredLocale &&
     !hasPreferredTheme &&
-    !hasPreferredFontStyle
+    !hasPreferredFontStyle &&
+    !hasNotificationPreferences
   ) {
     return null;
   }
@@ -88,6 +97,10 @@ export function parseUpsertAccountProfileRequest(
 
   if (hasPreferredFontStyle) {
     request.preferred_font_style = preferredFontStyle;
+  }
+
+  if (hasNotificationPreferences) {
+    request.notification_preferences = notificationPreferences;
   }
 
   return request;
@@ -116,7 +129,8 @@ export function isUpsertAccountProfileResponse(
     !isOptionalStringField(Reflect.get(value, 'display_name')) ||
     !isOptionalStringField(Reflect.get(value, 'preferred_locale')) ||
     !isOptionalStringField(Reflect.get(value, 'preferred_theme')) ||
-    !isOptionalStringField(Reflect.get(value, 'preferred_font_style'))
+    !isOptionalStringField(Reflect.get(value, 'preferred_font_style')) ||
+    !isOptionalStringField(Reflect.get(value, 'notification_preferences'))
   ) {
     return false;
   }
@@ -141,6 +155,8 @@ export function normalizeUpsertAccountProfileResponse(
       (Reflect.get(value, 'preferred_theme') as string | null) ?? null,
     preferred_font_style:
       (Reflect.get(value, 'preferred_font_style') as string | null) ?? null,
+    notification_preferences:
+      (Reflect.get(value, 'notification_preferences') as string | null) ?? null,
     created: Reflect.get(value, 'created') as boolean,
     updated_at: Reflect.get(value, 'updated_at') as string,
   };

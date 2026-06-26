@@ -37,6 +37,7 @@ describe('resolveUpsertAccountProfile', () => {
       preferredLocale: 'zh-Hans',
       preferredTheme: 'dark',
       preferredFontStyle: 'rounded',
+      notificationPreferences: null,
       created: true,
     });
   });
@@ -90,6 +91,7 @@ describe('resolveUpsertAccountProfile', () => {
       preferredLocale: 'zh-Hans',
       preferredTheme: 'dark',
       preferredFontStyle: 'serif',
+      notificationPreferences: null,
       created: false,
     });
   });

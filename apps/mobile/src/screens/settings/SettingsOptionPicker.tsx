@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View, type TextStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type TextStyle,
+} from 'react-native';
 
 import {
   DismissibleDropdownMenu,
@@ -18,20 +24,24 @@ export type SettingsPickerOption<T extends string> = {
 
 export type SettingsOptionPickerProps<T extends string> = {
   accessibilityLabel: string;
+  label?: string;
   onSelect: (value: T) => void;
   options: readonly SettingsPickerOption<T>[];
   selectedLabel: string;
   selectedLabelStyle?: TextStyle;
   selectedValue: T;
+  showDivider?: boolean;
 };
 
 export function SettingsOptionPicker<T extends string>({
   accessibilityLabel,
+  label,
   onSelect,
   options,
   selectedLabel,
   selectedLabelStyle,
   selectedValue,
+  showDivider = false,
 }: SettingsOptionPickerProps<T>) {
   const { colors } = useAppearance();
   const [isOpen, setIsOpen] = useState(false);
@@ -40,14 +50,14 @@ export function SettingsOptionPicker<T extends string>({
   const styles = useThemedStyles(({ colors: palette, getFontFamily }) => ({
     anchor: {
       alignSelf: 'stretch',
+      position: 'relative',
     },
     row: {
       alignItems: 'center',
-      borderBottomColor: palette.border,
-      borderBottomWidth: 1,
       flexDirection: 'row',
+      minHeight: 52,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
+      paddingVertical: 0,
     },
     rowPressed: {
       backgroundColor: palette.background,
@@ -55,15 +65,35 @@ export function SettingsOptionPicker<T extends string>({
     rowSelected: {
       backgroundColor: palette.background,
     },
+    rowDivider: {
+      backgroundColor: palette.border,
+      bottom: 0,
+      height: StyleSheet.hairlineWidth,
+      left: spacing.md,
+      position: 'absolute',
+      right: spacing.md,
+    },
     rowLabel: {
       color: palette.text,
       flex: 1,
-      fontFamily: getFontFamily('600'),
-      fontSize: 16,
-      fontWeight: '600',
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      fontWeight: '400',
+      lineHeight: 20,
     },
     selection: {
       flex: 1,
+    },
+    rowValue: {
+      color: palette.textMuted,
+      flexShrink: 1,
+      fontFamily: getFontFamily('400'),
+      fontSize: 15,
+      fontWeight: '400',
+      lineHeight: 20,
+      marginLeft: spacing.md,
+      maxWidth: 120,
+      textAlign: 'right',
     },
     chevronWrap: {
       alignItems: 'center',
@@ -75,18 +105,24 @@ export function SettingsOptionPicker<T extends string>({
     optionsCard: {
       backgroundColor: palette.surface,
       borderColor: palette.border,
-      borderRadius: 12,
+      borderRadius: 16,
       borderWidth: 1,
-      minWidth: 220,
+      elevation: 8,
+      minWidth: 280,
       overflow: 'hidden',
+      shadowColor: palette.shadow,
+      shadowOffset: { height: 10, width: 0 },
+      shadowOpacity: 0.16,
+      shadowRadius: 24,
     },
     optionRow: {
       alignItems: 'center',
       borderBottomColor: palette.border,
-      borderBottomWidth: 1,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       flexDirection: 'row',
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
+      minHeight: 52,
+      paddingHorizontal: 20,
+      paddingVertical: 0,
     },
     optionRowLast: {
       borderBottomWidth: 0,
@@ -94,10 +130,11 @@ export function SettingsOptionPicker<T extends string>({
     check: {
       color: palette.accent,
       fontFamily: getFontFamily('700'),
-      fontSize: 20,
+      fontSize: 18,
       fontWeight: '700',
+      lineHeight: 24,
       marginLeft: spacing.sm,
-      minWidth: 16,
+      minWidth: 20,
       textAlign: 'center',
     },
   }));
@@ -129,22 +166,36 @@ export function SettingsOptionPicker<T extends string>({
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
           onPress={toggleOpen}
         >
-          <Text style={[styles.rowLabel, styles.selection, selectedLabelStyle]}>
-            {selectedLabel}
-          </Text>
+          {label ? (
+            <>
+              <Text style={styles.rowLabel}>{label}</Text>
+              <Text style={[styles.rowValue, selectedLabelStyle]}>
+                {selectedLabel}
+              </Text>
+            </>
+          ) : (
+            <Text
+              style={[styles.rowLabel, styles.selection, selectedLabelStyle]}
+            >
+              {selectedLabel}
+            </Text>
+          )}
           <View style={styles.chevronWrap}>
             <Ionicons
               color={colors.textMuted}
-              name={isOpen ? 'chevron-up' : 'chevron-down'}
+              name={isOpen ? 'chevron-down' : 'chevron-forward'}
               size={20}
             />
           </View>
         </Pressable>
+        {showDivider ? <View style={styles.rowDivider} /> : null}
       </View>
 
       <DismissibleDropdownMenu
         anchor={anchor}
+        menuWidth={280}
         minMenuWidth={220}
+        placement="center"
         visible={isOpen}
         onDismiss={close}
       >

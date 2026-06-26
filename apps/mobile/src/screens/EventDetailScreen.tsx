@@ -144,8 +144,8 @@ function createEventDetailScreenStyles({
     },
     captionInput: {
       marginTop: spacing.sm,
-      minHeight: 112,
-      borderRadius: 12,
+      minHeight: 96,
+      borderRadius: 18,
       borderWidth: 1,
       borderColor: colors.border,
       paddingHorizontal: spacing.md,
@@ -153,9 +153,13 @@ function createEventDetailScreenStyles({
       backgroundColor: colors.surface,
       color: colors.text,
       fontFamily: getFontFamily('400'),
-      fontSize: 17,
-      lineHeight: 24,
+      fontSize: 15,
+      lineHeight: 20,
       textAlignVertical: 'top' as const,
+    },
+    captionInputFocused: {
+      borderColor: colors.text,
+      borderWidth: 2,
     },
     captionHint: {
       marginTop: spacing.sm,
@@ -180,6 +184,7 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
   const headerHeight = getModalHeaderHeight(insets.top);
   const detail = useEventDetail(localEventId);
   const [captionDraft, setCaptionDraft] = useState('');
+  const [captionFocused, setCaptionFocused] = useState(false);
   const { colors } = useAppearance();
   const styles = useThemedStyles(createEventDetailScreenStyles);
 
@@ -253,10 +258,12 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
   return (
     <View style={styles.screen}>
       <ScrollView
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={[
           styles.scrollContent,
           { paddingTop: headerHeight },
         ]}
+        keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         style={styles.scroll}
       >
@@ -311,9 +318,13 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
           multiline
           placeholder={t('eventDetail.captionPlaceholder')}
           placeholderTextColor={colors.textMuted}
-          style={styles.captionInput}
+          style={[
+            styles.captionInput,
+            captionFocused && styles.captionInputFocused,
+          ]}
           value={captionDraft}
           onChangeText={setCaptionDraft}
+          onBlur={() => setCaptionFocused(false)}
           onEndEditing={() => {
             const trimmed = captionDraft.trim();
             const nextCaption = trimmed.length > 0 ? trimmed : null;
@@ -324,6 +335,7 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
 
             void detail.saveUpdate({ caption: nextCaption });
           }}
+          onFocus={() => setCaptionFocused(true)}
         />
         <Text style={styles.captionHint}>
           {event.caption

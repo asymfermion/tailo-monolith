@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, Text, TextInput } from 'react-native';
 
 import { AppTextInput } from '@/components/AppTextInput';
+import { FormErrorBanner } from '@/components/FormErrorBanner';
+import { InputShell } from '@/components/InputShell';
 import { getAuthFormFieldProps } from '@/components/authFormFieldProps';
 import { spacing } from '@/constants/theme';
 import { getAppLocale } from '@/i18n/locale';
@@ -51,6 +53,11 @@ export function ConnectedAccountProfileForm({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const displayNameInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const confirmPasswordInputRef = useRef<TextInput>(null);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<string | null>(null);
   const { colors } = useAppearance();
   const styles = useThemedStyles(createAccountSettingsStyles);
 
@@ -103,6 +110,8 @@ export function ConnectedAccountProfileForm({
           normalizeAccountProfileDisplayName(profile.displayName)
       ) {
         setErrorMessage(t('account.errors.displayNameRequired'));
+        setErrorField('displayName');
+        displayNameInputRef.current?.focus();
       }
 
       return;
@@ -156,12 +165,20 @@ export function ConnectedAccountProfileForm({
         password,
         confirmPassword,
       );
+      const nextErrorField =
+        blockReason === 'mismatch' ? 'confirmPassword' : 'password';
 
       setErrorMessage(
         blockReason === 'mismatch'
           ? t('account.errors.passwordMismatch')
           : t('account.errors.passwordWeak'),
       );
+      setErrorField(nextErrorField);
+      if (nextErrorField === 'confirmPassword') {
+        confirmPasswordInputRef.current?.focus();
+      } else {
+        passwordInputRef.current?.focus();
+      }
       return;
     }
 
@@ -196,28 +213,54 @@ export function ConnectedAccountProfileForm({
         <Text style={styles.title}>{t('account.passwordSetupTitle')}</Text>
         <Text style={styles.body}>{t('account.passwordSetupBody')}</Text>
         <Text style={styles.fieldLabel}>{t('account.passwordLabel')}</Text>
-        <AppTextInput
-          {...getAuthFormFieldProps('newPassword')}
-          blurOnSubmit={false}
-          placeholder={t('account.passwordPlaceholder')}
-          placeholderTextColor={colors.textMuted}
-          returnKeyType="done"
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-        />
+        <InputShell
+          hasError={errorField === 'password'}
+          isFocused={focusedField === 'password'}
+        >
+          <AppTextInput
+            ref={passwordInputRef}
+            {...getAuthFormFieldProps('newPassword')}
+            blurOnSubmit={false}
+            placeholder={t('account.passwordPlaceholder')}
+            placeholderTextColor={colors.textMuted}
+            returnKeyType="next"
+            style={styles.input}
+            value={password}
+            onChangeText={(value) => {
+              setErrorField((field) => (field === 'password' ? null : field));
+              setPassword(value);
+            }}
+            onFocus={() => setFocusedField('password')}
+            onBlur={() => setFocusedField(null)}
+            onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
+          />
+        </InputShell>
         <Text style={styles.fieldLabel}>
           {t('account.confirmPasswordLabel')}
         </Text>
-        <AppTextInput
-          {...getAuthFormFieldProps('confirmPassword')}
-          placeholder={t('account.confirmPasswordPlaceholder')}
-          placeholderTextColor={colors.textMuted}
-          returnKeyType="done"
-          style={styles.input}
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-        />
+        <InputShell
+          hasError={errorField === 'confirmPassword'}
+          isFocused={focusedField === 'confirmPassword'}
+        >
+          <AppTextInput
+            ref={confirmPasswordInputRef}
+            {...getAuthFormFieldProps('confirmPassword')}
+            placeholder={t('account.confirmPasswordPlaceholder')}
+            placeholderTextColor={colors.textMuted}
+            returnKeyType="done"
+            style={styles.input}
+            value={confirmPassword}
+            onChangeText={(value) => {
+              setErrorField((field) =>
+                field === 'confirmPassword' ? null : field,
+              );
+              setConfirmPassword(value);
+            }}
+            onFocus={() => setFocusedField('confirmPassword')}
+            onBlur={() => setFocusedField(null)}
+            onSubmitEditing={() => void handleSavePassword()}
+          />
+        </InputShell>
         <PrimaryButton
           disabled={isSubmitting || !canSavePassword}
           label={
@@ -242,9 +285,7 @@ export function ConnectedAccountProfileForm({
             {t('account.backToProfile')}
           </Text>
         </Pressable>
-        {errorMessage ? (
-          <Text style={styles.errorText}>{errorMessage}</Text>
-        ) : null}
+        {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
       </>
     );
   }
@@ -268,15 +309,30 @@ export function ConnectedAccountProfileForm({
           <Text style={styles.fieldLabel}>
             {t('account.profileDisplayNameLabel')}
           </Text>
-          <AppTextInput
-            autoCapitalize="words"
-            autoCorrect={false}
-            placeholder={t('account.profileDisplayNamePlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-            value={displayName}
-            onChangeText={setDisplayName}
-          />
+          <InputShell
+            hasError={errorField === 'displayName'}
+            isFocused={focusedField === 'displayName'}
+          >
+            <AppTextInput
+              ref={displayNameInputRef}
+              autoCapitalize="words"
+              autoCorrect={false}
+              placeholder={t('account.profileDisplayNamePlaceholder')}
+              placeholderTextColor={colors.textMuted}
+              returnKeyType="done"
+              style={styles.input}
+              value={displayName}
+              onChangeText={(value) => {
+                setErrorField((field) =>
+                  field === 'displayName' ? null : field,
+                );
+                setDisplayName(value);
+              }}
+              onFocus={() => setFocusedField('displayName')}
+              onBlur={() => setFocusedField(null)}
+              onSubmitEditing={() => void handleSaveProfile()}
+            />
+          </InputShell>
           <PrimaryButton
             disabled={isSubmitting || !canSaveProfile}
             label={
@@ -307,9 +363,7 @@ export function ConnectedAccountProfileForm({
       {successMessage ? (
         <Text style={styles.successText}>{successMessage}</Text>
       ) : null}
-      {errorMessage ? (
-        <Text style={styles.errorText}>{errorMessage}</Text>
-      ) : null}
+      {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
     </>
   );
 }

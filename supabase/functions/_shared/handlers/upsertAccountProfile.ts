@@ -31,7 +31,7 @@ export const handleUpsertAccountProfile: ApiHandler = async ({
   const { data: existingRow, error: lookupError } = await adminClient
     .from('account_profiles')
     .select(
-      'app_user_id, display_name, preferred_locale, preferred_theme, preferred_font_style',
+      'app_user_id, display_name, preferred_locale, preferred_theme, preferred_font_style, notification_preferences',
     )
     .eq('app_user_id', appUser.appUserId)
     .maybeSingle();
@@ -60,6 +60,10 @@ export const handleUpsertAccountProfile: ApiHandler = async ({
     input.preferredFontStyle = body.preferred_font_style;
   }
 
+  if (body.notification_preferences !== undefined) {
+    input.notificationPreferences = body.notification_preferences;
+  }
+
   const decision = resolveUpsertAccountProfile(
     input,
     existingRow
@@ -69,6 +73,7 @@ export const handleUpsertAccountProfile: ApiHandler = async ({
           preferredLocale: existingRow.preferred_locale,
           preferredTheme: existingRow.preferred_theme,
           preferredFontStyle: existingRow.preferred_font_style,
+          notificationPreferences: existingRow.notification_preferences,
         }
       : null,
   );
@@ -88,6 +93,7 @@ export const handleUpsertAccountProfile: ApiHandler = async ({
         preferred_locale: decision.preferredLocale,
         preferred_theme: decision.preferredTheme,
         preferred_font_style: decision.preferredFontStyle,
+        notification_preferences: decision.notificationPreferences,
         updated_at: now,
       },
       { onConflict: 'app_user_id' },
@@ -108,6 +114,7 @@ export const handleUpsertAccountProfile: ApiHandler = async ({
     preferred_locale: decision.preferredLocale,
     preferred_theme: decision.preferredTheme,
     preferred_font_style: decision.preferredFontStyle,
+    notification_preferences: decision.notificationPreferences,
     created: decision.created,
     updated_at: now,
   };

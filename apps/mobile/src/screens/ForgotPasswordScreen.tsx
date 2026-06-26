@@ -16,7 +16,7 @@ import {
 } from '@/components/AuthHeader';
 import { AuthFormTextInput } from '@/components/AuthFormTextInput';
 import { FormErrorBanner } from '@/components/FormErrorBanner';
-import { useSuppressKeyboardDismissBar } from '@/components/KeyboardDismissAccessory';
+import { InputShell } from '@/components/InputShell';
 import { spacing } from '@/constants/theme';
 import { getFontFamilyForStyle } from '@/constants/typography';
 import { t } from '@/i18n';
@@ -106,9 +106,9 @@ function createForgotPasswordScreenStyles({
     },
     fieldLabel: {
       color: colors.text,
-      fontFamily: getFontFamily('500'),
+      fontFamily: getFontFamily('400'),
       fontSize: 15,
-      fontWeight: '500' as const,
+      fontWeight: '400' as const,
     },
     quietLinkAction: {
       alignItems: 'center' as const,
@@ -126,19 +126,12 @@ function createForgotPasswordScreenStyles({
       lineHeight: 20,
       textDecorationLine: 'underline' as const,
     },
-    inputShell: {
-      alignItems: 'center' as const,
-      backgroundColor: 'rgba(255, 253, 249, 0.5)',
-      borderColor: colors.timelineDivider,
-      borderRadius: 18,
-      borderWidth: 1,
-      flexDirection: 'row' as const,
-    },
     input: {
       color: colors.text,
       fontFamily: getFontFamily('400'),
       flex: 1,
-      fontSize: 16,
+      fontSize: 15,
+      lineHeight: 20,
       paddingHorizontal: spacing.md,
       paddingVertical: 0,
     },
@@ -149,7 +142,7 @@ function createForgotPasswordScreenStyles({
       borderRadius: 999,
       justifyContent: 'center' as const,
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
+      paddingVertical: 0,
     },
     primaryButtonDisabled: {
       backgroundColor: disabledPrimaryButtonColor,
@@ -157,8 +150,9 @@ function createForgotPasswordScreenStyles({
     primaryButtonText: {
       color: colors.surface,
       fontFamily: getFontFamily('600'),
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: '600' as const,
+      lineHeight: 21,
     },
     primaryButtonTextDisabled: {
       color: colors.surface,
@@ -191,11 +185,14 @@ export function ForgotPasswordScreen({
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const emailInputRef = useRef<TextInput>(null);
+  const codeInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
   const confirmPasswordInputRef = useRef<TextInput>(null);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<string | null>(null);
   const { colors } = useAppearance();
   const styles = useThemedStyles(createForgotPasswordScreenStyles);
-  useSuppressKeyboardDismissBar();
   const layoutMetrics = getForgotPasswordLayoutMetrics(height);
   const headerMetrics = getAuthHeaderMetrics(insets.top, 'utility');
   const contentInset = getForgotPasswordContentInset(
@@ -214,15 +211,19 @@ export function ForgotPasswordScreen({
     layoutMetrics.bucket === 'short' ? 520 : 600,
   );
   const handleEmailChange = useCallback((value: string) => {
+    setErrorField((field) => (field === 'email' ? null : field));
     setEmailInput(value);
   }, []);
   const handleCodeChange = useCallback((value: string) => {
+    setErrorField((field) => (field === 'code' ? null : field));
     setCodeInput(value);
   }, []);
   const handlePasswordChange = useCallback((value: string) => {
+    setErrorField((field) => (field === 'password' ? null : field));
     setPasswordInput(value);
   }, []);
   const handleConfirmPasswordChange = useCallback((value: string) => {
+    setErrorField((field) => (field === 'confirmPassword' ? null : field));
     setConfirmPasswordInput(value);
   }, []);
   const isEmailStepReady = isAuthEmailSubmitReady(emailInput);
@@ -238,6 +239,8 @@ export function ForgotPasswordScreen({
 
     if (!isValidAccountEmail(email)) {
       setErrorMessage(t('account.errors.invalidEmail'));
+      setErrorField('email');
+      emailInputRef.current?.focus();
       return;
     }
 
@@ -266,6 +269,8 @@ export function ForgotPasswordScreen({
 
     if (!isAuthOtpSubmitReady(code)) {
       setErrorMessage(t('account.errors.codeRequired'));
+      setErrorField('code');
+      codeInputRef.current?.focus();
       return;
     }
 
@@ -299,12 +304,20 @@ export function ForgotPasswordScreen({
         password,
         confirmPassword,
       );
+      const nextErrorField =
+        blockReason === 'mismatch' ? 'confirmPassword' : 'password';
 
       setErrorMessage(
         blockReason === 'mismatch'
           ? t('account.errors.passwordMismatch')
           : t('account.errors.passwordWeak'),
       );
+      setErrorField(nextErrorField);
+      if (nextErrorField === 'confirmPassword') {
+        confirmPasswordInputRef.current?.focus();
+      } else {
+        passwordInputRef.current?.focus();
+      }
       return;
     }
 
@@ -351,6 +364,7 @@ export function ForgotPasswordScreen({
     <View style={styles.screen}>
       <AuthBackButtonOverlay onBack={onBack} />
       <ScrollView
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={[
           styles.content,
           {
@@ -359,6 +373,7 @@ export function ForgotPasswordScreen({
           },
         ]}
         contentInsetAdjustmentBehavior="never"
+        keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         style={styles.screen}
       >
@@ -435,13 +450,13 @@ export function ForgotPasswordScreen({
                   {t('signIn.emailAddressLabel')}
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.inputShell,
-                  { minHeight: layoutMetrics.inputHeight },
-                ]}
+              <InputShell
+                hasError={errorField === 'email'}
+                isFocused={focusedField === 'email'}
+                minHeight={layoutMetrics.inputHeight}
               >
                 <AuthFormTextInput
+                  ref={emailInputRef}
                   kind="email"
                   blurOnSubmit={false}
                   keyboardDismissAccessory={false}
@@ -454,9 +469,11 @@ export function ForgotPasswordScreen({
                   ]}
                   valueRef={emailRef}
                   onValueChange={handleEmailChange}
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => setFocusedField(null)}
                   onSubmitEditing={() => void handleSendCode()}
                 />
-              </View>
+              </InputShell>
               {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
               <PrimaryButton
                 disabled={isSubmitting || !isEmailStepReady}
@@ -477,14 +494,14 @@ export function ForgotPasswordScreen({
               <View style={styles.labelRow}>
                 <Text style={styles.fieldLabel}>{t('account.codeLabel')}</Text>
               </View>
-              <View
-                style={[
-                  styles.inputShell,
-                  { minHeight: layoutMetrics.inputHeight },
-                ]}
+              <InputShell
+                hasError={errorField === 'code'}
+                isFocused={focusedField === 'code'}
+                minHeight={layoutMetrics.inputHeight}
               >
                 <AuthFormTextInput
                   key="password-reset-code"
+                  ref={codeInputRef}
                   kind="code"
                   accessibilityHint={t('account.codePlaceholder')}
                   accessibilityLabel={t('account.codeLabel')}
@@ -497,8 +514,11 @@ export function ForgotPasswordScreen({
                   ]}
                   valueRef={codeRef}
                   onValueChange={handleCodeChange}
+                  onFocus={() => setFocusedField('code')}
+                  onBlur={() => setFocusedField(null)}
+                  onSubmitEditing={() => void handleVerifyCode()}
                 />
-              </View>
+              </InputShell>
               {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
               <PrimaryButton
                 disabled={isSubmitting || !isCodeStepReady}
@@ -537,11 +557,10 @@ export function ForgotPasswordScreen({
                   {t('account.passwordLabel')}
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.inputShell,
-                  { minHeight: layoutMetrics.inputHeight },
-                ]}
+              <InputShell
+                hasError={errorField === 'password'}
+                isFocused={focusedField === 'password'}
+                minHeight={layoutMetrics.inputHeight}
               >
                 <AuthFormTextInput
                   key="password-reset-new-password"
@@ -559,11 +578,13 @@ export function ForgotPasswordScreen({
                   ]}
                   valueRef={passwordRef}
                   onValueChange={handlePasswordChange}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
                   onSubmitEditing={() =>
                     confirmPasswordInputRef.current?.focus()
                   }
                 />
-              </View>
+              </InputShell>
               <View
                 style={[
                   styles.labelRow,
@@ -574,11 +595,10 @@ export function ForgotPasswordScreen({
                   {t('account.confirmPasswordLabel')}
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.inputShell,
-                  { minHeight: layoutMetrics.inputHeight },
-                ]}
+              <InputShell
+                hasError={errorField === 'confirmPassword'}
+                isFocused={focusedField === 'confirmPassword'}
+                minHeight={layoutMetrics.inputHeight}
               >
                 <AuthFormTextInput
                   ref={confirmPasswordInputRef}
@@ -593,9 +613,11 @@ export function ForgotPasswordScreen({
                   ]}
                   valueRef={confirmPasswordRef}
                   onValueChange={handleConfirmPasswordChange}
+                  onFocus={() => setFocusedField('confirmPassword')}
+                  onBlur={() => setFocusedField(null)}
                   onSubmitEditing={() => void handleSavePassword()}
                 />
-              </View>
+              </InputShell>
               {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
               <PrimaryButton
                 disabled={isSubmitting || !isPasswordStepReady}

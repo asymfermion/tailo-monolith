@@ -57,6 +57,6 @@ describe('getOnboardingPipelineTitle', () => {
       },
     });
 
-    expect(title).toBe('Looking through your photos...');
+    expect(title).toBe('Looking through your photos');
   });
 });

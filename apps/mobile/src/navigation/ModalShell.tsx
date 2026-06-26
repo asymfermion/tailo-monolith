@@ -1,11 +1,15 @@
 import { AccountSettingsScreen } from '@/screens/AccountSettingsScreen';
 import { CapturePreviewScreen } from '@/screens/CapturePreviewScreen';
 import { CaptureScreen } from '@/screens/CaptureScreen';
+import { DataProcessingDetailsScreen } from '@/screens/DataProcessingDetailsScreen';
 import { EventDetailScreen } from '@/screens/EventDetailScreen';
 import { ForgotPasswordScreen } from '@/screens/ForgotPasswordScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
+import { NotificationSettingsScreen } from '@/screens/NotificationSettingsScreen';
 import { NotificationsInboxScreen } from '@/screens/NotificationsInboxScreen';
 import { PetProfileDetailsScreen } from '@/screens/PetProfileDetailsScreen';
+import { PrivacyPermissionsScreen } from '@/screens/PrivacyPermissionsScreen';
+import { PrivacyPolicyScreen } from '@/screens/PrivacyPolicyScreen';
 
 import { logAuth } from '@/modules/auth/authLogger';
 
@@ -68,7 +72,15 @@ export function ModalShell({ route }: ModalShellProps) {
       );
     case 'NotificationsInbox':
       return <NotificationsInboxScreen />;
+    case 'NotificationSettings':
+      return <NotificationSettingsScreen />;
     case 'PetProfileDetails':
       return <PetProfileDetailsScreen />;
+    case 'PrivacyPermissions':
+      return <PrivacyPermissionsScreen />;
+    case 'PrivacyPolicy':
+      return <PrivacyPolicyScreen />;
+    case 'DataProcessingDetails':
+      return <DataProcessingDetailsScreen />;
   }
 }

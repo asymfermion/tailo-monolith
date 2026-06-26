@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getAppFontStyle } from '@/lib/appFontStyle';
 import { getAppTheme } from '@/lib/appTheme';
 import { getAppLocale } from '@/i18n/locale';
+import { getNotificationPreferences } from '@/modules/notifications/notificationPreferences';
 
 import { isLinkedRemoteAccount } from './authTypes';
 import { loadLocalAccountProfile } from './localAccountProfile';
@@ -27,6 +28,7 @@ function buildLocalOnlyProfile(
     preferredLocale: getAppLocale(),
     preferredTheme: getAppTheme(),
     preferredFontStyle: getAppFontStyle(),
+    notificationPreferences: getNotificationPreferences(),
   };
 }
 

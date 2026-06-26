@@ -2,6 +2,10 @@ import { setAppFontStyle, type AppFontStyle } from '@/lib/appFontStyle';
 import type { AppTheme } from '@/constants/theme';
 import { setAppTheme } from '@/lib/appTheme';
 import { setAppLocale, type AppLocale } from '@/i18n/locale';
+import {
+  setNotificationPreferences,
+  type NotificationPreferences,
+} from '@/modules/notifications/notificationPreferences';
 
 import {
   syncRemoteAccountProfile,
@@ -62,6 +66,19 @@ export async function setAppFontStyleAndSyncProfile(
       await setAppFontStyle(fontStyle);
     },
     { preferredFontStyle: fontStyle },
+    options,
+  );
+}
+
+export async function setNotificationPreferencesAndSyncProfile(
+  preferences: NotificationPreferences,
+  options: { syncToRemoteProfile: boolean },
+): Promise<PersistAppPreferenceResult> {
+  return persistAppPreferenceAndSync(
+    async () => {
+      await setNotificationPreferences(preferences);
+    },
+    { notificationPreferences: preferences },
     options,
   );
 }

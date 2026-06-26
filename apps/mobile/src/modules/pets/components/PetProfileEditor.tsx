@@ -78,7 +78,8 @@ export function hasPetProfileDraftChanges(input: {
     profile.type !== input.type ||
     (profile.gender ?? null) !== input.gender ||
     (profile.birthday ?? null) !== input.birthday ||
-    (profile.profilePhotoLocalAssetId ?? null) !== input.profilePhotoLocalAssetId ||
+    (profile.profilePhotoLocalAssetId ?? null) !==
+      input.profilePhotoLocalAssetId ||
     (profile.profilePhotoUri ?? null) !== input.profilePhotoUri
   );
 }
@@ -109,6 +110,7 @@ export function PetProfileEditor({
   >(null);
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [focusedField, setFocusedField] = useState<string | null>(null);
   const [isPhotoSourceOpen, setIsPhotoSourceOpen] = useState(false);
   const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
   const [isLoadingPhotoChoices, setIsLoadingPhotoChoices] = useState(false);
@@ -211,7 +213,15 @@ export function PetProfileEditor({
     }, 450);
 
     return () => clearTimeout(timer);
-  }, [petName, petType, gender, birthday, persistProfile, profile, hasDraftChanges]);
+  }, [
+    petName,
+    petType,
+    gender,
+    birthday,
+    persistProfile,
+    profile,
+    hasDraftChanges,
+  ]);
 
   const petTypeOptions = (['dog', 'cat'] as const).map((value) => ({
     value,
@@ -277,9 +287,11 @@ export function PetProfileEditor({
         autoCorrect={false}
         placeholder={t('onboarding.namePlaceholder')}
         placeholderTextColor={colors.textMuted}
-        style={styles.input}
+        style={[styles.input, focusedField === 'name' && styles.inputFocused]}
         value={petName}
         onChangeText={setPetName}
+        onBlur={() => setFocusedField(null)}
+        onFocus={() => setFocusedField('name')}
       />
 
       {petType ? (
@@ -416,7 +428,9 @@ export function PetProfileEditor({
                 accessibilityRole="button"
                 onPress={() => setIsPhotoPickerOpen(false)}
               >
-                <Text style={styles.modalActionMuted}>{t('common.cancel')}</Text>
+                <Text style={styles.modalActionMuted}>
+                  {t('common.cancel')}
+                </Text>
               </Pressable>
               <Text style={styles.photoSourceTitle}>
                 {photoPickerSource === 'moments'

@@ -19,6 +19,12 @@ import {
 } from '@/modules/auth/localAccountProfile';
 import { getAuthProvider } from '@/modules/auth/authProviderInstance';
 import {
+  getNotificationPreferences,
+  parseNotificationPreferences,
+  setNotificationPreferences,
+  type NotificationPreferences,
+} from '@/modules/notifications/notificationPreferences';
+import {
   isGetAccountProfileResponse,
   normalizeRemoteAccountProfileSummary,
   normalizeUpsertAccountProfileResponse,
@@ -32,6 +38,7 @@ export type RemoteAccountProfile = {
   preferredLocale: AppLocale | null;
   preferredTheme: AppTheme | null;
   preferredFontStyle: AppFontStyle | null;
+  notificationPreferences: NotificationPreferences | null;
 };
 
 export type SyncRemoteAccountProfilePatch = {
@@ -39,6 +46,7 @@ export type SyncRemoteAccountProfilePatch = {
   preferredLocale?: AppLocale | null;
   preferredTheme?: AppTheme | null;
   preferredFontStyle?: AppFontStyle | null;
+  notificationPreferences?: NotificationPreferences | null;
 };
 
 export type SyncRemoteAccountProfileResult =
@@ -58,6 +66,7 @@ type AccountProfileAppearance = {
   preferred_locale: string | null;
   preferred_theme: string | null;
   preferred_font_style: string | null;
+  notification_preferences: string | null;
 };
 
 function parsePreferredLocale(value: string | null): AppLocale | null {
@@ -86,6 +95,9 @@ function toRemoteAccountProfile(
     preferredLocale: parsePreferredLocale(snapshot.preferred_locale),
     preferredTheme: parsePreferredTheme(snapshot.preferred_theme),
     preferredFontStyle: parsePreferredFontStyle(snapshot.preferred_font_style),
+    notificationPreferences: snapshot.notification_preferences
+      ? parseNotificationPreferences(snapshot.notification_preferences)
+      : null,
   };
 }
 
@@ -140,6 +152,13 @@ export async function applyRemoteAccountProfile(
 
   if (fontStyle) {
     await setAppFontStyle(fontStyle);
+  }
+
+  if (snapshot.notification_preferences) {
+    const notifPrefs = parseNotificationPreferences(
+      snapshot.notification_preferences,
+    );
+    await setNotificationPreferences(notifPrefs);
   }
 }
 
@@ -234,6 +253,7 @@ export async function seedLocalAccountPrefsToCloudIfEmpty(): Promise<SyncRemoteA
     preferred_locale: null,
     preferred_theme: null,
     preferred_font_style: null,
+    notification_preferences: null,
   };
 
   const cloudDisplayNameMissing = !hasNonEmptyText(cloud.display_name);
@@ -262,6 +282,10 @@ export async function seedLocalAccountPrefsToCloudIfEmpty(): Promise<SyncRemoteA
 
   if (cloud.preferred_font_style == null) {
     patch.preferredFontStyle = getAppFontStyle();
+  }
+
+  if (cloud.notification_preferences == null) {
+    patch.notificationPreferences = getNotificationPreferences();
   }
 
   if (Object.keys(patch).length === 0) {
@@ -297,6 +321,7 @@ export async function fetchRemoteAccountProfile(): Promise<RemoteAccountProfile 
       preferredLocale: getAppLocale(),
       preferredTheme: getAppTheme(),
       preferredFontStyle: getAppFontStyle(),
+      notificationPreferences: getNotificationPreferences(),
     };
   }
 
@@ -338,6 +363,12 @@ export async function syncRemoteAccountProfile(
 
   if ('preferredFontStyle' in patch) {
     body.preferred_font_style = patch.preferredFontStyle ?? null;
+  }
+
+  if ('notificationPreferences' in patch) {
+    body.notification_preferences = patch.notificationPreferences
+      ? JSON.stringify(patch.notificationPreferences)
+      : null;
   }
 
   if (Object.keys(body).length === 0) {

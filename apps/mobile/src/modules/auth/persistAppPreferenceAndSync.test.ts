@@ -33,6 +33,7 @@ const syncedResponse = {
   preferred_locale: 'en',
   preferred_theme: 'dark',
   preferred_font_style: 'serif',
+  notification_preferences: null,
   created: false,
   updated_at: '2026-05-19T00:00:00.000Z',
 };

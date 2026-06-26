@@ -5,6 +5,7 @@ export type RemoteAccountProfileSummary = {
   preferred_locale: string | null;
   preferred_theme: string | null;
   preferred_font_style: string | null;
+  notification_preferences: string | null;
   updated_at: string;
 };
 
@@ -29,7 +30,8 @@ export function isRemoteAccountProfileSummary(
     isOptionalStringField(Reflect.get(value, 'display_name')) &&
     isOptionalStringField(Reflect.get(value, 'preferred_locale')) &&
     isOptionalStringField(Reflect.get(value, 'preferred_theme')) &&
-    isOptionalStringField(Reflect.get(value, 'preferred_font_style'))
+    isOptionalStringField(Reflect.get(value, 'preferred_font_style')) &&
+    isOptionalStringField(Reflect.get(value, 'notification_preferences'))
   );
 }
 
@@ -54,6 +56,7 @@ export function normalizeRemoteAccountProfileSummary(
     preferred_locale: value.preferred_locale ?? null,
     preferred_theme: value.preferred_theme ?? null,
     preferred_font_style: value.preferred_font_style ?? null,
+    notification_preferences: value.notification_preferences ?? null,
     updated_at: value.updated_at,
   };
 }

@@ -107,6 +107,12 @@ describe('authWelcomeLayout', () => {
     const normal = getLoginLayoutMetrics(844, 763);
     const tall = getLoginLayoutMetrics(932, 851);
 
+    expect(short.inputHeight).toBe(52);
+    expect(normal.inputHeight).toBe(52);
+    expect(tall.inputHeight).toBe(52);
+    expect(short.primaryButtonHeight).toBe(58);
+    expect(normal.primaryButtonHeight).toBe(58);
+    expect(tall.primaryButtonHeight).toBe(58);
     expect(short.primaryButtonTopGap).toBe(12);
     expect(normal.primaryButtonTopGap).toBe(16);
     expect(tall.primaryButtonTopGap).toBe(16);
@@ -120,6 +126,12 @@ describe('authWelcomeLayout', () => {
     expect(short.copyToFormGap).toBe(28);
     expect(normal.copyToFormGap).toBe(32);
     expect(tall.copyToFormGap).toBe(36);
+    expect(short.inputHeight).toBe(52);
+    expect(normal.inputHeight).toBe(52);
+    expect(tall.inputHeight).toBe(52);
+    expect(short.primaryButtonHeight).toBe(58);
+    expect(normal.primaryButtonHeight).toBe(58);
+    expect(tall.primaryButtonHeight).toBe(58);
     expect(normal.titleToCopyGap).toBeGreaterThanOrEqual(8);
     expect(normal.titleToCopyGap).toBeLessThanOrEqual(12);
     expect(normal.headerToContentGap).toBeGreaterThan(short.headerToContentGap);
@@ -129,7 +141,13 @@ describe('authWelcomeLayout', () => {
   it('offsets forgot-password content slightly above center on tall screens', () => {
     const metrics = getForgotPasswordLayoutMetrics(932);
     const header = getAuthHeaderMetrics(59, 'utility');
-    const inset = getForgotPasswordContentInset(932, 59, 34, header.totalHeight, metrics);
+    const inset = getForgotPasswordContentInset(
+      932,
+      59,
+      34,
+      header.totalHeight,
+      metrics,
+    );
 
     expect(inset).toBeGreaterThan(metrics.headerToContentGap);
     expect(inset).toBeLessThanOrEqual(metrics.headerToContentGap + 48);

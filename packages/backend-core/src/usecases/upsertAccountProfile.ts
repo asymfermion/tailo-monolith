@@ -16,6 +16,7 @@ export type AccountProfileRow = {
   preferredLocale: string | null;
   preferredTheme: string | null;
   preferredFontStyle: string | null;
+  notificationPreferences: string | null;
 };
 
 export type UpsertAccountProfileInput = {
@@ -24,6 +25,7 @@ export type UpsertAccountProfileInput = {
   preferredLocale?: string | null;
   preferredTheme?: string | null;
   preferredFontStyle?: string | null;
+  notificationPreferences?: string | null;
 };
 
 export type UpsertAccountProfileSuccess = {
@@ -33,6 +35,7 @@ export type UpsertAccountProfileSuccess = {
   preferredLocale: string | null;
   preferredTheme: string | null;
   preferredFontStyle: string | null;
+  notificationPreferences: string | null;
   created: boolean;
 };
 
@@ -76,18 +79,20 @@ export function resolveUpsertAccountProfile(
   const hasPreferredLocale = 'preferredLocale' in input;
   const hasPreferredTheme = 'preferredTheme' in input;
   const hasPreferredFontStyle = 'preferredFontStyle' in input;
+  const hasNotificationPreferences = 'notificationPreferences' in input;
 
   if (
     !hasDisplayName &&
     !hasPreferredLocale &&
     !hasPreferredTheme &&
-    !hasPreferredFontStyle
+    !hasPreferredFontStyle &&
+    !hasNotificationPreferences
   ) {
     return {
       ok: false,
       code: 'invalid_input',
       message:
-        'Provide display_name, preferred_locale, preferred_theme, and/or preferred_font_style to update.',
+        'Provide display_name, preferred_locale, preferred_theme, preferred_font_style, and/or notification_preferences to update.',
     };
   }
 
@@ -95,6 +100,7 @@ export function resolveUpsertAccountProfile(
   let preferredLocale = existing?.preferredLocale ?? null;
   let preferredTheme = existing?.preferredTheme ?? null;
   let preferredFontStyle = existing?.preferredFontStyle ?? null;
+  let notificationPreferences = existing?.notificationPreferences ?? null;
 
   if (hasDisplayName) {
     displayName = normalizeDisplayName(input.displayName);
@@ -159,6 +165,12 @@ export function resolveUpsertAccountProfile(
     }
   }
 
+  if (hasNotificationPreferences) {
+    notificationPreferences = normalizeOptionalString(
+      input.notificationPreferences,
+    );
+  }
+
   return {
     ok: true,
     appUserId: input.callerAppUserId,
@@ -166,6 +178,7 @@ export function resolveUpsertAccountProfile(
     preferredLocale,
     preferredTheme,
     preferredFontStyle,
+    notificationPreferences,
     created: !existing,
   };
 }

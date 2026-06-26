@@ -59,8 +59,9 @@ RLS: enabled. Authenticated users can select identities for their own `app_user_
 | `display_name`         | `text`        | Optional display name.                                          |
 | `preferred_locale`     | `text`        | Optional locale preference.                                     |
 | `preferred_theme`      | `text`        | Optional; `light` or `dark`.                                    |
-| `preferred_font_style` | `text`        | Optional; `system`, `serif`, `rounded`, `modern`, or `elegant`. |
-| `created_at`           | `timestamptz` | Creation timestamp.                                             |
+| `preferred_font_style`      | `text`        | Optional; `system`, `serif`, `rounded`, `modern`, or `elegant`. |
+| `notification_preferences`  | `text`        | Optional; JSON-encoded `NotificationPreferences` object.        |
+| `created_at`                | `timestamptz` | Creation timestamp.                                             |
 | `updated_at`           | `timestamptz` | Last update timestamp.                                          |
 
 RLS: enabled. Authenticated users can select and update their own profile.
@@ -208,6 +209,7 @@ RLS: enabled. Authenticated users can select jobs through the owning event.
 | `20260525120200_drop_legacy_profiles_table.sql`            | Dropped legacy `public.profiles`; account ownership now lives in `app_users` / `user_identities`, editable fields in `account_profiles`.                                                                      |
 | `20260525120300_fix_current_app_user_id_rls_recursion.sql` | Replaced `current_app_user_id()` as `security definer` and granted execute to authenticated users, fixing RLS recursion on `user_identities`.                                                                 |
 | `20260525120400_event_media_fingerprint_dedupe.sql`        | Added `event_media.media_fingerprint` with partial index for cross-device duplicate-image detection and merge matching.                                                                                       |
+| `20260626120000_add_notification_preferences_to_account_profiles.sql` | Added `account_profiles.notification_preferences` (text, nullable) to store JSON-encoded user notification preferences in the cloud.                                          |
 
 ## Maintenance Rules
 

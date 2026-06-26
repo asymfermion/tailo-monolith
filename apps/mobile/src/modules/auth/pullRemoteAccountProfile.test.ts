@@ -85,6 +85,7 @@ describe('pullRemoteAccountProfileIfNeeded', () => {
           preferred_locale: 'zh-Hans',
           preferred_theme: 'dark',
           preferred_font_style: 'rounded',
+          notification_preferences: null,
           updated_at: '2026-05-19T00:00:00.000Z',
         },
       },
@@ -125,6 +126,7 @@ describe('applyRemoteAccountProfile', () => {
       preferred_locale: null,
       preferred_theme: null,
       preferred_font_style: null,
+      notification_preferences: null,
     });
 
     expect(saveLocalAccountProfile).toHaveBeenCalledWith({
@@ -193,6 +195,7 @@ describe('seedLocalAccountPrefsToCloudIfEmpty', () => {
             preferred_locale: null,
             preferred_theme: 'dark',
             preferred_font_style: null,
+            notification_preferences: null,
             updated_at: '2026-05-19T00:00:00.000Z',
           },
         },
@@ -206,6 +209,7 @@ describe('seedLocalAccountPrefsToCloudIfEmpty', () => {
           preferred_locale: 'en',
           preferred_theme: 'dark',
           preferred_font_style: 'rounded',
+          notification_preferences: null,
           created: false,
           updated_at: '2026-05-19T00:00:00.000Z',
         },
@@ -218,6 +222,13 @@ describe('seedLocalAccountPrefsToCloudIfEmpty', () => {
     expect(invokeTailoApi).toHaveBeenLastCalledWith('upsert-account-profile', {
       preferred_locale: 'en',
       preferred_font_style: 'rounded',
+      notification_preferences: JSON.stringify({
+        accountActivity: true,
+        emailSummaries: 'weekly',
+        newMemories: true,
+        pushNotifications: true,
+        timelineUpdates: true,
+      }),
     });
   });
 
@@ -238,6 +249,7 @@ describe('seedLocalAccountPrefsToCloudIfEmpty', () => {
             preferred_locale: null,
             preferred_theme: null,
             preferred_font_style: null,
+            notification_preferences: null,
             updated_at: '2026-05-19T00:00:00.000Z',
           },
         },
@@ -251,6 +263,7 @@ describe('seedLocalAccountPrefsToCloudIfEmpty', () => {
           preferred_locale: 'en',
           preferred_theme: 'dark',
           preferred_font_style: 'rounded',
+          notification_preferences: null,
           created: false,
           updated_at: '2026-05-19T00:00:00.000Z',
         },
@@ -265,6 +278,13 @@ describe('seedLocalAccountPrefsToCloudIfEmpty', () => {
       preferred_locale: 'en',
       preferred_theme: 'dark',
       preferred_font_style: 'rounded',
+      notification_preferences: JSON.stringify({
+        accountActivity: true,
+        emailSummaries: 'weekly',
+        newMemories: true,
+        pushNotifications: true,
+        timelineUpdates: true,
+      }),
     });
   });
 });

@@ -30,6 +30,7 @@ describe('saveAccountProfile', () => {
         preferred_locale: 'en',
         preferred_theme: 'light',
         preferred_font_style: 'system',
+        notification_preferences: null,
         created: false,
         updated_at: '2026-05-19T00:00:00.000Z',
       },

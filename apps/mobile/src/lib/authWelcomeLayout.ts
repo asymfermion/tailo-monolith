@@ -224,7 +224,7 @@ export function getLoginLayoutMetrics(
   availableHeight: number,
 ): LoginLayoutMetrics {
   const welcome = getWelcomeLayoutMetrics(height, availableHeight);
-  const inputHeight = welcome.bucket === 'short' ? 44 : 46;
+  const inputHeight = 52;
   const copyToFormGap =
     welcome.bucket === 'short'
       ? spacing.sm
@@ -251,10 +251,7 @@ export function getLoginLayoutMetrics(
     titleToCopyGap: spacing.xs,
     buttonGap: 6,
     legalTopGap: spacing.xs,
-    primaryButtonHeight:
-      welcome.bucket === 'short'
-        ? 48
-        : Math.max(welcome.primaryButtonHeight - 4, 50),
+    primaryButtonHeight: 58,
     outlineButtonHeight:
       welcome.bucket === 'short'
         ? 44
@@ -321,8 +318,8 @@ export function getForgotPasswordLayoutMetrics(
       copyToFormGap: 28,
       formFieldGap: spacing.xs,
       inputToButtonGap: 28,
-      inputHeight: 44,
-      primaryButtonHeight: 48,
+      inputHeight: 52,
+      primaryButtonHeight: 58,
     };
   }
 
@@ -334,8 +331,8 @@ export function getForgotPasswordLayoutMetrics(
       copyToFormGap: 36,
       formFieldGap: spacing.sm,
       inputToButtonGap: 36,
-      inputHeight: 46,
-      primaryButtonHeight: 52,
+      inputHeight: 52,
+      primaryButtonHeight: 58,
     };
   }
 
@@ -346,8 +343,8 @@ export function getForgotPasswordLayoutMetrics(
     copyToFormGap: 32,
     formFieldGap: spacing.xs,
     inputToButtonGap: 32,
-    inputHeight: 46,
-    primaryButtonHeight: 50,
+    inputHeight: 52,
+    primaryButtonHeight: 58,
   };
 }
 

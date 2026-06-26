@@ -15,16 +15,16 @@ describe('getAuthFormFieldProps', () => {
     });
   });
 
-  it('uses a plain default keyboard on iOS email fields', () => {
+  it('uses email keyboard and autofill on iOS email fields', () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       value: 'ios',
     });
 
     expect(getAuthFormFieldProps('email')).toMatchObject({
-      keyboardType: 'default',
-      textContentType: 'none',
-      autoComplete: 'off',
+      keyboardType: 'email-address',
+      textContentType: 'emailAddress',
+      autoComplete: 'email',
       spellCheck: false,
     });
   });
@@ -49,7 +49,7 @@ describe('getAuthFormFieldProps', () => {
     });
   });
 
-  it('uses a plain default keyboard on iOS password fields', () => {
+  it('uses a stable plain keyboard on iOS sign-in password fields', () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       value: 'ios',
@@ -62,10 +62,18 @@ describe('getAuthFormFieldProps', () => {
       textContentType: 'none',
       spellCheck: false,
     });
+  });
+
+  it('keeps password manager hints on iOS new-password fields', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'ios',
+    });
 
     expect(getAuthFormFieldProps('newPassword')).toMatchObject({
       keyboardType: 'default',
-      textContentType: 'none',
+      autoComplete: 'new-password',
+      textContentType: 'newPassword',
     });
   });
 

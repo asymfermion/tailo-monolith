@@ -15,20 +15,6 @@ export function authFormFieldUsesKeyboardAccessory(
 }
 
 /**
- * iOS auth keyboards: avoid `email-address`, `password`, `ascii-capable`, and
- * `textContentType` autofill hints — they snap back to letters after one digit
- * on the 123 number layer.
- */
-const IOS_PLAIN_KEYBOARD_PROPS = {
-  autoCapitalize: 'none',
-  autoCorrect: false,
-  spellCheck: false,
-  autoComplete: 'off',
-  keyboardType: 'default',
-  textContentType: 'none',
-} as const satisfies Partial<TextInputProps>;
-
-/**
  * Keyboard presets for auth forms.
  */
 export function getAuthFormFieldProps(
@@ -36,20 +22,24 @@ export function getAuthFormFieldProps(
 ): Partial<TextInputProps> {
   switch (kind) {
     case 'email':
-      return Platform.OS === 'ios'
-        ? IOS_PLAIN_KEYBOARD_PROPS
-        : {
-            autoCapitalize: 'none',
-            autoCorrect: false,
-            autoComplete: 'email',
-            keyboardType: 'email-address',
-            textContentType: 'emailAddress',
-          };
+      return {
+        autoCapitalize: 'none',
+        autoCorrect: false,
+        autoComplete: 'email',
+        keyboardType: 'email-address',
+        spellCheck: false,
+        textContentType: 'emailAddress',
+      };
     case 'password':
       return Platform.OS === 'ios'
         ? {
-            ...IOS_PLAIN_KEYBOARD_PROPS,
+            autoCapitalize: 'none',
+            autoCorrect: false,
+            autoComplete: 'off',
+            keyboardType: 'default',
             secureTextEntry: true,
+            spellCheck: false,
+            textContentType: 'none',
           }
         : {
             autoCapitalize: 'none',
@@ -61,8 +51,13 @@ export function getAuthFormFieldProps(
     case 'newPassword':
       return Platform.OS === 'ios'
         ? {
-            ...IOS_PLAIN_KEYBOARD_PROPS,
+            autoCapitalize: 'none',
+            autoCorrect: false,
+            autoComplete: 'new-password',
+            keyboardType: 'default',
             secureTextEntry: true,
+            spellCheck: false,
+            textContentType: 'newPassword',
           }
         : {
             autoCapitalize: 'none',
@@ -74,8 +69,13 @@ export function getAuthFormFieldProps(
     case 'confirmPassword':
       return Platform.OS === 'ios'
         ? {
-            ...IOS_PLAIN_KEYBOARD_PROPS,
+            autoCapitalize: 'none',
+            autoCorrect: false,
+            autoComplete: 'new-password',
+            keyboardType: 'default',
             secureTextEntry: true,
+            spellCheck: false,
+            textContentType: 'newPassword',
           }
         : {
             autoCapitalize: 'none',

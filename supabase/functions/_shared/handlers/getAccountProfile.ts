@@ -18,7 +18,7 @@ export const handleGetAccountProfile: ApiHandler = async ({ user, log }) => {
   const { data: row, error } = await adminClient
     .from('account_profiles')
     .select(
-      'app_user_id, display_name, preferred_locale, preferred_theme, preferred_font_style, updated_at',
+      'app_user_id, display_name, preferred_locale, preferred_theme, preferred_font_style, notification_preferences, updated_at',
     )
     .eq('app_user_id', appUser.appUserId)
     .maybeSingle();
@@ -38,6 +38,7 @@ export const handleGetAccountProfile: ApiHandler = async ({ user, log }) => {
     preferred_locale: row.preferred_locale,
     preferred_theme: row.preferred_theme,
     preferred_font_style: row.preferred_font_style,
+    notification_preferences: row.notification_preferences,
     updated_at: row.updated_at,
   });
 

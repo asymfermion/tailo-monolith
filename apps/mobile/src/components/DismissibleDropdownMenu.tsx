@@ -28,6 +28,9 @@ type DismissibleDropdownMenuProps = {
   anchor: DropdownAnchor | null;
   /** Minimum menu width when the measured anchor is too narrow. */
   minMenuWidth?: number;
+  /** Fixed menu width for compact, design-specified menus. */
+  menuWidth?: number;
+  placement?: 'anchor' | 'center';
   /** When false, only a transparent tap-outside layer is shown (e.g. timeline filter). */
   blurBackdrop?: boolean;
 };
@@ -63,12 +66,27 @@ export function getDropdownMenuPlacement(
 export function resolveDropdownMenuFrame(
   anchor: DropdownAnchor,
   minMenuWidth = DEFAULT_MIN_MENU_WIDTH,
+  menuWidth?: number,
 ): { left: number; width: number } {
-  const width = Math.max(anchor.width, minMenuWidth);
+  const width = menuWidth ?? Math.max(anchor.width, minMenuWidth);
   const maxLeft = Math.max(spacing.md, SCREEN_WIDTH - width - spacing.md);
   const left = Math.min(Math.max(anchor.x, spacing.md), maxLeft);
 
   return { left, width };
+}
+
+export function resolveCenteredMenuFrame(
+  insets: { top: number; bottom: number },
+  minMenuWidth = DEFAULT_MIN_MENU_WIDTH,
+  menuWidth?: number,
+): { maxHeight: number; width: number } {
+  return {
+    maxHeight: Math.max(
+      SCREEN_HEIGHT - insets.top - insets.bottom - spacing.xl * 2,
+      MIN_MENU_HEIGHT,
+    ),
+    width: menuWidth ?? minMenuWidth,
+  };
 }
 
 function readAnchorFromWindow(
@@ -130,22 +148,38 @@ export function DismissibleDropdownMenu({
   anchor,
   blurBackdrop = true,
   children,
+  menuWidth,
   minMenuWidth = DEFAULT_MIN_MENU_WIDTH,
   onDismiss,
+  placement = 'anchor',
   visible,
 }: DismissibleDropdownMenuProps) {
   const insets = useSafeAreaInsets();
 
-  if (!visible || anchor === null) {
+  if (!visible || (placement === 'anchor' && anchor === null)) {
     return null;
   }
 
-  const { maxHeight, openBelow } = getDropdownMenuPlacement(anchor, insets);
-  const { left, width } = resolveDropdownMenuFrame(anchor, minMenuWidth);
+  const anchorFrame =
+    placement === 'anchor' && anchor !== null
+      ? {
+          ...getDropdownMenuPlacement(anchor, insets),
+          ...resolveDropdownMenuFrame(anchor, minMenuWidth, menuWidth),
+        }
+      : null;
+  const centerFrame =
+    placement === 'center'
+      ? resolveCenteredMenuFrame(insets, minMenuWidth, menuWidth)
+      : null;
 
   return (
     <Modal animationType="fade" onRequestClose={onDismiss} transparent visible>
-      <View style={styles.overlay}>
+      <View
+        style={[
+          styles.overlay,
+          placement === 'center' && styles.centeredOverlay,
+        ]}
+      >
         {blurBackdrop ? (
           <BlurScrim onDismiss={onDismiss} />
         ) : (
@@ -155,31 +189,56 @@ export function DismissibleDropdownMenu({
             onPress={onDismiss}
           />
         )}
-        <View
-          pointerEvents="box-none"
-          style={[
-            styles.menu,
-            {
-              left,
-              maxHeight,
-              width,
-              zIndex: 1,
-            },
-            openBelow
-              ? { top: anchor.y + anchor.height + MENU_GAP }
-              : { bottom: SCREEN_HEIGHT - anchor.y + MENU_GAP },
-          ]}
-        >
-          <ScrollView
-            bounces={false}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-            showsVerticalScrollIndicator
-            style={{ maxHeight }}
+        {anchorFrame && anchor ? (
+          <View
+            pointerEvents="box-none"
+            style={[
+              styles.menu,
+              {
+                left: anchorFrame.left,
+                maxHeight: anchorFrame.maxHeight,
+                width: anchorFrame.width,
+                zIndex: 1,
+              },
+              anchorFrame.openBelow
+                ? { top: anchor.y + anchor.height + MENU_GAP }
+                : { bottom: SCREEN_HEIGHT - anchor.y + MENU_GAP },
+            ]}
           >
-            {children}
-          </ScrollView>
-        </View>
+            <ScrollView
+              bounces={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+              style={{ maxHeight: anchorFrame.maxHeight }}
+            >
+              {children}
+            </ScrollView>
+          </View>
+        ) : null}
+        {centerFrame ? (
+          <View
+            pointerEvents="box-none"
+            style={[
+              styles.centerMenu,
+              {
+                maxHeight: centerFrame.maxHeight,
+                width: centerFrame.width,
+                zIndex: 1,
+              },
+            ]}
+          >
+            <ScrollView
+              bounces={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+              style={{ maxHeight: centerFrame.maxHeight }}
+            >
+              {children}
+            </ScrollView>
+          </View>
+        ) : null}
       </View>
     </Modal>
   );
@@ -188,6 +247,14 @@ export function DismissibleDropdownMenu({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+  },
+  centeredOverlay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  centerMenu: {
+    position: 'relative',
   },
   menu: {
     position: 'absolute',

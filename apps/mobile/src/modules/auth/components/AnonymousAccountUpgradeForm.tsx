@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Pressable,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
   type StyleProp,
@@ -11,6 +12,7 @@ import {
 
 import { AuthFormTextInput } from '@/components/AuthFormTextInput';
 import { FormErrorBanner } from '@/components/FormErrorBanner';
+import { InputShell } from '@/components/InputShell';
 import { SocialSignInControls } from '@/components/SocialSignInControls';
 import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
@@ -174,6 +176,10 @@ export function AnonymousAccountUpgradeForm({
   const [codeInput, setCodeInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const emailInputRef = useRef<TextInput>(null);
+  const codeInputRef = useRef<TextInput>(null);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<string | null>(null);
   const { isBlockingAuthInProgress, runBlockingAuthAction } =
     useBlockingAuthAction();
   const { colors } = useAppearance();
@@ -185,9 +191,11 @@ export function AnonymousAccountUpgradeForm({
     createLayoutMetrics.bucket,
   );
   const handleEmailChange = useCallback((value: string) => {
+    setErrorField((field) => (field === 'email' ? null : field));
     setEmailInput(value);
   }, []);
   const handleCodeChange = useCallback((value: string) => {
+    setErrorField((field) => (field === 'code' ? null : field));
     setCodeInput(value);
   }, []);
   const isEmailStepReady = isAuthEmailSubmitReady(emailInput);
@@ -244,6 +252,8 @@ export function AnonymousAccountUpgradeForm({
 
     if (!isValidAccountEmail(email)) {
       setErrorMessage(t('account.errors.invalidEmail'));
+      setErrorField('email');
+      emailInputRef.current?.focus();
       return;
     }
 
@@ -282,6 +292,8 @@ export function AnonymousAccountUpgradeForm({
 
     if (!isAuthOtpSubmitReady(code)) {
       setErrorMessage(t('account.errors.codeRequired'));
+      setErrorField('code');
+      codeInputRef.current?.focus();
       return;
     }
 
@@ -362,24 +374,28 @@ export function AnonymousAccountUpgradeForm({
                   {t('account.emailLabel')}
                 </Text>
               </View>
-              <View
-                style={[
-                  authStyles.inputShell,
-                  { minHeight: createLayoutMetrics.inputHeight },
-                ]}
+              <InputShell
+                hasError={errorField === 'email'}
+                isFocused={focusedField === 'email'}
+                minHeight={createLayoutMetrics.inputHeight}
               >
                 <AuthFormTextInput
+                  ref={emailInputRef}
                   kind="email"
                   placeholder={t('account.emailPlaceholder')}
                   placeholderTextColor={colors.textMuted}
+                  returnKeyType="done"
                   style={[
                     authStyles.input,
                     { minHeight: createLayoutMetrics.inputHeight - 2 },
                   ]}
                   valueRef={emailRef}
                   onValueChange={handleEmailChange}
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => setFocusedField(null)}
+                  onSubmitEditing={() => void handleSendCode()}
                 />
-              </View>
+              </InputShell>
               {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
               <CreatePrimaryButton
                 disabled={isSubmitting || !isEmailStepReady}
@@ -428,24 +444,28 @@ export function AnonymousAccountUpgradeForm({
               <Text style={authStyles.codeHint}>
                 {t('account.codeHint', { email: codeEmail })}
               </Text>
-              <View
-                style={[
-                  authStyles.inputShell,
-                  { minHeight: createLayoutMetrics.inputHeight },
-                ]}
+              <InputShell
+                hasError={errorField === 'code'}
+                isFocused={focusedField === 'code'}
+                minHeight={createLayoutMetrics.inputHeight}
               >
                 <AuthFormTextInput
+                  ref={codeInputRef}
                   kind="code"
                   placeholder={t('account.codePlaceholder')}
                   placeholderTextColor={colors.textMuted}
+                  returnKeyType="done"
                   style={[
                     authStyles.input,
                     { minHeight: createLayoutMetrics.inputHeight - 2 },
                   ]}
                   valueRef={codeRef}
                   onValueChange={handleCodeChange}
+                  onFocus={() => setFocusedField('code')}
+                  onBlur={() => setFocusedField(null)}
+                  onSubmitEditing={() => void handleVerifyCode()}
                 />
-              </View>
+              </InputShell>
               {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
               <CreatePrimaryButton
                 disabled={isSubmitting || !isCodeStepReady}
@@ -502,14 +522,24 @@ export function AnonymousAccountUpgradeForm({
           >
             {t('account.emailLabel')}
           </Text>
-          <AuthFormTextInput
-            kind="email"
-            placeholder={t('account.emailPlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-            valueRef={emailRef}
-            onValueChange={handleEmailChange}
-          />
+          <InputShell
+            hasError={errorField === 'email'}
+            isFocused={focusedField === 'email'}
+          >
+            <AuthFormTextInput
+              ref={emailInputRef}
+              kind="email"
+              placeholder={t('account.emailPlaceholder')}
+              placeholderTextColor={colors.textMuted}
+              returnKeyType="done"
+              style={styles.input}
+              valueRef={emailRef}
+              onValueChange={handleEmailChange}
+              onFocus={() => setFocusedField('email')}
+              onBlur={() => setFocusedField(null)}
+              onSubmitEditing={() => void handleSendCode()}
+            />
+          </InputShell>
           <PrimaryButton
             disabled={isSubmitting || !isEmailStepReady}
             label={
@@ -525,14 +555,24 @@ export function AnonymousAccountUpgradeForm({
           <Text style={styles.body}>
             {t('account.codeHint', { email: codeEmail })}
           </Text>
-          <AuthFormTextInput
-            kind="code"
-            placeholder={t('account.codePlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-            valueRef={codeRef}
-            onValueChange={handleCodeChange}
-          />
+          <InputShell
+            hasError={errorField === 'code'}
+            isFocused={focusedField === 'code'}
+          >
+            <AuthFormTextInput
+              ref={codeInputRef}
+              kind="code"
+              placeholder={t('account.codePlaceholder')}
+              placeholderTextColor={colors.textMuted}
+              returnKeyType="done"
+              style={styles.input}
+              valueRef={codeRef}
+              onValueChange={handleCodeChange}
+              onFocus={() => setFocusedField('code')}
+              onBlur={() => setFocusedField(null)}
+              onSubmitEditing={() => void handleVerifyCode()}
+            />
+          </InputShell>
           <PrimaryButton
             disabled={isSubmitting || !isCodeStepReady}
             label={
@@ -584,9 +624,7 @@ export function AnonymousAccountUpgradeForm({
         </>
       ) : null}
 
-      {errorMessage ? (
-        <Text style={styles.errorText}>{errorMessage}</Text>
-      ) : null}
+      {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
     </>
   );
 }

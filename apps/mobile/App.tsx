@@ -21,6 +21,7 @@ import { configureTextAccessibility } from '@/lib/configureTextAccessibility';
 import { logTailo } from '@/lib/tailoLogger';
 import { hydrateAppFontStyle } from '@/lib/appFontStyle';
 import { hydrateAppTheme } from '@/lib/appTheme';
+import { hydrateNotificationPreferences } from '@/modules/notifications';
 import { getDatabase } from '@/db';
 import { countPendingUploadQueueItems } from '@/db/uploadQueue';
 import { hydrateAppLocale, t, useAppLocale } from '@/i18n';
@@ -104,6 +105,7 @@ export default function App() {
           hydrateAppTheme(),
           hydrateAppFontStyle(),
           hydrateCloudImageUploadsEnabled(),
+          hydrateNotificationPreferences(),
         ]);
         const authResult = await prepareAppRemoteAuth();
 
@@ -175,6 +177,7 @@ export default function App() {
                 hydrateAppTheme(),
                 hydrateAppFontStyle(),
                 hydrateCloudImageUploadsEnabled(),
+                hydrateNotificationPreferences(),
               ]);
               const authResult = await prepareAppRemoteAuth();
               if (

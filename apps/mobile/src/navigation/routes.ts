@@ -42,7 +42,11 @@ export type ModalStackParamList = {
     purpose?: CapturePurpose;
   };
   NotificationsInbox: undefined;
+  NotificationSettings: undefined;
   PetProfileDetails: undefined;
+  PrivacyPermissions: undefined;
+  PrivacyPolicy: undefined;
+  DataProcessingDetails: undefined;
 };
 
 export type ModalRouteName = keyof ModalStackParamList;
@@ -78,8 +82,24 @@ export type ModalRoute =
       params: ModalStackParamList['NotificationsInbox'];
     })
   | (RouteBase & {
+      name: 'NotificationSettings';
+      params: ModalStackParamList['NotificationSettings'];
+    })
+  | (RouteBase & {
       name: 'PetProfileDetails';
       params: ModalStackParamList['PetProfileDetails'];
+    })
+  | (RouteBase & {
+      name: 'PrivacyPermissions';
+      params: ModalStackParamList['PrivacyPermissions'];
+    })
+  | (RouteBase & {
+      name: 'PrivacyPolicy';
+      params: ModalStackParamList['PrivacyPolicy'];
+    })
+  | (RouteBase & {
+      name: 'DataProcessingDetails';
+      params: ModalStackParamList['DataProcessingDetails'];
     });
 
 /** @deprecated Use MainTabId + ModalRouteName. Kept for gradual migration in tests. */
@@ -92,7 +112,11 @@ export type RootStackParamList = {
   Capture: undefined;
   CapturePreview: ModalStackParamList['CapturePreview'];
   NotificationsInbox: undefined;
+  NotificationSettings: undefined;
   PetProfileDetails: undefined;
+  PrivacyPermissions: undefined;
+  PrivacyPolicy: undefined;
+  DataProcessingDetails: undefined;
 };
 
 export type RootRouteName = keyof RootStackParamList;

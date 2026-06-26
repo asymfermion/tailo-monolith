@@ -1,5 +1,20 @@
 /** Account upgrade copy (email linking). */
 export const accountMessages = {
+  settingsTitle: 'Account',
+  settingsSubtitle: 'Manage your Tailo account and profile.',
+  sectionProfile: 'Profile',
+  sectionSecurity: 'Security',
+  sectionAccount: 'Account',
+  emailVerifiedLabel: 'Verified',
+  emailUnverifiedLabel: 'Not verified',
+  passwordChangeLabel: 'Change',
+  deleteAccountLabel: 'Delete account',
+  deleteAccountConfirmTitle: 'Delete account?',
+  deleteAccountConfirmMessage:
+    'This will permanently delete your Tailo account, timeline, and uploads on the cloud. Your local data on this device will also be removed.',
+  deleteAccountConfirmButton: 'Delete account',
+  deleteAccountFailedTitle: 'Could not delete account',
+  deleteAccountFailedMessage: 'Try again in a moment.',
   saveMemoriesLink: 'Create account',
   title: 'Create your account',
   body: 'Link an email to save your memories and unlock more.',

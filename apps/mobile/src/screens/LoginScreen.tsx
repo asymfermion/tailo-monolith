@@ -17,6 +17,7 @@ import { AuthHeroCollage, AuthLegalCopy } from '@/components/AuthBranding';
 import { AuthBackButtonOverlay } from '@/components/AuthHeader';
 import { AuthFormTextInput } from '@/components/AuthFormTextInput';
 import { FormErrorBanner } from '@/components/FormErrorBanner';
+import { InputShell } from '@/components/InputShell';
 import { SocialSignInControls } from '@/components/SocialSignInControls';
 import { spacing } from '@/constants/theme';
 import { getFontFamilyForStyle } from '@/constants/typography';
@@ -117,9 +118,9 @@ function createLoginScreenStyles({
     },
     fieldLabel: {
       color: colors.text,
-      fontFamily: getFontFamily('500'),
+      fontFamily: getFontFamily('400'),
       fontSize: 15,
-      fontWeight: '500' as const,
+      fontWeight: '400' as const,
     },
     codeHint: {
       color: colors.textMuted,
@@ -128,28 +129,21 @@ function createLoginScreenStyles({
       lineHeight: 20,
       marginBottom: spacing.sm,
     },
-    inputShell: {
-      alignItems: 'center' as const,
-      backgroundColor: 'rgba(255, 253, 249, 0.5)',
-      borderColor: colors.timelineDivider,
-      borderRadius: 18,
-      borderWidth: 1,
-      flexDirection: 'row' as const,
-    },
     input: {
       color: colors.text,
       fontFamily: getFontFamily('400'),
       flex: 1,
-      fontSize: 16,
+      fontSize: 15,
+      lineHeight: 20,
       paddingHorizontal: spacing.md,
       paddingVertical: 0,
     },
     passwordToggle: {
       alignItems: 'center' as const,
-      height: 48,
+      height: 52,
       justifyContent: 'center' as const,
       marginRight: spacing.sm,
-      width: 48,
+      width: 52,
     },
     primaryButton: {
       alignItems: 'center' as const,
@@ -158,7 +152,7 @@ function createLoginScreenStyles({
       borderRadius: 999,
       justifyContent: 'center' as const,
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
+      paddingVertical: 0,
     },
     primaryButtonDisabled: {
       backgroundColor: disabledPrimaryButtonColor,
@@ -166,8 +160,9 @@ function createLoginScreenStyles({
     primaryButtonText: {
       color: colors.surface,
       fontFamily: getFontFamily('600'),
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: '600' as const,
+      lineHeight: 21,
     },
     primaryButtonTextDisabled: {
       color: colors.surface,
@@ -291,6 +286,9 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
   const signInInFlightRef = useRef(false);
   const emailInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
+  const codeInputRef = useRef<TextInput>(null);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<string | null>(null);
   const { colors } = useAppearance();
   const styles = useThemedStyles(createLoginScreenStyles);
   const availableHeight = Math.max(height - insets.top - insets.bottom, 0);
@@ -298,12 +296,15 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
   const heroLayoutMetrics = getWelcomeLayoutMetrics(height, availableHeight);
   const titleMetrics = getAuthTitleMetrics(width, layoutMetrics.bucket);
   const handleEmailChange = useCallback((value: string) => {
+    setErrorField((field) => (field === 'email' ? null : field));
     setEmailInput(value);
   }, []);
   const handlePasswordChange = useCallback((value: string) => {
+    setErrorField((field) => (field === 'password' ? null : field));
     setPasswordInput(value);
   }, []);
   const handleCodeChange = useCallback((value: string) => {
+    setErrorField((field) => (field === 'code' ? null : field));
     setCodeInput(value);
   }, []);
   const isPasswordStepReady =
@@ -358,6 +359,8 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
 
     if (!isValidAccountEmail(email)) {
       setErrorMessage(t('account.errors.invalidEmail'));
+      setErrorField('email');
+      emailInputRef.current?.focus();
       return;
     }
 
@@ -395,6 +398,8 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
 
     if (!isValidAccountEmail(email)) {
       setErrorMessage(t('account.errors.invalidEmail'));
+      setErrorField('email');
+      emailInputRef.current?.focus();
       return;
     }
 
@@ -402,6 +407,8 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
 
     if (!isAuthPasswordSubmitReady(password)) {
       setErrorMessage(t('signIn.errors.passwordRequired'));
+      setErrorField('password');
+      passwordInputRef.current?.focus();
       return;
     }
 
@@ -452,6 +459,8 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
 
     if (!isAuthOtpSubmitReady(code)) {
       setErrorMessage(t('account.errors.codeRequired'));
+      setErrorField('code');
+      codeInputRef.current?.focus();
       return;
     }
 
@@ -517,6 +526,7 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
     <View style={styles.screen}>
       {onCancel ? <AuthBackButtonOverlay onBack={onCancel} /> : null}
       <ScrollView
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={[
           styles.content,
           {
@@ -525,6 +535,7 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
           },
         ]}
         contentInsetAdjustmentBehavior="never"
+        keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         style={styles.screen}
       >
@@ -579,11 +590,10 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
                   {t('signIn.emailAddressLabel')}
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.inputShell,
-                  { minHeight: layoutMetrics.inputHeight },
-                ]}
+              <InputShell
+                hasError={errorField === 'email'}
+                isFocused={focusedField === 'email'}
+                minHeight={layoutMetrics.inputHeight}
               >
                 <AuthFormTextInput
                   ref={emailInputRef}
@@ -598,9 +608,11 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
                   ]}
                   valueRef={emailRef}
                   onValueChange={handleEmailChange}
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => setFocusedField(null)}
                   onSubmitEditing={() => passwordInputRef.current?.focus()}
                 />
-              </View>
+              </InputShell>
 
               <View
                 style={[
@@ -621,15 +633,15 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
                   </Text>
                 </Pressable>
               </View>
-              <View
-                style={[
-                  styles.inputShell,
-                  { minHeight: layoutMetrics.inputHeight },
-                ]}
+              <InputShell
+                hasError={errorField === 'password'}
+                isFocused={focusedField === 'password'}
+                minHeight={layoutMetrics.inputHeight}
               >
                 <AuthFormTextInput
                   ref={passwordInputRef}
                   kind="password"
+                  keyboardDismissAccessory={false}
                   placeholder={t('signIn.passwordInputPlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   returnKeyType="done"
@@ -640,6 +652,8 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
                   ]}
                   valueRef={passwordRef}
                   onValueChange={handlePasswordChange}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
                   onSubmitEditing={() => void handlePasswordSignIn()}
                 />
                 <Pressable
@@ -658,7 +672,7 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
                     size={24}
                   />
                 </Pressable>
-              </View>
+              </InputShell>
 
               {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
               <PrimaryButton
@@ -715,13 +729,13 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
               <Text style={styles.codeHint}>
                 {t('account.codeHint', { email: codeEmail })}
               </Text>
-              <View
-                style={[
-                  styles.inputShell,
-                  { minHeight: layoutMetrics.inputHeight },
-                ]}
+              <InputShell
+                hasError={errorField === 'code'}
+                isFocused={focusedField === 'code'}
+                minHeight={layoutMetrics.inputHeight}
               >
                 <AuthFormTextInput
+                  ref={codeInputRef}
                   kind="code"
                   placeholder={t('account.codePlaceholder')}
                   placeholderTextColor={colors.textMuted}
@@ -731,8 +745,11 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
                   ]}
                   valueRef={codeRef}
                   onValueChange={handleCodeChange}
+                  onFocus={() => setFocusedField('code')}
+                  onBlur={() => setFocusedField(null)}
+                  onSubmitEditing={() => void handleVerifyCode()}
                 />
-              </View>
+              </InputShell>
               {errorMessage ? <FormErrorBanner message={errorMessage} /> : null}
               <PrimaryButton
                 disabled={isSubmitting || !isCodeStepReady}

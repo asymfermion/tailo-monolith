@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import {
   useCallback,
   useEffect,
@@ -5,7 +6,15 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getDatabase } from '@/db';
@@ -52,6 +61,7 @@ type SettingsRowProps = {
   description?: string;
   detail?: string;
   label: string;
+  leadingIcon?: keyof typeof Ionicons.glyphMap;
   onPress?: () => void;
 };
 
@@ -78,15 +88,57 @@ function createSettingsStyles({
     },
     title: {
       color: colors.text,
+      fontFamily: getFontFamily('700'),
+      fontSize: 30,
+      fontWeight: '700' as const,
+      lineHeight: 36,
+    },
+    titleRow: {
+      alignItems: 'flex-start' as const,
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+    },
+    titleBlock: {
+      flex: 1,
+      minWidth: 0,
+      paddingRight: spacing.sm,
+    },
+    inboxButton: {
+      alignItems: 'center' as const,
+      height: 44,
+      justifyContent: 'center' as const,
+      marginTop: -6,
+      position: 'relative' as const,
+      width: 44,
+    },
+    inboxButtonPressed: {
+      opacity: 0.72,
+    },
+    inboxBadge: {
+      alignItems: 'center' as const,
+      backgroundColor: colors.destructive,
+      borderRadius: 9,
+      height: 18,
+      justifyContent: 'center' as const,
+      minWidth: 18,
+      paddingHorizontal: 4,
+      position: 'absolute' as const,
+      right: 2,
+      top: 4,
+    },
+    inboxBadgeText: {
+      color: colors.surface,
       fontFamily: getFontFamily('600'),
-      fontSize: 28,
+      fontSize: 11,
       fontWeight: '600' as const,
+      lineHeight: 14,
+      textAlign: 'center' as const,
     },
     subtitle: {
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),
       fontSize: 15,
-      lineHeight: 22,
+      lineHeight: 20,
       marginTop: spacing.xs,
     },
     section: {
@@ -98,26 +150,92 @@ function createSettingsStyles({
       fontSize: 12,
       fontWeight: '700' as const,
       letterSpacing: 0.6,
+      lineHeight: 16,
       marginBottom: spacing.sm,
       textTransform: 'uppercase' as const,
     },
     sectionCard: {
       backgroundColor: colors.surface,
       borderColor: colors.border,
-      borderRadius: 12,
+      borderRadius: 20,
       borderWidth: 1,
       overflow: 'hidden' as const,
     },
+    sectionCardCompact: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 18,
+      borderWidth: 1,
+      overflow: 'hidden' as const,
+    },
+    accountRow: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      minHeight: 76,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+    },
+    accountRowPressed: {
+      backgroundColor: colors.background,
+    },
+    accountRowInner: {
+      flex: 1,
+      minWidth: 0,
+    },
+    accountRowName: {
+      color: colors.text,
+      fontFamily: getFontFamily('600'),
+      fontSize: 16,
+      fontWeight: '600' as const,
+      lineHeight: 20,
+    },
+    accountRowEmail: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 13,
+      lineHeight: 18,
+      marginTop: spacing.xs,
+    },
+    standaloneCard: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 20,
+      borderWidth: 1,
+      overflow: 'hidden' as const,
+    },
+    rowFrame: {
+      position: 'relative' as const,
+    },
     row: {
       alignItems: 'center' as const,
-      borderBottomColor: colors.border,
-      borderBottomWidth: 1,
       flexDirection: 'row' as const,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
+      minHeight: 56,
+      paddingHorizontal: 18,
+      paddingVertical: 0,
+    },
+    rowWithDescription: {
+      minHeight: 88,
+      paddingVertical: 14,
     },
     rowPressed: {
       backgroundColor: colors.background,
+    },
+    rowDivider: {
+      backgroundColor: colors.border,
+      bottom: 0,
+      height: StyleSheet.hairlineWidth,
+      left: 18,
+      position: 'absolute' as const,
+      right: 18,
+    },
+    leadingIconBadge: {
+      alignItems: 'center' as const,
+      backgroundColor: colors.background,
+      borderRadius: 18,
+      height: 36,
+      justifyContent: 'center' as const,
+      marginRight: 15,
+      width: 36,
     },
     rowInner: {
       flex: 1,
@@ -130,22 +248,26 @@ function createSettingsStyles({
       fontFamily: getFontFamily('600'),
       fontSize: 16,
       fontWeight: '600' as const,
+      lineHeight: 21,
     },
     rowDescription: {
       color: colors.textMuted,
       flexShrink: 1,
       fontFamily: getFontFamily('400'),
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: 13,
+      lineHeight: 18,
       marginTop: spacing.xs,
     },
     rowDetailBadge: {
-      alignSelf: 'flex-start' as const,
+      alignItems: 'center' as const,
+      alignSelf: 'center' as const,
       backgroundColor: colors.accent,
-      borderRadius: 999,
-      marginTop: spacing.xs,
+      borderRadius: 11,
+      height: 22,
+      justifyContent: 'center' as const,
+      marginLeft: 10,
+      minWidth: 30,
       paddingHorizontal: spacing.sm,
-      paddingVertical: 2,
     },
     rowDetailText: {
       color: colors.surface,
@@ -154,40 +276,30 @@ function createSettingsStyles({
       fontWeight: '600' as const,
       lineHeight: 16,
     },
-    chevron: {
-      color: colors.textMuted,
-      fontFamily: getFontFamily('400'),
-      fontSize: 22,
-      lineHeight: 22,
+    chevronWrap: {
+      alignItems: 'center' as const,
+      height: 20,
+      justifyContent: 'center' as const,
       marginLeft: spacing.sm,
+      width: 20,
     },
     rowLast: {
       borderBottomWidth: 0,
     },
     toggleControl: {
-      marginLeft: spacing.md,
-    },
-    toggleLabel: {
-      color: colors.textMuted,
-      fontFamily: getFontFamily('600'),
-      fontSize: 13,
-      fontWeight: '600' as const,
       marginLeft: spacing.sm,
-      minWidth: 28,
-      textAlign: 'right' as const,
     },
     logoutFooter: {
-      marginTop: 'auto' as const,
-      paddingTop: spacing.xl,
+      marginTop: spacing.lg,
     },
     logoutButton: {
       alignItems: 'center' as const,
       backgroundColor: colors.surface,
       borderColor: colors.border,
-      borderRadius: 12,
+      borderRadius: 18,
       borderWidth: 1,
       justifyContent: 'center' as const,
-      minHeight: 48,
+      minHeight: 56,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
     },
@@ -202,6 +314,17 @@ function createSettingsStyles({
       fontFamily: getFontFamily('600'),
       fontSize: 16,
       fontWeight: '600' as const,
+      lineHeight: 20,
+      textAlign: 'center' as const,
+      width: '100%' as const,
+    },
+    versionLabel: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 12,
+      lineHeight: 16,
+      marginTop: spacing.lg,
+      textAlign: 'center' as const,
     },
   };
 }
@@ -396,30 +519,27 @@ export function SettingsScreen() {
     [handlePreferenceSyncResult, shouldSyncProfile],
   );
 
-  const handleCloudImageUploadsToggle = useCallback(
-    (enabled: boolean) => {
-      void (async () => {
-        try {
-          await setCloudImageUploadsEnabled(enabled);
+  const handleCloudImageUploadsToggle = useCallback((enabled: boolean) => {
+    void (async () => {
+      try {
+        await setCloudImageUploadsEnabled(enabled);
 
-          if (!enabled) {
-            return;
-          }
-
-          const database = await getDatabase();
-          await runCloudSyncPass(database);
-        } catch (error) {
-          Alert.alert(
-            t('settings.preferenceSyncFailedTitle'),
-            error instanceof Error
-              ? error.message
-              : t('settings.preferenceSyncFailedMessage'),
-          );
+        if (!enabled) {
+          return;
         }
-      })();
-    },
-    [],
-  );
+
+        const database = await getDatabase();
+        await runCloudSyncPass(database);
+      } catch (error) {
+        Alert.alert(
+          t('settings.preferenceSyncFailedTitle'),
+          error instanceof Error
+            ? error.message
+            : t('settings.preferenceSyncFailedMessage'),
+        );
+      }
+    })();
+  }, []);
 
   const languageOptions = [
     { value: 'en' as const, label: t('settings.languages.english') },
@@ -443,15 +563,6 @@ export function SettingsScreen() {
       fontWeight: '600' as const,
     },
   }));
-
-  const selectedFontLabelStyle = useMemo(
-    () => ({
-      fontFamily: getFontFamilyForStyle(fontStyle, '600'),
-      fontSize: 16,
-      fontWeight: '600' as const,
-    }),
-    [fontStyle],
-  );
 
   const selectedLanguageLabel =
     locale === 'zh-Hans'
@@ -515,56 +626,85 @@ export function SettingsScreen() {
       contentInsetAdjustmentBehavior="never"
       style={styles.screen}
     >
-      <Text style={styles.title}>{t('navigation.tabs.Settings')}</Text>
-      <Text style={styles.subtitle}>{t('settings.subtitle')}</Text>
+      <View style={styles.titleRow}>
+        <View style={styles.titleBlock}>
+          <Text style={styles.title}>{t('navigation.tabs.Settings')}</Text>
+          <Text style={styles.subtitle}>{t('settings.subtitle')}</Text>
+        </View>
+        <Pressable
+          accessibilityLabel={t('settings.openNotificationsInboxLabel')}
+          accessibilityRole="button"
+          style={({ pressed }) => [
+            styles.inboxButton,
+            pressed && styles.inboxButtonPressed,
+          ]}
+          onPress={() => navigation.push('NotificationsInbox')}
+        >
+          <Ionicons
+            color={colors.text}
+            name="notifications-outline"
+            size={24}
+          />
+          {unreadNotifications > 0 ? (
+            <View style={styles.inboxBadge}>
+              <Text style={styles.inboxBadgeText}>
+                {unreadNotifications > 9 ? '9+' : String(unreadNotifications)}
+              </Text>
+            </View>
+          ) : null}
+        </Pressable>
+      </View>
 
       <SettingsSection
+        hasCard={false}
         styles={styles}
-        title={t('userProfile.settingsSectionTitle')}
+        title={t('settings.sections.account')}
+      >
+        <SettingsCard styles={styles}>
+          <SettingsAccountRow
+            email={accountDescription}
+            label={accountLabel}
+            styles={styles}
+            onPress={() =>
+              navigation.push(
+                'AccountSettings',
+                account.isLinked ? undefined : { mode: 'link' },
+              )
+            }
+          />
+        </SettingsCard>
+      </SettingsSection>
+
+      <SettingsSection
+        cardVariant="compact"
+        styles={styles}
+        title={t('settings.sections.notifications')}
       >
         <SettingsRow
-          description={accountDescription}
-          label={accountLabel}
-          styles={styles}
-          onPress={() =>
-            navigation.push(
-              'AccountSettings',
-              account.isLinked ? undefined : { mode: 'link' },
-            )
-          }
-        />
-        <SettingsRow
-          description={t('settings.notificationsDescription')}
-          detail={
-            unreadNotifications > 0
-              ? t('settings.notificationsUnreadCount', {
-                  count: String(unreadNotifications),
-                })
-              : undefined
-          }
+          description={t('settings.notificationSettingsDescription')}
           isLast
-          label={t('settings.notificationsLabel')}
+          label={t('settings.notificationSettingsLabel')}
           styles={styles}
-          onPress={() => navigation.push('NotificationsInbox')}
+          onPress={() => navigation.push('NotificationSettings')}
         />
       </SettingsSection>
 
       <SettingsSection
         styles={styles}
-        title={t('settings.sections.localization')}
+        title={t('settings.sections.preferences')}
       >
         <SettingsOptionPicker
           accessibilityLabel={t('settings.languageLabel')}
+          label={t('settings.languageLabel')}
           options={languageOptions}
           selectedLabel={selectedLanguageLabel}
           selectedValue={locale}
+          showDivider
           onSelect={handleLanguageSelect}
         />
-      </SettingsSection>
-
-      <SettingsSection styles={styles} title={t('settings.sections.theme')}>
         <SettingsOptionPicker
           accessibilityLabel={t('settings.themeLabel')}
+          label={t('settings.themeLabel')}
           options={themeOptions}
           selectedLabel={
             theme === 'dark'
@@ -572,27 +712,40 @@ export function SettingsScreen() {
               : t('settings.themes.light')
           }
           selectedValue={theme}
+          showDivider
           onSelect={handleThemeSelect}
         />
-      </SettingsSection>
-
-      <SettingsSection styles={styles} title={t('settings.sections.fontStyle')}>
         <SettingsOptionPicker
           accessibilityLabel={t('settings.fontStyleLabel')}
+          label={t('settings.fontStyleLabel')}
           options={fontStyleOptions}
           selectedLabel={t(FONT_STYLE_LABEL_KEYS[fontStyle])}
-          selectedLabelStyle={selectedFontLabelStyle}
           selectedValue={fontStyle}
           onSelect={handleFontStyleSelect}
         />
       </SettingsSection>
 
+      <SettingsSection
+        cardVariant="compact"
+        styles={styles}
+        title={t('settings.sections.privacy')}
+      >
+        <SettingsRow
+          isLast
+          label={t('settings.privacyPermissionsLabel')}
+          styles={styles}
+          onPress={() => navigation.push('PrivacyPermissions')}
+        />
+      </SettingsSection>
+
       {appEnv.showDeveloperSettings ? (
         <SettingsSection
+          cardVariant="compact"
           styles={styles}
           title={t('settings.sections.developer')}
         >
           <SettingsToggleRow
+            description={t('settings.developerImageUploadsDescription')}
             isLast={false}
             iosBackgroundColor={colors.border}
             label={t('settings.developerImageUploadsLabel')}
@@ -631,25 +784,83 @@ export function SettingsScreen() {
           </Pressable>
         </View>
       ) : null}
+
+      <Text style={styles.versionLabel}>
+        {t('settings.versionLabel', { version: appEnv.appVersion })}
+      </Text>
     </ScrollView>
   );
 }
 
 function SettingsSection({
+  cardVariant = 'default',
   children,
+  hasCard = true,
   styles,
   title,
 }: {
+  cardVariant?: 'compact' | 'default';
   children: ReactNode;
+  hasCard?: boolean;
   styles: SettingsStyles;
   title: string;
 }) {
+  const cardStyle =
+    cardVariant === 'compact' ? styles.sectionCardCompact : styles.sectionCard;
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionCard}>{children}</View>
+      {hasCard ? <View style={cardStyle}>{children}</View> : children}
     </View>
   );
+}
+
+function SettingsAccountRow({
+  email,
+  label,
+  onPress,
+  styles,
+}: {
+  email: string;
+  label: string;
+  onPress: () => void;
+  styles: SettingsStyles;
+}) {
+  const { colors } = useAppearance();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.accountRow,
+        pressed && styles.accountRowPressed,
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.accountRowInner}>
+        <Text numberOfLines={1} style={styles.accountRowName}>
+          {label}
+        </Text>
+        <Text numberOfLines={1} style={styles.accountRowEmail}>
+          {email}
+        </Text>
+      </View>
+      <View style={styles.chevronWrap}>
+        <Ionicons color={colors.textMuted} name="chevron-forward" size={20} />
+      </View>
+    </Pressable>
+  );
+}
+
+function SettingsCard({
+  children,
+  styles,
+}: {
+  children: ReactNode;
+  styles: SettingsStyles;
+}) {
+  return <View style={styles.standaloneCard}>{children}</View>;
 }
 
 function SettingsRow({
@@ -657,45 +868,71 @@ function SettingsRow({
   detail,
   isLast = false,
   label,
+  leadingIcon,
   onPress,
   styles,
 }: SettingsRowProps & {
   isLast?: boolean;
   styles: SettingsStyles;
 }) {
+  const { colors } = useAppearance();
   const content = (
-    <View style={styles.rowInner}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      {description ? (
-        <Text style={styles.rowDescription}>{description}</Text>
+    <>
+      {leadingIcon ? (
+        <View style={styles.leadingIconBadge}>
+          <Ionicons color={colors.text} name={leadingIcon} size={20} />
+        </View>
       ) : null}
+      <View style={styles.rowInner}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {description ? (
+          <Text style={styles.rowDescription}>{description}</Text>
+        ) : null}
+      </View>
       {detail ? (
         <View style={styles.rowDetailBadge}>
           <Text style={styles.rowDetailText}>{detail}</Text>
         </View>
       ) : null}
-    </View>
+    </>
   );
 
   if (!onPress) {
     return (
-      <View style={[styles.row, isLast && styles.rowLast]}>{content}</View>
+      <View style={styles.rowFrame}>
+        <View
+          style={[
+            styles.row,
+            description ? styles.rowWithDescription : null,
+            isLast && styles.rowLast,
+          ]}
+        >
+          {content}
+        </View>
+        {!isLast ? <View style={styles.rowDivider} /> : null}
+      </View>
     );
   }
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.row,
-        isLast && styles.rowLast,
-        pressed && styles.rowPressed,
-      ]}
-      onPress={onPress}
-    >
-      {content}
-      <Text style={styles.chevron}>›</Text>
-    </Pressable>
+    <View style={styles.rowFrame}>
+      <Pressable
+        accessibilityRole="button"
+        style={({ pressed }) => [
+          styles.row,
+          description ? styles.rowWithDescription : null,
+          isLast && styles.rowLast,
+          pressed && styles.rowPressed,
+        ]}
+        onPress={onPress}
+      >
+        {content}
+        <View style={styles.chevronWrap}>
+          <Ionicons color={colors.textMuted} name="chevron-forward" size={20} />
+        </View>
+      </Pressable>
+      {!isLast ? <View style={styles.rowDivider} /> : null}
+    </View>
   );
 }
 
@@ -722,38 +959,39 @@ function SettingsToggleRow({
   trackTrueColor: string;
   value: boolean;
 }) {
-  const stateLabel = value ? t('common.on') : t('common.off');
-
   return (
-    <Pressable
-      accessibilityRole="switch"
-      accessibilityState={{ checked: value }}
-      style={({ pressed }) => [
-        styles.row,
-        isLast && styles.rowLast,
-        pressed && styles.rowPressed,
-      ]}
-      onPress={() => onValueChange(!value)}
-    >
-      <View style={styles.rowInner}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {description ? (
-          <Text style={styles.rowDescription}>{description}</Text>
-        ) : null}
-      </View>
-      <Text style={styles.toggleLabel}>{stateLabel}</Text>
-      <Switch
-        ios_backgroundColor={iosBackgroundColor}
-        pointerEvents="none"
-        style={styles.toggleControl}
-        thumbColor={thumbColor}
-        trackColor={{
-          false: trackFalseColor,
-          true: trackTrueColor,
-        }}
-        value={value}
-        onValueChange={onValueChange}
-      />
-    </Pressable>
+    <View style={styles.rowFrame}>
+      <Pressable
+        accessibilityRole="switch"
+        accessibilityState={{ checked: value }}
+        style={({ pressed }) => [
+          styles.row,
+          description ? styles.rowWithDescription : null,
+          isLast && styles.rowLast,
+          pressed && styles.rowPressed,
+        ]}
+        onPress={() => onValueChange(!value)}
+      >
+        <View style={styles.rowInner}>
+          <Text style={styles.rowLabel}>{label}</Text>
+          {description ? (
+            <Text style={styles.rowDescription}>{description}</Text>
+          ) : null}
+        </View>
+        <Switch
+          ios_backgroundColor={iosBackgroundColor}
+          pointerEvents="none"
+          style={styles.toggleControl}
+          thumbColor={thumbColor}
+          trackColor={{
+            false: trackFalseColor,
+            true: trackTrueColor,
+          }}
+          value={value}
+          onValueChange={onValueChange}
+        />
+      </Pressable>
+      {!isLast ? <View style={styles.rowDivider} /> : null}
+    </View>
   );
 }

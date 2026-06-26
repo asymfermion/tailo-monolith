@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import {
   getDropdownMenuPlacement,
+  resolveCenteredMenuFrame,
   resolveDropdownMenuFrame,
   type DropdownAnchor,
 } from './DismissibleDropdownMenu';
@@ -40,5 +41,26 @@ describe('resolveDropdownMenuFrame', () => {
       left: 24,
       width: 220,
     });
+  });
+
+  it('uses a fixed menu width when provided', () => {
+    expect(
+      resolveDropdownMenuFrame(
+        { x: 24, y: 100, width: 345, height: 60 },
+        220,
+        280,
+      ),
+    ).toEqual({
+      left: 24,
+      width: 280,
+    });
+  });
+});
+
+describe('resolveCenteredMenuFrame', () => {
+  it('uses a fixed centered menu width when provided', () => {
+    expect(
+      resolveCenteredMenuFrame({ top: 50, bottom: 34 }, 220, 280).width,
+    ).toBe(280);
   });
 });

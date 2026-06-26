@@ -1,4 +1,4 @@
-import { forwardRef, memo, useCallback, type RefObject } from 'react';
+import { forwardRef, memo, useCallback, useRef, type RefObject } from 'react';
 import type {
   StyleProp,
   TextInput,
@@ -55,6 +55,7 @@ export const AuthFormTextInput = memo(
     },
     ref,
   ) {
+    const initialDefaultValueRef = useRef(valueRef.current);
     const onChangeText = useCallback(
       (text: string) => {
         valueRef.current = text;
@@ -70,7 +71,7 @@ export const AuthFormTextInput = memo(
         ref={ref}
         {...fieldProps}
         {...rest}
-        defaultValue={valueRef.current}
+        defaultValue={initialDefaultValueRef.current}
         keyboardDismissAccessory={
           keyboardDismissAccessory ?? authFormFieldUsesKeyboardAccessory(kind)
         }

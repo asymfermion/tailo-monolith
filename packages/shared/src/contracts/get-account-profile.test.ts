@@ -26,6 +26,7 @@ describe('get-account-profile contracts', () => {
       preferred_locale: 'en',
       preferred_theme: 'dark',
       preferred_font_style: 'rounded',
+      notification_preferences: null,
       updated_at: '2026-05-19T00:00:00.000Z',
     });
   });

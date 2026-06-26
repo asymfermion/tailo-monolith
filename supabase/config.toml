@@ -265,11 +265,11 @@ subject = "Welcome to Tailo — verify your email"
 content_path = "templates/confirmation.html"
 
 [auth.email.template.invite]
-subject = "You're invited to Tailo"
+subject = "You’re invited to Tailo"
 content_path = "templates/invite.html"
 
 [auth.email.template.reauthentication]
-subject = "Confirm it's you — Tailo"
+subject = "Confirm it’s you — Tailo"
 content_path = "templates/reauthentication.html"
 
 [auth.email.notification.password_changed]

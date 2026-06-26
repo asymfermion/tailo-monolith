@@ -8,10 +8,9 @@ describe('getAppTextInputKeyboardProps', () => {
     });
   });
 
-  it('applies done return key for multiline fields so enter becomes dismiss', () => {
+  it('keeps return available for multiline fields while the accessory handles dismissal', () => {
     expect(getAppTextInputKeyboardProps({ multiline: true })).toEqual({
-      returnKeyType: 'done',
-      blurOnSubmit: true,
+      blurOnSubmit: false,
     });
   });
 

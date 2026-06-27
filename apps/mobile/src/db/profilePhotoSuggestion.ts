@@ -34,9 +34,13 @@ export async function getProfilePhotoSuggestions(
     FROM local_media_scores AS scores
     INNER JOIN local_assets AS assets
       ON assets.local_asset_id = scores.local_asset_id
+    INNER JOIN local_events AS events
+      ON events.local_event_id = scores.local_event_id
     WHERE assets.is_pet_candidate = 1
+      AND events.processing_state = 'processed'
+      AND events.deleted_at IS NULL
       ${petTypeClause}
-    ORDER BY scores.is_primary DESC, scores.overall_score DESC
+    ORDER BY scores.is_primary DESC, assets.pet_confidence DESC, scores.overall_score DESC
     LIMIT ?
   `,
     params,
@@ -77,7 +81,7 @@ export async function getMomentPhotoChoices(
     WHERE events.deleted_at IS NULL
       AND events.processing_state = 'processed'
       ${petTypeClause}
-    ORDER BY events.timestamp DESC, scores.is_primary DESC, scores.overall_score DESC
+    ORDER BY scores.is_primary DESC, assets.pet_confidence DESC, scores.overall_score DESC, events.timestamp DESC
     LIMIT ?
   `,
     params,

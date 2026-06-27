@@ -40,9 +40,7 @@ function createNotificationSettingsStyles({
       paddingHorizontal: spacing.lg,
     },
     header: {
-      gap: spacing.xs,
-      marginTop: spacing.md,
-      minHeight: 128,
+      marginTop: spacing.sm,
     },
     title: {
       color: colors.text,
@@ -57,7 +55,7 @@ function createNotificationSettingsStyles({
       fontFamily: getFontFamily('400'),
       fontSize: 15,
       lineHeight: 22,
-      marginTop: spacing.lg,
+      marginTop: spacing.xs,
     },
     content: {
       flexGrow: 1,
@@ -179,7 +177,7 @@ function NotificationToggleRow({
           thumbColor={colors.surface}
           trackColor={{
             false: colors.border,
-            true: colors.accent,
+            true: colors.positive,
           }}
           value={value}
           onValueChange={onValueChange}

@@ -15,6 +15,7 @@ export function detectPetCandidate(asset: PetDetectorInput): PetDetectorResult {
     confidence,
     detectionSource: 'heuristic',
     detectionDebugLabel: 'heuristic_skip',
+    detectedBreed: null,
   };
 }
 

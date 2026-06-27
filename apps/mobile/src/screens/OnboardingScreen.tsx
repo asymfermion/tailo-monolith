@@ -13,6 +13,7 @@ import {
   ActionSheetIOS,
   Alert,
   ActivityIndicator,
+  Animated,
   Platform,
   Pressable,
   ScrollView,
@@ -49,7 +50,6 @@ import {
 import { useNavigation } from '@/navigation/NavigationContext';
 import {
   formatPetOptionPhotoCount,
-  getOnboardingPipelineTitle,
   getPetTypeStepTitle,
   t,
 } from '@/i18n';
@@ -86,10 +86,6 @@ import {
   shouldEnableHistoricalScan,
   usePhotoAccess,
 } from '@/modules/mediaScanner';
-import {
-  getScanPipelineSteps,
-  type ScanPipelineStep,
-} from '@/modules/mediaScanner/scanProgress';
 import {
   loadLocalPetProfile,
   saveLocalPetProfile,
@@ -310,6 +306,7 @@ function createOnboardingStyles({
       fontFamily: getFontFamily('700'),
       fontSize: 12,
       fontWeight: '700' as const,
+      textAlign: 'center' as const,
       textTransform: 'uppercase' as const,
     },
     title: {
@@ -325,6 +322,7 @@ function createOnboardingStyles({
       fontSize: 16,
       lineHeight: 23,
       marginTop: 12,
+      textAlign: 'center' as const,
     },
     panelBody: {
       marginTop: 24,
@@ -371,6 +369,7 @@ function createOnboardingStyles({
       fontSize: 15,
       fontWeight: '600' as const,
       lineHeight: 20,
+      textAlign: 'center' as const,
     },
     quietButton: {
       alignItems: 'center' as const,
@@ -383,6 +382,7 @@ function createOnboardingStyles({
       fontFamily: getFontFamily('600'),
       fontSize: 15,
       fontWeight: '600' as const,
+      textAlign: 'center' as const,
     },
     secondaryAction: {
       alignItems: 'center' as const,
@@ -395,6 +395,7 @@ function createOnboardingStyles({
       fontFamily: getFontFamily('600'),
       fontSize: 15,
       fontWeight: '600' as const,
+      textAlign: 'center' as const,
     },
     consentRow: {
       alignItems: 'flex-start' as const,
@@ -470,6 +471,7 @@ function createOnboardingStyles({
       fontFamily: getFontFamily('400'),
       fontSize: 15,
       lineHeight: 22,
+      textAlign: 'center' as const,
     },
     discoveryGrid: {
       gap: spacing.sm,
@@ -522,6 +524,7 @@ function createOnboardingStyles({
       fontFamily: getFontFamily('400'),
       fontSize: 15,
       lineHeight: 22,
+      textAlign: 'center' as const,
     },
     profileNameLabel: {
       color: colors.text,
@@ -612,6 +615,21 @@ function createOnboardingStyles({
       borderWidth: 1,
       padding: 20,
     },
+    scanCardTitleRow: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+      justifyContent: 'center' as const,
+    },
+    scanAnimation: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      justifyContent: 'center' as const,
+      paddingVertical: spacing.lg,
+    },
+    petEmoji: {
+      fontSize: 48,
+    },
     scanCardTitle: {
       color: colors.text,
       fontFamily: getFontFamily('600'),
@@ -619,77 +637,12 @@ function createOnboardingStyles({
       fontWeight: '600' as const,
       lineHeight: 24,
     },
-    scanCardSubtitle: {
+    scanStatusLabel: {
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),
       fontSize: 14,
       lineHeight: 20,
-      marginTop: spacing.xs,
-    },
-    segmentBar: {
-      flexDirection: 'row' as const,
-      gap: 6,
-      marginTop: 18,
-    },
-    segment: {
-      backgroundColor: colors.border,
-      borderRadius: 999,
-      flex: 1,
-      height: 10,
-    },
-    segmentFilled: {
-      backgroundColor: colors.accent,
-    },
-    scanStepList: {
-      marginTop: spacing.sm,
-    },
-    scanStepRow: {
-      alignItems: 'center' as const,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: 'transparent',
-      flexDirection: 'row' as const,
-      gap: spacing.md,
-      minHeight: 36,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
-    },
-    scanStepRowActive: {
-      backgroundColor: '#F1E9E0',
-      borderColor: colors.timelineDivider,
-    },
-    scanStepCircle: {
-      alignItems: 'center' as const,
-      borderColor: colors.border,
-      borderRadius: 11,
-      borderWidth: 1,
-      height: 22,
-      justifyContent: 'center' as const,
-      width: 22,
-    },
-    scanStepCircleActive: {
-      borderColor: colors.accent,
-    },
-    scanStepCircleComplete: {
-      backgroundColor: colors.accent,
-      borderColor: colors.accent,
-    },
-    scanStepDot: {
-      backgroundColor: colors.accent,
-      borderRadius: 3,
-      height: 6,
-      width: 6,
-    },
-    scanStepLabel: {
-      color: colors.textMuted,
-      fontFamily: getFontFamily('400'),
-      fontSize: 14,
-      lineHeight: 20,
-    },
-    scanStepLabelActive: {
-      color: colors.text,
-      fontFamily: getFontFamily('600'),
-      fontWeight: '600' as const,
+      textAlign: 'center' as const,
     },
     petCircleRow: {
       flexDirection: 'row' as const,
@@ -798,6 +751,12 @@ function createOnboardingStyles({
       fontSize: 20,
       fontWeight: '600' as const,
     },
+    petOptionBreedType: {
+      color: colors.textMuted,
+      fontFamily: getFontFamily('400'),
+      fontSize: 13,
+      marginTop: 2,
+    },
     petOptionCount: {
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),
@@ -836,10 +795,10 @@ export function OnboardingScreen({
     initialScanCompleted,
     permissionStatus,
     startScan,
-    bestImageSelectionProgress,
   } = photoAccess;
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState<LocalPetType | null>(null);
+  const [petBreed, setPetBreed] = useState<string | null>(null);
   const [profilePhotoSuggestions, setProfilePhotoSuggestions] = useState<
     ProfilePhotoSuggestion[]
   >([]);
@@ -944,11 +903,7 @@ export function OnboardingScreen({
     return () => {
       isMounted = false;
     };
-  }, [
-    petType,
-    step,
-    photoAccess.bestImageSelectionProgress.selectedAssetCount,
-  ]);
+  }, [petType, step]);
 
   useEffect(() => {
     if (step !== 'pet_select') {
@@ -979,7 +934,7 @@ export function OnboardingScreen({
     return () => {
       isMounted = false;
     };
-  }, [step, bestImageSelectionProgress.selectedAssetCount]);
+  }, [step]);
 
   useEffect(() => {
     if (step !== 'scan' || isPipelineActive || initialScanCompleted) {
@@ -1264,12 +1219,9 @@ export function OnboardingScreen({
         return (
           <View style={styles.panel}>
             <Text style={styles.title}>
-              {getOnboardingPipelineTitle(photoAccess)}
-            </Text>
-            <Text style={styles.text}>
               {initialScanCompleted
-                ? t('onboarding.scanIdleText')
-                : t('onboarding.scanActiveText')}
+                ? t('onboarding.pipelineMomentsFound')
+                : t('onboarding.scanFindingTitle')}
             </Text>
             <View style={styles.panelBody}>
               <ScanCard photoAccess={photoAccess} />
@@ -1300,14 +1252,20 @@ export function OnboardingScreen({
               </Text>
             ) : detectedPetOptions.length > 0 ? (
               <View style={styles.petOptionList}>
-                {detectedPetOptions.map((option) => (
+                {detectedPetOptions.map((option, i) => (
                   <PetOptionCard
-                    isSelected={petType === option.type}
-                    key={option.type}
+                    breed={option.breed}
+                    isSelected={
+                      petType === option.type && petBreed === option.breed
+                    }
+                    key={`${option.type}:${option.breed ?? i}`}
                     label={t(`petType.${option.type}`)}
                     momentCount={option.momentCount}
                     previewUri={option.previewUri}
-                    onPress={() => setPetType(option.type)}
+                    onPress={() => {
+                      setPetType(option.type);
+                      setPetBreed(option.breed ?? null);
+                    }}
                   />
                 ))}
               </View>
@@ -1335,11 +1293,6 @@ export function OnboardingScreen({
                 await continueAfterPetTypeSelection(petType);
               }}
             />
-            {detectedPetOptions.length > 0 ? (
-              <Text style={styles.petRuntimeNote}>
-                {t('onboarding.petRuntimeNote')}
-              </Text>
-            ) : null}
           </Panel>
         );
       case 'pet_type':
@@ -1637,6 +1590,54 @@ function WelcomeLegalCopy() {
   );
 }
 
+function PetLoadingAnimation({ isComplete }: { isComplete: boolean }) {
+  const styles = useThemedStyles(createOnboardingStyles);
+  const dogX = useRef(new Animated.Value(-20)).current;
+  const catX = useRef(new Animated.Value(20)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (isComplete) {
+      loopRef.current?.stop();
+      Animated.parallel([
+        Animated.spring(dogX, { toValue: 0, useNativeDriver: true }),
+        Animated.spring(catX, { toValue: 0, useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1.1, useNativeDriver: true }),
+      ]).start();
+    } else {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(dogX, { toValue: 8, duration: 500, useNativeDriver: true }),
+            Animated.timing(catX, { toValue: -8, duration: 500, useNativeDriver: true }),
+            Animated.timing(scale, { toValue: 1.15, duration: 500, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(dogX, { toValue: -20, duration: 500, useNativeDriver: true }),
+            Animated.timing(catX, { toValue: 20, duration: 500, useNativeDriver: true }),
+            Animated.timing(scale, { toValue: 1, duration: 500, useNativeDriver: true }),
+          ]),
+        ]),
+      );
+      loopRef.current = anim;
+      anim.start();
+      return () => anim.stop();
+    }
+  }, [isComplete, dogX, catX, scale]);
+
+  return (
+    <View style={styles.scanAnimation}>
+      <Animated.Text style={[styles.petEmoji, { transform: [{ translateX: dogX }, { scale }] }]}>
+        🐶
+      </Animated.Text>
+      <Animated.Text style={[styles.petEmoji, { transform: [{ translateX: catX }, { scale }] }]}>
+        🐱
+      </Animated.Text>
+    </View>
+  );
+}
+
 function ScanCard({
   photoAccess,
 }: {
@@ -1644,76 +1645,27 @@ function ScanCard({
 }) {
   const { colors } = useAppearance();
   const styles = useThemedStyles(createOnboardingStyles);
-  const steps = getScanPipelineSteps(photoAccess);
   const isComplete = photoAccess.initialScanCompleted;
 
   return (
     <View style={styles.scanCard}>
-      <Text style={styles.scanCardTitle}>
-        {isComplete
-          ? t('scanPipeline.detailReady')
-          : t('onboarding.scanCardActiveTitle')}
-      </Text>
-      <Text style={styles.scanCardSubtitle}>
+      <PetLoadingAnimation isComplete={isComplete} />
+      <View style={styles.scanCardTitleRow}>
+        {isComplete ? (
+          <Ionicons color={colors.accent} name="checkmark-circle" size={18} />
+        ) : (
+          <ActivityIndicator color={colors.accent} size="small" />
+        )}
+        <Text style={styles.scanCardTitle}>
+          {isComplete
+            ? t('onboarding.scanCardCompleteTitle')
+            : t('onboarding.scanCardActiveTitle')}
+        </Text>
+      </View>
+      <Text style={styles.scanStatusLabel}>
         {isComplete
           ? t('onboarding.scanCardCompleteSubtitle')
           : t('onboarding.scanCardActiveSubtitle')}
-      </Text>
-      <View style={styles.segmentBar}>
-        {steps.map((step) => (
-          <View
-            key={step.id}
-            style={[
-              styles.segment,
-              step.status !== 'pending' ? styles.segmentFilled : null,
-            ]}
-          />
-        ))}
-      </View>
-      <View style={styles.scanStepList}>
-        {steps.map((step) => (
-          <ScanStepRow key={step.id} step={step} colors={colors} />
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function ScanStepRow({
-  step,
-  colors,
-}: {
-  step: ScanPipelineStep;
-  colors: ReturnType<typeof useAppearance>['colors'];
-}) {
-  const styles = useThemedStyles(createOnboardingStyles);
-  const isActive = step.status === 'active';
-  const isComplete = step.status === 'complete';
-
-  return (
-    <View
-      style={[styles.scanStepRow, isActive ? styles.scanStepRowActive : null]}
-    >
-      <View
-        style={[
-          styles.scanStepCircle,
-          isActive ? styles.scanStepCircleActive : null,
-          isComplete ? styles.scanStepCircleComplete : null,
-        ]}
-      >
-        {isComplete ? (
-          <Ionicons color={colors.surface} name="checkmark" size={13} />
-        ) : isActive ? (
-          <View style={styles.scanStepDot} />
-        ) : null}
-      </View>
-      <Text
-        style={[
-          styles.scanStepLabel,
-          isActive ? styles.scanStepLabelActive : null,
-        ]}
-      >
-        {step.label}
       </Text>
     </View>
   );
@@ -1976,12 +1928,14 @@ function OptionButton({
 function PetOptionCard({
   isSelected,
   label,
+  breed,
   momentCount,
   previewUri,
   onPress,
 }: {
   isSelected: boolean;
   label: string;
+  breed?: string | null;
   momentCount: number;
   previewUri: string | null;
   onPress: () => void;
@@ -2008,7 +1962,12 @@ function PetOptionCard({
         </View>
       )}
       <View style={styles.petOptionMeta}>
-        <Text style={styles.petOptionLabel}>{label}</Text>
+        <Text style={styles.petOptionLabel}>
+          {breed ?? label}
+        </Text>
+        {breed ? (
+          <Text style={styles.petOptionBreedType}>{label}</Text>
+        ) : null}
         <Text style={styles.petOptionCount}>
           {formatPetOptionPhotoCount(momentCount)}
         </Text>

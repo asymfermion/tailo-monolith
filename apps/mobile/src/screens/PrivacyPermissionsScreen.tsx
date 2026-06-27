@@ -36,9 +36,7 @@ function createPrivacyPermissionsStyles({
       paddingHorizontal: spacing.lg,
     },
     header: {
-      gap: spacing.xs,
-      marginTop: spacing.md,
-      minHeight: 128,
+      marginTop: spacing.sm,
     },
     title: {
       color: colors.text,
@@ -47,13 +45,6 @@ function createPrivacyPermissionsStyles({
       fontWeight: '600' as const,
       lineHeight: 25,
       textAlign: 'center' as const,
-    },
-    subtitle: {
-      color: colors.textMuted,
-      fontFamily: getFontFamily('400'),
-      fontSize: 15,
-      lineHeight: 22,
-      marginTop: spacing.lg,
     },
     content: {
       flexGrow: 1,
@@ -266,9 +257,6 @@ export function PrivacyPermissionsScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>
           {t('settings.privacyPermissionsTitle')}
-        </Text>
-        <Text style={styles.subtitle}>
-          {t('settings.privacyPermissionsSubtitle')}
         </Text>
       </View>
       <ScrollView

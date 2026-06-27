@@ -15,6 +15,7 @@ export type PetDetectorResult = {
   confidence: number;
   detectionSource: DetectionSource;
   detectionDebugLabel: string | null;
+  detectedBreed: string | null;
 };
 
 export type PetDetector = {

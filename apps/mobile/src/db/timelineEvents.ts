@@ -26,6 +26,7 @@ type TimelineEventMediaRow = {
   overallScore: number;
   isPetCandidate: number;
   detectionDebugLabel: string | null;
+  detectedBreed: string | null;
 };
 
 export type TimelineEventsQuery = {
@@ -183,7 +184,8 @@ async function getTimelineEventMedia(
         assets.pet_confidence AS petConfidence,
         scores.overall_score AS overallScore,
         assets.is_pet_candidate AS isPetCandidate,
-        assets.detection_debug_label AS detectionDebugLabel
+        assets.detection_debug_label AS detectionDebugLabel,
+        assets.detected_breed AS detectedBreed
       FROM local_assets AS assets
       INNER JOIN local_media_scores AS scores
         ON scores.local_asset_id = assets.local_asset_id
@@ -215,6 +217,7 @@ async function getTimelineEventMedia(
       overallScore: row.overallScore,
       isPetCandidate: Boolean(row.isPetCandidate),
       detectionDebugLabel: row.detectionDebugLabel,
+      detectedBreed: row.detectedBreed,
     }));
 }
 

@@ -37,4 +37,4 @@ export type NewLocalAsset = Pick<
       | 'petConfidence'
       | 'detectedPetType'
     >
-  >;
+  > & { detectedBreed?: string | null };

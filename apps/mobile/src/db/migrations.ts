@@ -2,7 +2,7 @@ import type * as SQLite from 'expo-sqlite';
 
 import { logDbInfo, logSqlFailure } from './dbLogger';
 
-export const CURRENT_SCHEMA_VERSION = 14;
+export const CURRENT_SCHEMA_VERSION = 15;
 
 type Migration = {
   version: number;
@@ -384,6 +384,13 @@ const migrations: Migration[] = [
         INSERT OR IGNORE INTO sync_state (state_key, state_value)
         VALUES ('sync.notifications_cursor', '');
       `);
+    },
+  },
+  {
+    version: 15,
+    name: 'add detected breed to local assets',
+    up: async (db) => {
+      await db.execAsync(`ALTER TABLE local_assets ADD COLUMN detected_breed TEXT;`);
     },
   },
 ];

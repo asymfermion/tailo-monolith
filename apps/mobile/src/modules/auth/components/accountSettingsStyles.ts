@@ -176,6 +176,7 @@ export function createAccountSettingsStyles({
     },
     input: {
       color: colors.text,
+      flex: 1,
       fontFamily: getFontFamily('400'),
       fontSize: 15,
       lineHeight: 20,

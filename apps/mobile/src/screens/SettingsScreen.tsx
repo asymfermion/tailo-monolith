@@ -752,7 +752,7 @@ export function SettingsScreen() {
             styles={styles}
             thumbColor={colors.surface}
             trackFalseColor={colors.border}
-            trackTrueColor={colors.accent}
+            trackTrueColor={colors.positive}
             value={cloudImageUploadsEnabled}
             onValueChange={handleCloudImageUploadsToggle}
           />

@@ -9,8 +9,9 @@ export function AnonymousProfileUpgradePrompt() {
     title: {
       color: colors.text,
       fontFamily: getFontFamily('600'),
-      fontSize: 24,
+      fontSize: 28,
       fontWeight: '600' as const,
+      textAlign: 'center' as const,
     },
     intro: {
       color: colors.textMuted,
@@ -18,6 +19,7 @@ export function AnonymousProfileUpgradePrompt() {
       fontSize: 15,
       lineHeight: 22,
       marginTop: spacing.sm,
+      textAlign: 'center' as const,
     },
   }));
 

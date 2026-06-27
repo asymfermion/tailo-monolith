@@ -9,6 +9,7 @@ export const lightColors = {
   timelineDivider: '#D8CBBE',
   tabBarBorder: 'rgba(231, 221, 210, 0.52)',
   destructive: '#9A3E32',
+  positive: '#34C759',
   shadow: '#151412',
 } as const;
 
@@ -22,6 +23,7 @@ export const darkColors = {
   timelineDivider: '#413A33',
   tabBarBorder: 'rgba(82, 74, 66, 0.58)',
   destructive: '#DA8A7E',
+  positive: '#30D158',
   shadow: '#000000',
 } as const;
 

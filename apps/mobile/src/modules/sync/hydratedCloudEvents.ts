@@ -23,9 +23,10 @@ const UPSERT_HYDRATED_CLOUD_ASSET_SQL = `
     processed_at,
     is_pet_candidate,
     pet_confidence,
-    detected_pet_type
+    detected_pet_type,
+    detected_breed
   )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(local_asset_id) DO UPDATE SET
     uri = CASE
       WHEN local_assets.uri LIKE 'ph://%'
@@ -66,6 +67,7 @@ async function upsertHydratedCloudAssets(
       asset.isPetCandidate ? 1 : 0,
       asset.petConfidence ?? null,
       asset.detectedPetType ?? null,
+      asset.detectedBreed ?? null,
     ]);
   }
 }
@@ -179,6 +181,7 @@ export async function upsertHydratedCloudEvent(
     isPetCandidate: true,
     petConfidence: 1,
     detectedPetType: item.detected_pet_type,
+    detectedBreed: item.detected_breed,
   }));
 
   await upsertHydratedCloudAssets(database, assets);

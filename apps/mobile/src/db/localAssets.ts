@@ -20,6 +20,7 @@ export type LocalAssetDetectionUpdate = {
   detectedPetType: DetectedPetType | null;
   detectionSource: DetectionSource;
   detectionDebugLabel: string | null;
+  detectedBreed: string | null;
 };
 
 export type LocalPetCandidateAsset = {
@@ -82,6 +83,7 @@ const UPDATE_LOCAL_ASSET_DETECTION_SQL = `
     detected_pet_type = ?,
     detection_source = ?,
     detection_debug_label = ?,
+    detected_breed = ?,
     updated_at = CURRENT_TIMESTAMP
   WHERE local_asset_id = ?
 `;
@@ -163,6 +165,7 @@ export async function updateLocalAssetDetectionResults(
       update.detectedPetType,
       update.detectionSource,
       update.detectionDebugLabel,
+      update.detectedBreed,
       update.localAssetId,
     ]);
   }
@@ -180,6 +183,7 @@ const RESET_LOCAL_ASSETS_FOR_REDETECTION_SQL = `
     detected_pet_type = NULL,
     detection_source = NULL,
     detection_debug_label = NULL,
+    detected_breed = NULL,
     updated_at = CURRENT_TIMESTAMP
   WHERE media_type = 'photo'
     AND user_dismissed_at IS NULL

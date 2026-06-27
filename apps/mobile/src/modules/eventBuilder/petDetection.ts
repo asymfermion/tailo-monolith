@@ -92,6 +92,7 @@ export async function redetectLocalAssets({
           detectedPetType: result.detectedPetType,
           detectionSource: result.detectionSource,
           detectionDebugLabel: result.detectionDebugLabel,
+          detectedBreed: result.detectedBreed,
         },
       ]);
 
@@ -151,6 +152,7 @@ export async function processPendingPetCandidates({
           detectedPetType: result.detectedPetType,
           detectionSource: result.detectionSource,
           detectionDebugLabel: result.detectionDebugLabel,
+          detectedBreed: result.detectedBreed,
         },
       ]);
 

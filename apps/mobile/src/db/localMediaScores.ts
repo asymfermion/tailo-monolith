@@ -28,6 +28,7 @@ export type LocalMediaScoreForEvent = {
   localAssetId: string;
   isPrimary: number;
   detectedPetType: 'dog' | 'cat' | null;
+  detectedBreed: string | null;
 };
 
 export async function getLocalMediaScoresForEvent(
@@ -39,7 +40,8 @@ export async function getLocalMediaScoresForEvent(
       SELECT
         scores.local_asset_id AS localAssetId,
         scores.is_primary AS isPrimary,
-        assets.detected_pet_type AS detectedPetType
+        assets.detected_pet_type AS detectedPetType,
+        assets.detected_breed AS detectedBreed
       FROM local_media_scores AS scores
       INNER JOIN local_assets AS assets
         ON assets.local_asset_id = scores.local_asset_id

@@ -52,6 +52,7 @@ export async function createInAppCaptureEvent(
       detectedPetType: records.asset.detectedPetType ?? null,
       detectionSource: 'in_app',
       detectionDebugLabel: null,
+      detectedBreed: null,
     },
   ]);
   await upsertLocalEventCandidates(database, [

@@ -60,7 +60,7 @@ function createStyles({ colors, getFontFamily }: AppearanceContextValue) {
 export function SocialSignInControls({
   style,
   variant = 'icons',
-  iconOrder = 'google-apple',
+  iconOrder = 'apple-google',
   onGooglePress,
   onApplePress,
 }: {

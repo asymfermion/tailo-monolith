@@ -42,6 +42,7 @@ type MediaRow = {
   height: number;
   is_primary: boolean;
   detected_pet_type: 'dog' | 'cat' | null;
+  detected_breed: string | null;
 };
 
 async function signThumbnailUrl(
@@ -122,7 +123,7 @@ export const handleBootstrapTimeline: ApiHandler = async ({
   const { data: mediaRows, error: mediaError } = await adminClient
     .from('event_media')
     .select(
-      'event_id, source_local_asset_id, thumbnail_path, width, height, is_primary, detected_pet_type',
+      'event_id, source_local_asset_id, thumbnail_path, width, height, is_primary, detected_pet_type, detected_breed',
     )
     .in('event_id', eventIds);
 
@@ -161,6 +162,7 @@ export const handleBootstrapTimeline: ApiHandler = async ({
         height: item.height,
         is_primary: item.is_primary,
         detected_pet_type: item.detected_pet_type,
+        detected_breed: item.detected_breed,
       });
     }
 

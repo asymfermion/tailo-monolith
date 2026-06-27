@@ -171,42 +171,44 @@ export async function runPipelineProcessingStages(
     });
   }
 
-  await setPipelinePhase(database, 'cluster');
-  const clustering = await clusterLocalPetEvents({
-    database,
-    onProgress: progress?.onClusteringProgress,
-  });
-
-  if (clustering.eventCandidateCount > 0) {
-    logTailo('Cluster', 'Event clustering pass finished', {
-      petCandidateCount: clustering.petCandidateCount,
-      eventCandidateCount: clustering.eventCandidateCount,
-      persistedCount: clustering.persistedCount,
+  if (detection.processedCount > 0) {
+    await setPipelinePhase(database, 'cluster');
+    const clustering = await clusterLocalPetEvents({
+      database,
+      onProgress: progress?.onClusteringProgress,
     });
-  }
 
-  await setPipelinePhase(database, 'select');
-  const selection = await selectBestEventImages({
-    database,
-    onProgress: progress?.onSelectingProgress,
-  });
+    if (clustering.eventCandidateCount > 0) {
+      logTailo('Cluster', 'Event clustering pass finished', {
+        petCandidateCount: clustering.petCandidateCount,
+        eventCandidateCount: clustering.eventCandidateCount,
+        persistedCount: clustering.persistedCount,
+      });
+    }
 
-  if (selection.scoredAssetCount > 0) {
-    logTailo('Pipeline', 'Best-image selection pass finished', {
-      eventCount: selection.eventCount,
-      scoredAssetCount: selection.scoredAssetCount,
-      selectedAssetCount: selection.selectedAssetCount,
+    await setPipelinePhase(database, 'select');
+    const selection = await selectBestEventImages({
+      database,
+      onProgress: progress?.onSelectingProgress,
     });
-  }
 
-  await setPipelinePhase(database, 'promote');
-  const promotion = await promoteScoredCandidatesToLocalEvents({ database });
+    if (selection.scoredAssetCount > 0) {
+      logTailo('Pipeline', 'Best-image selection pass finished', {
+        eventCount: selection.eventCount,
+        scoredAssetCount: selection.scoredAssetCount,
+        selectedAssetCount: selection.selectedAssetCount,
+      });
+    }
 
-  if (promotion.promotedCount > 0) {
-    logTailo('Promote', 'New timeline moments promoted locally', {
-      promotedCount: promotion.promotedCount,
-      candidateCount: promotion.candidateCount,
-    });
+    await setPipelinePhase(database, 'promote');
+    const promotion = await promoteScoredCandidatesToLocalEvents({ database });
+
+    if (promotion.promotedCount > 0) {
+      logTailo('Promote', 'New timeline moments promoted locally', {
+        promotedCount: promotion.promotedCount,
+        candidateCount: promotion.candidateCount,
+      });
+    }
   }
 
   await setPipelinePhase(database, 'idle');

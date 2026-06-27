@@ -8,6 +8,7 @@ export type BootstrapTimelineMedia = {
   height: number;
   is_primary: boolean;
   detected_pet_type: 'dog' | 'cat' | null;
+  detected_breed: string | null;
 };
 
 export type BootstrapTimelineEvent = {

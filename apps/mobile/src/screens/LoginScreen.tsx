@@ -709,7 +709,6 @@ export function LoginScreen({ onCancel, onSignedIn }: LoginScreenProps) {
                   </Text>
                 </Pressable>
                 <SocialSignInControls
-                  iconOrder="apple-google"
                   style={[
                     styles.socialControls,
                     { marginTop: layoutMetrics.socialTopGap },

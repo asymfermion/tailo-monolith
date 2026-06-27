@@ -12,10 +12,12 @@ public class TailoPetClassifierModule: Module {
       let image = try await loadImage(uri: uri)
       let result = try classifyPet(in: image)
 
-      return [
+      var output: [String: Any] = [
         "label": result.label,
         "confidence": result.confidence,
       ]
+      if let breed = result.breed { output["breed"] = breed }
+      return output
     }
   }
 }
@@ -29,6 +31,7 @@ private enum TailoPetClassifierError: Error {
 private struct PetClassificationResult {
   let label: String
   let confidence: Double
+  let breed: String?
 }
 
 private let minimumAnimalConfidence: VNConfidence = 0.35
@@ -121,20 +124,36 @@ private func loadPhotosImage(localIdentifier: String) async throws -> UIImage {
   }
 }
 
+// Skip when looking for breed: pet-type classifiers + biological taxonomy.
+// Real breed labels (bulldog, hound, etc.) sit just below taxonomy in Vision's ranking.
+// Scene/object false positives are handled downstream by coerceBreedLabel in TypeScript.
+private let breedSkipLabels: Set<String> = [
+  "cat", "adult_cat", "kitten", "feline",
+  "dog", "canine", "puppy",
+  "mammal", "animal", "vertebrate", "carnivore", "pet", "domestic_animal",
+]
+
 private func classifyPet(in image: UIImage) throws -> PetClassificationResult {
   guard let cgImage = image.cgImage else {
     throw TailoPetClassifierError.invalidImage
   }
 
+  // Always run general classifier: provides breed info for all detectors + fallback pet-type
+  let classifierResult = try? classifyWithClassifier(cgImage: cgImage, image: image)
+
   if let bundled = try classifyWithBundledModel(cgImage: cgImage, image: image) {
-    return bundled
+    return PetClassificationResult(label: bundled.label, confidence: bundled.confidence, breed: classifierResult?.breed)
   }
 
   if let animal = try classifyWithAnimals(cgImage: cgImage, image: image) {
-    return animal
+    return PetClassificationResult(label: animal.label, confidence: animal.confidence, breed: classifierResult?.breed)
   }
 
-  return PetClassificationResult(label: "other", confidence: 0)
+  if let classified = classifierResult, classified.label == "cat" || classified.label == "dog" {
+    return classified
+  }
+
+  return PetClassificationResult(label: "other", confidence: 0, breed: nil)
 }
 
 private func classifyWithAnimals(
@@ -170,8 +189,55 @@ private func classifyWithAnimals(
 
   return PetClassificationResult(
     label: petLabel,
-    confidence: Double(topLabel.confidence)
+    confidence: Double(topLabel.confidence),
+    breed: nil
   )
+}
+
+private let catClassifyLabels: Set<String> = ["cat", "adult_cat", "kitten", "feline"]
+private let dogClassifyLabels: Set<String> = ["dog", "canine", "puppy"]
+private let minimumClassifyConfidence: VNConfidence = 0.10
+
+private func classifyWithClassifier(
+  cgImage: CGImage,
+  image: UIImage
+) throws -> PetClassificationResult? {
+  let request = VNClassifyImageRequest()
+  let handler = VNImageRequestHandler(
+    cgImage: cgImage,
+    orientation: image.cgImagePropertyOrientation,
+    options: [:]
+  )
+  try handler.perform([request])
+
+  let sorted = (request.results ?? []).sorted { $0.confidence > $1.confidence }
+
+  // ponytail: debug only — remove once breed term lists are validated
+  let topLabels = sorted.prefix(20).map { "\($0.identifier)=\(String(format: "%.3f", $0.confidence))" }
+  print("[TailoClassify] top labels: \(topLabels.joined(separator: ", "))")
+
+  var petLabel: String? = nil
+  var petConfidence: Float = 0
+  var breed: String? = nil
+
+  for observation in sorted {
+    guard observation.confidence >= minimumClassifyConfidence else { break }
+    let id = observation.identifier
+
+    if petLabel == nil {
+      if catClassifyLabels.contains(id) { petLabel = "cat"; petConfidence = observation.confidence }
+      else if dogClassifyLabels.contains(id) { petLabel = "dog"; petConfidence = observation.confidence }
+    } else if breed == nil, !breedSkipLabels.contains(id) {
+      // Top-2 approach: first label after the pet-type classifiers is the breed candidate.
+      // VNClassifyImageRequest ranks by confidence, so the next non-pet-type label is the
+      // most specific description Apple has for this image — usually the breed for a clear pet photo.
+      breed = id
+      break
+    }
+  }
+
+  guard let pet = petLabel else { return nil }
+  return PetClassificationResult(label: pet, confidence: Double(petConfidence), breed: breed)
 }
 
 private func classifyWithBundledModel(
@@ -211,7 +277,7 @@ private func classifyWithBundledModel(
     return nil
   }
 
-  return PetClassificationResult(label: label, confidence: Double(observation.confidence))
+  return PetClassificationResult(label: label, confidence: Double(observation.confidence), breed: nil)
 }
 
 private func normalizeAnimalIdentifier(_ identifier: String) -> String {

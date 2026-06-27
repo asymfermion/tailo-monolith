@@ -15,6 +15,7 @@ export interface TimelineEventMedia {
   overallScore: number;
   isPetCandidate: boolean;
   detectionDebugLabel: string | null;
+  detectedBreed: string | null;
 }
 
 /**

@@ -51,6 +51,7 @@ export async function buildSyncEventPayload(
         height: asset.height,
         is_primary: item.localAssetId === primaryAssetId,
         detected_pet_type: score?.detectedPetType ?? null,
+        detected_breed: score?.detectedBreed ?? null,
       };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null);

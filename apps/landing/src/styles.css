@@ -1,13 +1,11 @@
 :root {
-  --background: #fbfaf6;
-  --surface: #ffffff;
-  --surface-soft: #f2f4ed;
-  --ink: #1f2a24;
-  --muted: #68726b;
-  --sage: #7c9885;
-  --sage-dark: #4f6f59;
-  --line: #e5e2d8;
-  --shadow: 0 18px 44px rgba(46, 58, 49, 0.14);
+  --background: #fbf7f1;
+  --surface: #fffdf9;
+  --surface-soft: #f5efe6;
+  --ink: #151412;
+  --muted: #6f665d;
+  --border: #e7ddd2;
+  --shadow: 0 18px 44px rgba(21, 20, 18, 0.10);
   color-scheme: light;
   font-family:
     Inter,
@@ -43,6 +41,8 @@ img {
   max-width: 100%;
 }
 
+/* ── Header ── */
+
 .site-header {
   align-items: center;
   display: flex;
@@ -52,27 +52,20 @@ img {
   padding: 28px 28px 8px;
 }
 
-.brand,
-.nav-links {
+.brand {
   align-items: center;
   display: flex;
 }
 
-.brand {
-  font-size: 1.25rem;
-  font-weight: 760;
-  gap: 10px;
-  letter-spacing: 0;
-}
-
-.brand-mark {
-  height: 34px;
-  object-fit: contain;
-  width: 34px;
+.wordmark {
+  height: 30px;
+  width: auto;
 }
 
 .nav-links {
+  align-items: center;
   color: var(--muted);
+  display: flex;
   font-size: 0.94rem;
   gap: 26px;
 }
@@ -82,11 +75,13 @@ img {
 }
 
 .nav-cta {
-  border: 1px solid rgba(79, 111, 89, 0.22);
+  border: 1px solid rgba(21, 20, 18, 0.18);
   border-radius: 999px;
-  color: var(--sage-dark);
+  color: var(--ink);
   padding: 10px 16px;
 }
+
+/* ── Hero ── */
 
 .hero {
   align-items: center;
@@ -126,7 +121,7 @@ h1 {
 }
 
 .plain-note {
-  border-left: 3px solid rgba(79, 111, 89, 0.28);
+  border-left: 3px solid rgba(21, 20, 18, 0.12);
   font-size: 1rem !important;
   margin-top: 18px !important;
   max-width: 560px !important;
@@ -158,9 +153,11 @@ h1 {
 
 .button.secondary {
   background: rgba(255, 255, 255, 0.64);
-  border: 1px solid var(--line);
-  color: var(--sage-dark);
+  border: 1px solid var(--border);
+  color: var(--muted);
 }
+
+/* ── Phone mockup ── */
 
 .phone-wrap {
   display: grid;
@@ -171,8 +168,8 @@ h1 {
 }
 
 .phone {
-  background: #202721;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: #1e1d1b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 42px;
   box-shadow: var(--shadow);
   max-width: 100%;
@@ -183,7 +180,7 @@ h1 {
 }
 
 .phone-speaker {
-  background: #394139;
+  background: #2e2c29;
   border-radius: 999px;
   height: 5px;
   left: 50%;
@@ -195,7 +192,7 @@ h1 {
 }
 
 .app-screen {
-  background: #faf8f0;
+  background: #fbf7f1;
   border-radius: 32px;
   min-height: 590px;
   overflow: hidden;
@@ -223,23 +220,24 @@ h1 {
 }
 
 .app-top strong {
+  color: #151412;
   font-size: 1.15rem;
 }
 
 .status-dot {
-  background: var(--sage);
+  background: #c8956a;
   border-radius: 50%;
-  box-shadow: 0 0 0 7px rgba(124, 152, 133, 0.14);
+  box-shadow: 0 0 0 7px rgba(200, 149, 106, 0.15);
   height: 10px;
   width: 10px;
 }
 
 .moment-card,
 .memory-note {
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(229, 226, 216, 0.9);
+  background: rgba(255, 253, 249, 0.9);
+  border: 1px solid var(--border);
   border-radius: 24px;
-  box-shadow: 0 14px 34px rgba(47, 59, 50, 0.08);
+  box-shadow: 0 8px 24px rgba(21, 20, 18, 0.06);
 }
 
 .moment-card {
@@ -279,6 +277,7 @@ h1 {
 }
 
 .moment-copy strong {
+  color: #151412;
   font-size: 1rem;
 }
 
@@ -286,6 +285,8 @@ h1 {
   padding: 16px;
   text-align: center;
 }
+
+/* ── Features ── */
 
 .features {
   margin: 0 auto;
@@ -314,7 +315,7 @@ h1 {
 }
 
 .story-list {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border);
   margin-top: 44px;
 }
 
@@ -326,11 +327,11 @@ h1 {
 }
 
 .story-list article + article {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border);
 }
 
 .story-list span {
-  color: var(--sage-dark);
+  color: var(--muted);
   font-size: 0.92rem;
   font-weight: 760;
 }
@@ -348,10 +349,12 @@ h1 {
   max-width: 620px;
 }
 
+/* ── Privacy band ── */
+
 .privacy-band {
   background: var(--surface-soft);
-  border-bottom: 1px solid var(--line);
-  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
   color: var(--ink);
   margin: 0 auto 88px;
   max-width: 1180px;
@@ -369,6 +372,8 @@ h1 {
   margin-top: 18px;
 }
 
+/* ── Closing ── */
+
 .closing {
   align-items: center;
   display: grid;
@@ -382,6 +387,8 @@ h1 {
 .closing .button {
   margin-top: 30px;
 }
+
+/* ── Responsive ── */
 
 @media (max-width: 900px) {
   .site-header {
@@ -425,10 +432,6 @@ h1 {
   .site-header {
     padding-left: 18px;
     padding-right: 18px;
-  }
-
-  .brand {
-    font-size: 1.12rem;
   }
 
   .nav-cta {

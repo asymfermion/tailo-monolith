@@ -9,6 +9,7 @@ export type SyncEventMediaInput = {
   height: number;
   is_primary: boolean;
   detected_pet_type?: 'dog' | 'cat' | null;
+  detected_breed?: string | null;
 };
 
 export type SyncEventUserEdited = {
@@ -112,6 +113,7 @@ export function parseSyncEventRequest(body: unknown): SyncEventRequest | null {
     const height = Reflect.get(item, 'height');
     const isPrimary = Reflect.get(item, 'is_primary');
     const detectedPetType = Reflect.get(item, 'detected_pet_type');
+    const detectedBreed = Reflect.get(item, 'detected_breed');
 
     if (typeof sourceLocalAssetId !== 'string' || !sourceLocalAssetId.trim()) {
       return null;
@@ -167,6 +169,8 @@ export function parseSyncEventRequest(body: unknown): SyncEventRequest | null {
         detectedPetType === 'dog' || detectedPetType === 'cat'
           ? detectedPetType
           : null,
+      detected_breed:
+        typeof detectedBreed === 'string' ? detectedBreed : null,
     });
   }
 

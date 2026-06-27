@@ -30,6 +30,32 @@ describe('getProfilePhotoSuggestions', () => {
     expect(getAllAsync.mock.calls[0]?.[1]).toEqual([3]);
   });
 
+  it('only pulls from promoted events', async () => {
+    const getAllAsync = jest.fn().mockResolvedValue([]);
+    const db = { getAllAsync } as unknown as SQLite.SQLiteDatabase;
+
+    await getProfilePhotoSuggestions(db);
+
+    const sql = getAllAsync.mock.calls[0]?.[0] as string;
+    expect(sql).toContain("processing_state = 'processed'");
+    expect(sql).toContain('deleted_at IS NULL');
+  });
+
+  it('orders by pet confidence before overall score', async () => {
+    const getAllAsync = jest.fn().mockResolvedValue([]);
+    const db = { getAllAsync } as unknown as SQLite.SQLiteDatabase;
+
+    await getProfilePhotoSuggestions(db);
+
+    const sql = getAllAsync.mock.calls[0]?.[0] as string;
+    const orderBy = sql.slice(sql.toUpperCase().lastIndexOf('ORDER BY'));
+    const primaryIdx = orderBy.indexOf('is_primary');
+    const confidenceIdx = orderBy.indexOf('pet_confidence');
+    const scoreIdx = orderBy.indexOf('overall_score');
+    expect(primaryIdx).toBeLessThan(confidenceIdx);
+    expect(confidenceIdx).toBeLessThan(scoreIdx);
+  });
+
   it('filters suggestions to the profile pet type', async () => {
     const getAllAsync = jest.fn().mockResolvedValue([]);
     const db = { getAllAsync } as unknown as SQLite.SQLiteDatabase;

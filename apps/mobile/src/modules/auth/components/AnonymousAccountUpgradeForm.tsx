@@ -606,8 +606,9 @@ export function AnonymousAccountUpgradeForm({
             onApplePress={() => void handleSocialLink('apple')}
           />
           <Pressable
-            accessibilityRole="button"
-            style={styles.secondaryAction}
+            accessibilityLabel={t('common.alreadyHaveAccountSignIn')}
+            accessibilityRole="link"
+            style={[authStyles.signInAction, { marginTop: spacing.sm }]}
             onPress={() => {
               if (signInPresentation === 'pop') {
                 navigation.pop();
@@ -617,8 +618,11 @@ export function AnonymousAccountUpgradeForm({
               navigation.push('Login', { variant: 'welcome' });
             }}
           >
-            <Text style={styles.secondaryActionText}>
-              {t('common.alreadyHaveAccountSignIn')}
+            <Text style={authStyles.signInText}>
+              {t('onboarding.alreadyHaveAccountPrefix')}{' '}
+              <Text style={authStyles.signInLink}>
+                {t('onboarding.signInLink')}
+              </Text>
             </Text>
           </Pressable>
         </>

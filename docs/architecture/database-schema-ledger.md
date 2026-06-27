@@ -146,6 +146,7 @@ RLS: enabled. Authenticated users can select, insert, and update their own event
 | `height`                | `integer`     | Must be positive.                         |
 | `is_primary`            | `boolean`     | Primary media flag.                       |
 | `detected_pet_type`     | `text`        | Optional; `dog` or `cat`.                 |
+| `detected_breed`        | `text`        | Optional breed label from VNClassifyImageRequest. |
 | `media_fingerprint`     | `text`        | Optional media hash (currently `md5:*`).  |
 | `created_at`            | `timestamptz` | Creation timestamp.                       |
 
@@ -210,6 +211,7 @@ RLS: enabled. Authenticated users can select jobs through the owning event.
 | `20260525120300_fix_current_app_user_id_rls_recursion.sql` | Replaced `current_app_user_id()` as `security definer` and granted execute to authenticated users, fixing RLS recursion on `user_identities`.                                                                 |
 | `20260525120400_event_media_fingerprint_dedupe.sql`        | Added `event_media.media_fingerprint` with partial index for cross-device duplicate-image detection and merge matching.                                                                                       |
 | `20260626120000_add_notification_preferences_to_account_profiles.sql` | Added `account_profiles.notification_preferences` (text, nullable) to store JSON-encoded user notification preferences in the cloud.                                          |
+| `20260627120000_add_detected_breed_to_event_media.sql`    | Added `event_media.detected_breed` (text, nullable) to store the breed label detected by VNClassifyImageRequest during local pet detection.                                   |
 
 ## Maintenance Rules
 

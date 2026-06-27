@@ -7,6 +7,7 @@ import type { PetDetectorResult } from './types';
 export function evaluateNativeClassification(
   label: NativePetClassifierLabel,
   confidence: number,
+  breed?: string,
 ): PetDetectorResult {
   const detectedPetType = toDetectedPetType(label);
   const meetsConfidence = confidence >= MIN_PET_CONFIDENCE;
@@ -20,6 +21,7 @@ export function evaluateNativeClassification(
     detectionDebugLabel: meetsConfidence
       ? label
       : `${label}_low_confidence_${confidence.toFixed(3)}`,
+    detectedBreed: breed ?? null,
   };
 }
 

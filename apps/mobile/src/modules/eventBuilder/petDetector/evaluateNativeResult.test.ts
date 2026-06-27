@@ -8,6 +8,18 @@ describe('evaluateNativeClassification', () => {
       confidence: 0.82,
       detectionSource: 'native',
       detectionDebugLabel: 'dog',
+      detectedBreed: null,
+    });
+  });
+
+  it('accepts breed when provided', () => {
+    expect(evaluateNativeClassification('dog', 0.82, 'golden_retriever')).toEqual({
+      isPetCandidate: true,
+      detectedPetType: 'dog',
+      confidence: 0.82,
+      detectionSource: 'native',
+      detectionDebugLabel: 'dog',
+      detectedBreed: 'golden_retriever',
     });
   });
 
@@ -18,6 +30,7 @@ describe('evaluateNativeClassification', () => {
       confidence: 0.0005,
       detectionSource: 'native',
       detectionDebugLabel: 'cat_low_confidence_0.001',
+      detectedBreed: null,
     });
   });
 
@@ -28,6 +41,7 @@ describe('evaluateNativeClassification', () => {
       confidence: 0.99,
       detectionSource: 'native',
       detectionDebugLabel: 'other',
+      detectedBreed: null,
     });
   });
 });

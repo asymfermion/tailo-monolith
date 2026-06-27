@@ -250,6 +250,7 @@ export const handleSyncEvent: ApiHandler = async ({ user, log, payload }) => {
     height: item.height,
     is_primary: item.is_primary,
     detected_pet_type: item.detected_pet_type ?? null,
+    detected_breed: item.detected_breed ?? null,
   }));
 
   const { error: mediaError } = await adminClient.from('event_media').insert(mediaRows);

@@ -112,6 +112,7 @@ describe('updateLocalAssetDetectionResults', () => {
         detectedPetType: 'dog',
         detectionSource: 'native',
         detectionDebugLabel: 'dog',
+        detectedBreed: null,
       },
     ]);
 
@@ -122,6 +123,7 @@ describe('updateLocalAssetDetectionResults', () => {
       'dog',
       'native',
       'dog',
+      null,
       'asset-1',
     ]);
   });

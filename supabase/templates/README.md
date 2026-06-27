@@ -77,7 +77,7 @@ npx supabase stop && npx supabase start
 open http://127.0.0.1:54324
 ```
 
-Emails appear in Inbucket; confirm each message shows an **8-digit code** and calm Tailo copy.
+Emails appear in Inbucket; confirm each message shows the Tailo wordmark, an **8-digit code**, and calm Tailo copy.
 
 ---
 
@@ -90,6 +90,7 @@ Run after pushing config + templates:
 - [ ] **Magic Link** — Log in → “Use a sign-in code instead” → email shows 8-digit code, subject “Your Tailo sign-in code”
 - [ ] **Reset password** — Forgot password → email shows 8-digit code, subject “Reset your Tailo password”
 - [ ] **Confirm signup** — Create account → email shows 8-digit code, not link-only
+- [ ] **Brand header** — every message uses the hosted wordmark image at `https://tailo.mtxforge.com/assets/tailo-wordmark-dark-transparent.png`
 - [ ] **Auth logs** — after Send code, an email send appears; user is not fully confirmed until OTP verify
 - [ ] No template relies on **link-only** copy for a flow the app implements as OTP
 - [ ] **Password changed** notification sends after `setAccountPassword` (optional sanity check)

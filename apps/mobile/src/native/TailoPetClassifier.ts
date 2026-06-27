@@ -5,6 +5,7 @@ export type NativePetClassifierLabel = 'dog' | 'cat' | 'other';
 export type NativePetClassifierResult = {
   label: NativePetClassifierLabel;
   confidence: number;
+  breed?: string;
 };
 
 type TailoPetClassifierModule = {

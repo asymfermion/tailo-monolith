@@ -74,8 +74,7 @@ export const zhHans: TranslationTree = {
     privacyConsentRequired: '请先确认后再继续。',
     continueWithoutPhotos: '不选照片继续',
     findingMomentsEyebrow: '寻找瞬间',
-    scanActiveText: 'Tailo 正在这台设备上查看最近的照片。',
-    scanIdleText: '扫描完成后，你可以选择哪只宠物是你的。',
+
     yourPetEyebrow: '你的宠物',
     petSelectTitle: '哪只宠物是你的？',
     petSelectText:
@@ -105,8 +104,10 @@ export const zhHans: TranslationTree = {
     pipelineStarting: '正在开始...',
     pipelineNoMoments: '还没有找到宠物瞬间',
     pipelineMomentsFound: '已找到宠物瞬间',
+    scanFindingTitle: '正在寻找宠物瞬间',
     scanCardActiveTitle: '正在寻找你的第一段记忆',
     scanCardActiveSubtitle: '通常不到一分钟',
+    scanCardCompleteTitle: '你的第一批瞬间已准备好',
     scanCardCompleteSubtitle: '已检查设备上的近期照片',
     petNameLabel: '宠物名字',
     finishSetup: '完成设置',

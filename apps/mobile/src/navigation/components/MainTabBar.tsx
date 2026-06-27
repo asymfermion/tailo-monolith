@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { HomeIcon } from '@/components/HomeIcon';
 
 import { spacing } from '@/constants/theme';
 import { t, useAppLocale } from '@/i18n';
@@ -23,16 +26,16 @@ type MainTabBarProps = {
 
 type TabConfig = {
   id: MainTabId;
-  iconActive: keyof typeof Ionicons.glyphMap;
-  iconInactive: keyof typeof Ionicons.glyphMap;
+  iconActive: keyof typeof Ionicons.glyphMap | null;
+  iconInactive: keyof typeof Ionicons.glyphMap | null;
   accessibilityKey: 'Timeline' | 'PetProfile' | 'Settings';
 };
 
 const TABS: TabConfig[] = [
   {
     id: 'Timeline',
-    iconActive: 'book',
-    iconInactive: 'book-outline',
+    iconActive: null,
+    iconInactive: null,
     accessibilityKey: 'Timeline',
   },
   {
@@ -50,6 +53,71 @@ const TABS: TabConfig[] = [
 ];
 
 const ICON_SIZE = 26;
+const ACTIVE_SCALE = 1.18;
+
+type TabItemProps = {
+  tab: TabConfig;
+  isActive: boolean;
+  colors: AppearanceContextValue['colors'];
+  styles: ReturnType<typeof createMainTabBarStyles>;
+  petProfile: ReturnType<typeof useLocalPetProfile>;
+  petInitial: string;
+  onPress: () => void;
+};
+
+function TabItem({ tab, isActive, colors, styles, petProfile, petInitial, onPress }: TabItemProps) {
+  const scale = useRef(new Animated.Value(isActive ? ACTIVE_SCALE : 1)).current;
+
+  useEffect(() => {
+    Animated.spring(scale, {
+      toValue: isActive ? ACTIVE_SCALE : 1,
+      useNativeDriver: true,
+      damping: 14,
+      mass: 0.7,
+      stiffness: 180,
+    }).start();
+  }, [isActive, scale]);
+
+  const isPetTab = tab.id === 'PetProfile';
+  const isHomeTab = tab.id === 'Timeline';
+  const iconName = isActive ? tab.iconActive : tab.iconInactive;
+
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityLabel={t(`navigation.tabAccessibility.${tab.accessibilityKey}`)}
+      accessibilityState={{ selected: isActive }}
+      hitSlop={8}
+      style={isPetTab ? styles.petTab : styles.tab}
+      onPress={onPress}
+    >
+      <Animated.View style={{ transform: [{ scale }] }}>
+        {isPetTab ? (
+          <View style={[styles.petAvatarRing, isActive ? styles.petAvatarRingActive : null]}>
+            {petProfile.profile?.profilePhotoUri ? (
+              <Image
+                accessibilityLabel={t('accessibility.profilePhoto', { name: petProfile.profile.name })}
+                contentFit="cover"
+                source={{ uri: petProfile.profile.profilePhotoUri }}
+                style={styles.petAvatar}
+              />
+            ) : (
+              <Text style={styles.petAvatarInitial}>{petInitial}</Text>
+            )}
+          </View>
+        ) : isHomeTab ? (
+          <HomeIcon color={isActive ? colors.text : colors.textMuted} size={ICON_SIZE} />
+        ) : (
+          <Ionicons
+            color={isActive ? colors.text : colors.textMuted}
+            name={iconName!}
+            size={ICON_SIZE}
+          />
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 /** Soft glass — thin material, content stays readable underneath. */
 const blurTint =
@@ -147,53 +215,18 @@ export function MainTabBar({ activeTab, onSelectTab }: MainTabBarProps) {
           style={StyleSheet.absoluteFill}
           tint={blurTint}
         />
-        {TABS.map((tab) => {
-          const isActive = tab.id === activeTab;
-          const iconName = isActive ? tab.iconActive : tab.iconInactive;
-          const isPetTab = tab.id === 'PetProfile';
-
-          return (
-            <Pressable
-              key={tab.id}
-              accessibilityRole="tab"
-              accessibilityLabel={t(
-                `navigation.tabAccessibility.${tab.accessibilityKey}`,
-              )}
-              accessibilityState={{ selected: isActive }}
-              hitSlop={8}
-              style={isPetTab ? styles.petTab : styles.tab}
-              onPress={() => onSelectTab(tab.id)}
-            >
-              {isPetTab ? (
-                <View
-                  style={[
-                    styles.petAvatarRing,
-                    isActive ? styles.petAvatarRingActive : null,
-                  ]}
-                >
-                  {petProfile.profile?.profilePhotoUri ? (
-                    <Image
-                      accessibilityLabel={t('accessibility.profilePhoto', {
-                        name: petProfile.profile.name,
-                      })}
-                      contentFit="cover"
-                      source={{ uri: petProfile.profile.profilePhotoUri }}
-                      style={styles.petAvatar}
-                    />
-                  ) : (
-                    <Text style={styles.petAvatarInitial}>{petInitial}</Text>
-                  )}
-                </View>
-              ) : (
-                <Ionicons
-                  color={isActive ? colors.text : colors.textMuted}
-                  name={iconName}
-                  size={ICON_SIZE}
-                />
-              )}
-            </Pressable>
-          );
-        })}
+        {TABS.map((tab) => (
+          <TabItem
+            key={tab.id}
+            colors={colors}
+            isActive={tab.id === activeTab}
+            petInitial={petInitial}
+            petProfile={petProfile}
+            styles={styles}
+            tab={tab}
+            onPress={() => onSelectTab(tab.id)}
+          />
+        ))}
       </View>
     </View>
   );

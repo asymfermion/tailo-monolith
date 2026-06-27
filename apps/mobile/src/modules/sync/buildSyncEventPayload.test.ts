@@ -74,6 +74,7 @@ describe('buildSyncEventPayload', () => {
         localAssetId: 'asset-1',
         isPrimary: 1,
         detectedPetType: 'cat',
+        detectedBreed: null,
       },
     ]);
   });

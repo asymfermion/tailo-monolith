@@ -76,10 +76,10 @@ export function SettingsOptionPicker<T extends string>({
     rowLabel: {
       color: palette.text,
       flex: 1,
-      fontFamily: getFontFamily('400'),
-      fontSize: 15,
-      fontWeight: '400',
-      lineHeight: 20,
+      fontFamily: getFontFamily('600'),
+      fontSize: 16,
+      fontWeight: '600',
+      lineHeight: 21,
     },
     selection: {
       flex: 1,

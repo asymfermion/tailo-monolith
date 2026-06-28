@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as MediaLibrary from 'expo-media-library';
+import * as MediaLibrary from 'expo-media-library/legacy';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import {

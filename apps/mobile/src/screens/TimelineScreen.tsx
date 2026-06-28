@@ -4,6 +4,7 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  StyleSheet,
   Text,
   View,
   type ListRenderItem,
@@ -39,11 +40,17 @@ import {
 } from '@/modules/sync';
 import { CaptureFab } from '@/modules/timeline/components/CaptureFab';
 import { TimelineAnonymousUpgradeCard } from '@/modules/timeline/components/TimelineAnonymousUpgradeCard';
+import { TimelineDateDivider } from '@/modules/timeline/components/TimelineDateDivider';
 import { TimelineTopBar } from '@/modules/timeline/components/TimelineTopBar';
 import type { TimelineListFilter } from '@/modules/timeline/components/TimelineFilterDropdown';
 import { MomentPhotoViewer } from '@/modules/timeline/components/MomentPhotoViewer';
+import { ShareMomentSheet } from '@/modules/timeline/components/ShareMomentSheet';
 import { TimelineMomentCard } from '@/modules/timeline/components/TimelineMomentCard';
 import { TimelineMomentSeparator } from '@/modules/timeline/components/TimelineMomentSeparator';
+import {
+  getTimelineDateBucket,
+  type TimelineDateBucket,
+} from '@/modules/timeline/dateBuckets';
 import {
   deleteMoment,
   toggleMomentFavorite,
@@ -58,12 +65,28 @@ type TimelineListItem =
       event: TimelineEvent;
     }
   | {
+      kind: 'date_header';
+      bucket: TimelineDateBucket;
+    }
+  | {
+      kind: 'moment_separator';
+      afterEventId: string;
+    }
+  | {
       kind: 'anonymous_upgrade';
     };
 
 function keyExtractor(item: TimelineListItem): string {
   if (item.kind === 'event') {
     return item.event.localEventId;
+  }
+
+  if (item.kind === 'date_header') {
+    return `date-${item.bucket}`;
+  }
+
+  if (item.kind === 'moment_separator') {
+    return `sep-${item.afterEventId}`;
   }
 
   return 'timeline-anonymous-upgrade';
@@ -76,23 +99,28 @@ function createTimelineScreenStyles({
   return {
     screen: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
     },
     list: {
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
       flex: 1,
     },
     listHeaderContainer: {
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
     },
     listContent: {
       flexGrow: 1,
-      backgroundColor: colors.background,
-      paddingHorizontal: spacing.lg,
+      backgroundColor: colors.surface,
+    },
+    momentSeparator: {
+      backgroundColor: colors.timelineDivider,
+      height: StyleSheet.hairlineWidth,
+      marginHorizontal: spacing.md,
     },
     header: {
       gap: spacing.sm,
       paddingBottom: spacing.lg,
+      paddingHorizontal: spacing.md,
       paddingTop: spacing.lg,
     },
     feedTitle: {
@@ -107,13 +135,6 @@ function createTimelineScreenStyles({
       fontFamily: getFontFamily('400'),
       fontSize: 15,
       lineHeight: 22,
-    },
-    feedSectionLabel: {
-      color: colors.text,
-      fontFamily: getFontFamily('700'),
-      fontSize: 16,
-      fontWeight: '700' as const,
-      marginTop: spacing.md,
     },
     backfillTip: {
       borderRadius: 8,
@@ -195,6 +216,7 @@ export function TimelineScreen() {
     media: TimelineEvent['media'];
     initialIndex: number;
   } | null>(null);
+  const [shareEventId, setShareEventId] = useState<string | null>(null);
   const favoritesOnly = timelineFilter === 'favorites';
   const [timelineRefreshNonce, setTimelineRefreshNonce] = useState(0);
   const isPipelineActive =
@@ -221,17 +243,32 @@ export function TimelineScreen() {
     !favoritesOnly &&
     account.session?.isAnonymous === true &&
     timeline.events.length > 0;
-  const timelineItems = useMemo<TimelineListItem[]>(
-    () => [
-      ...timeline.events.map((event) => ({ kind: 'event' as const, event })),
-      ...(showAnonymousUpgradeMoment
-        ? ([
-            { kind: 'anonymous_upgrade' as const },
-          ] satisfies TimelineListItem[])
-        : []),
-    ],
-    [showAnonymousUpgradeMoment, timeline.events],
-  );
+  const timelineItems = useMemo<TimelineListItem[]>(() => {
+    const items: TimelineListItem[] = [];
+    let lastBucket: TimelineDateBucket | null = null;
+    let previousEventId: string | null = null;
+
+    for (const event of timeline.events) {
+      const bucket = getTimelineDateBucket(event.timestamp);
+
+      if (bucket !== lastBucket) {
+        items.push({ kind: 'date_header', bucket });
+        lastBucket = bucket;
+      } else if (previousEventId) {
+        // Hairline boundary between consecutive moments within the same day.
+        items.push({ kind: 'moment_separator', afterEventId: previousEventId });
+      }
+
+      items.push({ kind: 'event', event });
+      previousEventId = event.localEventId;
+    }
+
+    if (showAnonymousUpgradeMoment) {
+      items.push({ kind: 'anonymous_upgrade' });
+    }
+
+    return items;
+  }, [showAnonymousUpgradeMoment, timeline.events]);
 
   useEffect(() => {
     if (wasPipelineActiveRef.current && !isPipelineActive) {
@@ -372,16 +409,30 @@ export function TimelineScreen() {
     );
   }, []);
 
-  // TODO: share-moment — export primary image (and optional caption) to the system share sheet.
-  const handleShareMoment = useCallback(() => {
-    Alert.alert(
-      t('timeline.moment.shareSoonTitle'),
-      t('timeline.moment.shareSoonMessage'),
-    );
+  const handleShareMoment = useCallback((localEventId: string) => {
+    setShareEventId(localEventId);
   }, []);
+
+  const shareEvent = useMemo(
+    () =>
+      shareEventId
+        ? (timeline.events.find(
+            (event) => event.localEventId === shareEventId,
+          ) ?? null)
+        : null,
+    [shareEventId, timeline.events],
+  );
 
   const renderItem: ListRenderItem<TimelineListItem> = useCallback(
     ({ item }) => {
+      if (item.kind === 'date_header') {
+        return <TimelineDateDivider bucket={item.bucket} />;
+      }
+
+      if (item.kind === 'moment_separator') {
+        return <View style={styles.momentSeparator} />;
+      }
+
       if (item.kind === 'anonymous_upgrade') {
         return (
           <TimelineAnonymousUpgradeCard
@@ -411,6 +462,7 @@ export function TimelineScreen() {
       navigation,
       openMomentDetail,
       openMomentPhoto,
+      styles.momentSeparator,
     ],
   );
 
@@ -506,6 +558,11 @@ export function TimelineScreen() {
           onClose={() => setPhotoViewer(null)}
         />
       ) : null}
+      <ShareMomentSheet
+        event={shareEvent}
+        visible={shareEvent !== null}
+        onClose={() => setShareEventId(null)}
+      />
     </View>
   );
 }
@@ -559,11 +616,6 @@ function TimelineHeader({
             </Text>
           </Pressable>
         </View>
-      ) : null}
-      {hasTimelineValue ? (
-        <Text style={styles.feedSectionLabel}>
-          {t('timeline.feed.thisWeek')}
-        </Text>
       ) : null}
     </View>
   );

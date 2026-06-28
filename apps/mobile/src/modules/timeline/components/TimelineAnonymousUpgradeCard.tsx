@@ -2,10 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
-import {
-  useThemedStyles,
-  type AppearanceContextValue,
-} from '@/lib/appearance';
+import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 
 type TimelineAnonymousUpgradeCardProps = {
   onCreateAccount: () => void;
@@ -22,6 +19,7 @@ function createTimelineAnonymousUpgradeCardStyles({
       borderRadius: 14,
       borderWidth: 1,
       gap: spacing.sm,
+      marginHorizontal: spacing.md,
       padding: spacing.md,
     },
     eyebrow: {
@@ -72,7 +70,9 @@ export function TimelineAnonymousUpgradeCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.eyebrow}>{t('timeline.anonymousUpgrade.eyebrow')}</Text>
+      <Text style={styles.eyebrow}>
+        {t('timeline.anonymousUpgrade.eyebrow')}
+      </Text>
       <Text style={styles.title}>{t('timeline.anonymousUpgrade.title')}</Text>
       <Text style={styles.body}>{t('timeline.anonymousUpgrade.body')}</Text>
 

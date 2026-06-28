@@ -1,7 +1,15 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Pressable, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 
 import { spacing } from '@/constants/theme';
 import { formatEventType, formatTimestamp } from '@/lib/formatMoment';
@@ -25,6 +33,9 @@ type TimelineMomentCardProps = {
   onToggleFavorite: (localEventId: string, isFavorite: boolean) => void;
 };
 
+/** Cover carousel shows at most this many page dots when a moment has many photos. */
+const MAX_PAGE_DOTS = 8;
+
 function createTimelineMomentCardStyles({
   colors,
   getFontFamily,
@@ -32,47 +43,41 @@ function createTimelineMomentCardStyles({
   return {
     card: {
       backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderRadius: 22,
-      borderWidth: 1,
       overflow: 'hidden' as const,
     },
-    headerRow: {
-      alignItems: 'flex-start' as const,
+    hero: {
+      aspectRatio: 1.3,
+      backgroundColor: colors.border,
+      width: '100%' as const,
+    },
+    content: {
+      gap: spacing.sm,
+      paddingBottom: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingTop: 14,
+    },
+    titleRow: {
+      alignItems: 'center' as const,
       flexDirection: 'row' as const,
       gap: spacing.sm,
     },
-    headerMain: {
+    titleTap: {
       flex: 1,
-      gap: spacing.xs,
       minWidth: 0,
-    },
-    headerActions: {
-      alignItems: 'center' as const,
-      flexDirection: 'row' as const,
-      gap: spacing.xs,
-    },
-    iconButton: {
-      alignItems: 'center' as const,
-      height: 40,
-      justifyContent: 'center' as const,
-      width: 40,
     },
     momentType: {
       color: colors.text,
       fontFamily: getFontFamily('600'),
-      fontSize: 23,
+      fontSize: 22,
       fontWeight: '600' as const,
-      lineHeight: 29,
+      lineHeight: 28,
     },
-    momentTime: {
-      color: colors.textMuted,
-      fontFamily: getFontFamily('400'),
-      fontSize: 13,
-    },
-    storyBody: {
-      gap: spacing.sm,
-      paddingHorizontal: spacing.md,
+    favoriteButton: {
+      alignItems: 'center' as const,
+      height: 40,
+      justifyContent: 'center' as const,
+      marginRight: -spacing.sm,
+      width: 40,
     },
     caption: {
       color: colors.text,
@@ -81,67 +86,36 @@ function createTimelineMomentCardStyles({
       fontWeight: '500' as const,
       lineHeight: 23,
     },
-    mediaGrid: {
-      gap: spacing.sm,
-      padding: spacing.md,
-    },
-    imageFrame: {
-      flex: 1,
-      minWidth: 0,
-      position: 'relative' as const,
-    },
-    primaryImage: {
-      aspectRatio: 1.16,
-      width: '100%' as const,
-      overflow: 'hidden' as const,
-      borderRadius: 14,
-      backgroundColor: colors.border,
-    },
-    favoriteOverlayButton: {
+    heroDotsWrap: {
       alignItems: 'center' as const,
-      backgroundColor: 'rgba(255, 255, 255, 0.82)',
-      borderRadius: 18,
-      height: 36,
-      justifyContent: 'center' as const,
+      bottom: spacing.sm,
+      left: 0,
       position: 'absolute' as const,
-      right: spacing.sm,
-      top: spacing.sm,
-      width: 36,
+      right: 0,
     },
-    photoCountBadge: {
-      backgroundColor: 'rgba(28, 28, 26, 0.58)',
+    heroDots: {
+      alignItems: 'center' as const,
+      backgroundColor: 'rgba(21, 20, 18, 0.32)',
       borderRadius: 999,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
-      position: 'absolute' as const,
-      right: spacing.sm,
-      top: 52,
-    },
-    photoCountBadgeText: {
-      color: '#FFFFFF',
-      fontFamily: getFontFamily('700'),
-      fontSize: 12,
-      fontWeight: '700' as const,
-    },
-    secondaryGrid: {
       flexDirection: 'row' as const,
-      gap: spacing.sm,
+      gap: 5,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 5,
     },
-    secondaryImage: {
-      aspectRatio: 1,
-      flex: 1,
-      minWidth: 0,
-      overflow: 'hidden' as const,
-      borderRadius: 10,
-      backgroundColor: colors.border,
+    heroDot: {
+      backgroundColor: 'rgba(255, 255, 255, 0.55)',
+      borderRadius: 3,
+      height: 6,
+      width: 6,
+    },
+    heroDotActive: {
+      backgroundColor: '#FFFFFF',
     },
     metadataRow: {
       alignItems: 'center' as const,
       flexDirection: 'row' as const,
-      flexWrap: 'wrap' as const,
       gap: spacing.sm,
-      paddingBottom: spacing.md,
-      paddingHorizontal: spacing.md,
+      paddingTop: spacing.xs,
     },
     metadataText: {
       color: colors.textMuted,
@@ -161,6 +135,12 @@ function createTimelineMomentCardStyles({
       gap: spacing.xs,
       marginLeft: 'auto' as const,
     },
+    iconButton: {
+      alignItems: 'center' as const,
+      height: 40,
+      justifyContent: 'center' as const,
+      width: 40,
+    },
   };
 }
 
@@ -176,8 +156,6 @@ function TimelineMomentCardComponent({
   useAppLocale();
   const { colors } = useAppearance();
   const styles = useThemedStyles(createTimelineMomentCardStyles);
-  const primaryMedia = event.media[0];
-  const secondaryMedia = event.media.slice(1, 4);
   const photoCount = event.media.length;
   const photoCountLabel =
     photoCount === 1
@@ -186,100 +164,172 @@ function TimelineMomentCardComponent({
 
   return (
     <View style={styles.card}>
-      {primaryMedia ? (
-        <View style={styles.mediaGrid}>
-          <Pressable
-            accessibilityLabel={t('accessibility.primaryMomentPhoto')}
-            accessibilityRole="button"
-            onPress={() => onPressPhoto(event, 0)}
-          >
-            <View style={styles.imageFrame}>
-              <Image
-                contentFit="cover"
-                source={{ uri: primaryMedia.uri }}
-                style={styles.primaryImage}
-              />
-              <Pressable
-                accessibilityLabel={
-                  event.isFavorite
-                    ? t('timeline.moment.removeFavorite')
-                    : t('timeline.moment.addFavorite')
-                }
-                accessibilityRole="button"
-                hitSlop={8}
-                style={styles.favoriteOverlayButton}
-                onPress={() =>
-                  onToggleFavorite(event.localEventId, !event.isFavorite)
-                }
-              >
-                <Ionicons
-                  color={event.isFavorite ? colors.accent : colors.text}
-                  name={event.isFavorite ? 'heart' : 'heart-outline'}
-                  size={21}
-                />
-              </Pressable>
-              {photoCount > 1 ? (
-                <View style={styles.photoCountBadge}>
-                  <Text style={styles.photoCountBadgeText}>
-                    {photoCountLabel}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </Pressable>
-          {secondaryMedia.length > 0 ? (
-            <View style={styles.secondaryGrid}>
-              {secondaryMedia.map((media, index) => (
-                <MomentImage
-                  key={media.localAssetId}
-                  media={media}
-                  onPress={() => onPressPhoto(event, index + 1)}
-                />
-              ))}
-            </View>
-          ) : null}
-        </View>
+      {photoCount > 0 ? (
+        <MomentHeroCarousel
+          media={event.media}
+          styles={styles}
+          onPressPhoto={(index) => onPressPhoto(event, index)}
+        />
       ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        style={styles.storyBody}
-        onPress={() => onPress(event.localEventId)}
-      >
-        <Text style={styles.momentType}>
-          {formatEventType(event.eventType)}
-        </Text>
-        {event.caption ? (
-          <Text style={styles.caption}>{event.caption}</Text>
-        ) : null}
-      </Pressable>
-
-      <View style={styles.metadataRow}>
-        <Text style={styles.metadataText}>
-          {formatTimestamp(event.timestamp)}
-        </Text>
-        <View style={styles.metadataDot} />
-        <Text style={styles.metadataText}>{photoCountLabel}</Text>
-        <View style={styles.cardActionRow}>
+      <View style={styles.content}>
+        <View style={styles.titleRow}>
           <Pressable
-            accessibilityLabel={t('timeline.moment.share')}
+            accessibilityRole="button"
+            style={styles.titleTap}
+            onPress={() => onPress(event.localEventId)}
+          >
+            <Text numberOfLines={2} style={styles.momentType}>
+              {formatEventType(event.eventType)}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityLabel={
+              event.isFavorite
+                ? t('timeline.moment.removeFavorite')
+                : t('timeline.moment.addFavorite')
+            }
             accessibilityRole="button"
             hitSlop={8}
-            style={styles.iconButton}
-            onPress={() => onShare(event.localEventId)}
+            style={styles.favoriteButton}
+            onPress={() =>
+              onToggleFavorite(event.localEventId, !event.isFavorite)
+            }
           >
             <Ionicons
-              color={colors.textMuted}
-              name="paper-plane-outline"
-              size={20}
+              color={event.isFavorite ? colors.favorite : colors.textMuted}
+              name={event.isFavorite ? 'heart' : 'heart-outline'}
+              size={22}
             />
           </Pressable>
-          <MomentActionMenu
-            onDelete={() => onDelete(event.localEventId)}
-            onEdit={() => onEdit(event.localEventId)}
-          />
+        </View>
+
+        {event.caption ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onPress(event.localEventId)}
+          >
+            <Text style={styles.caption}>{event.caption}</Text>
+          </Pressable>
+        ) : null}
+
+        <View style={styles.metadataRow}>
+          <Text style={styles.metadataText}>
+            {formatTimestamp(event.timestamp)}
+          </Text>
+          <View style={styles.metadataDot} />
+          <Text style={styles.metadataText}>{photoCountLabel}</Text>
+          <View style={styles.cardActionRow}>
+            <Pressable
+              accessibilityLabel={t('timeline.moment.share')}
+              accessibilityRole="button"
+              hitSlop={8}
+              style={styles.iconButton}
+              onPress={() => onShare(event.localEventId)}
+            >
+              <Ionicons
+                color={colors.textMuted}
+                name="paper-plane-outline"
+                size={20}
+              />
+            </Pressable>
+            <MomentActionMenu
+              onDelete={() => onDelete(event.localEventId)}
+              onEdit={() => onEdit(event.localEventId)}
+            />
+          </View>
         </View>
       </View>
+    </View>
+  );
+}
+
+type MomentHeroCarouselProps = {
+  media: TimelineEventMedia[];
+  styles: ReturnType<typeof createTimelineMomentCardStyles>;
+  onPressPhoto: (index: number) => void;
+};
+
+/**
+ * Swipeable cover carousel. A nested horizontal pager lets the user page
+ * through the moment's photos without the swipe reaching the tab pager; a tap
+ * opens the full-screen viewer at the visible photo.
+ */
+function MomentHeroCarousel({
+  media,
+  styles,
+  onPressPhoto,
+}: MomentHeroCarouselProps) {
+  const window = useWindowDimensions();
+  const [pageWidth, setPageWidth] = useState(window.width);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const hasMultiple = media.length > 1;
+  const dotCount = Math.min(media.length, MAX_PAGE_DOTS);
+  const activeDot = Math.min(activeIndex, dotCount - 1);
+
+  const handleMomentumEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    if (pageWidth <= 0) {
+      return;
+    }
+
+    const index = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
+    setActiveIndex(Math.min(Math.max(index, 0), media.length - 1));
+  };
+
+  return (
+    <View
+      onLayout={(event) => {
+        const width = event.nativeEvent.layout.width;
+        if (width > 0) {
+          setPageWidth(width);
+        }
+      }}
+    >
+      <ScrollView
+        horizontal
+        directionalLockEnabled
+        nestedScrollEnabled
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleMomentumEnd}
+      >
+        {media.map((item, index) => (
+          <Pressable
+            key={item.localAssetId}
+            accessibilityLabel={
+              index === 0
+                ? t('accessibility.primaryMomentPhoto')
+                : t('accessibility.momentPhoto')
+            }
+            accessibilityRole="button"
+            style={{ width: pageWidth }}
+            onPress={() => onPressPhoto(index)}
+          >
+            <Image
+              contentFit="cover"
+              source={{ uri: item.uri }}
+              style={styles.hero}
+            />
+          </Pressable>
+        ))}
+      </ScrollView>
+      {hasMultiple ? (
+        <View style={styles.heroDotsWrap} pointerEvents="none">
+          <View style={styles.heroDots}>
+            {Array.from({ length: dotCount }).map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.heroDot,
+                  index === activeDot && styles.heroDotActive,
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -315,28 +365,3 @@ export const TimelineMomentCard = memo(
   TimelineMomentCardComponent,
   areTimelineMomentCardPropsEqual,
 );
-
-function MomentImage({
-  media,
-  onPress,
-}: {
-  media: TimelineEventMedia;
-  onPress: () => void;
-}) {
-  const styles = useThemedStyles(createTimelineMomentCardStyles);
-
-  return (
-    <Pressable
-      accessibilityLabel={t('accessibility.momentPhoto')}
-      accessibilityRole="button"
-      style={styles.imageFrame}
-      onPress={onPress}
-    >
-      <Image
-        contentFit="cover"
-        source={{ uri: media.uri }}
-        style={styles.secondaryImage}
-      />
-    </Pressable>
-  );
-}

@@ -40,7 +40,7 @@ function createModalStackLayerStyles({ colors }: AppearanceContextValue) {
       flex: 1,
     },
     modalLayer: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
     },
     modalCard: {
       backgroundColor: colors.background,

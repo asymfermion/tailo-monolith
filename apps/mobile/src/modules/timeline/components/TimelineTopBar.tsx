@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { AppIconMark } from '@/components/AppIconMark';
+import { AuthWordmark } from '@/components/AuthBranding';
 import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
 import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
@@ -12,8 +12,6 @@ import {
   type TimelineListFilter,
 } from './TimelineFilterDropdown';
 import { TimelineScrollToTopTrigger } from './TimelineScrollToTopTrigger';
-
-const TOP_BAR_ICON_SIZE = 36;
 
 type TimelineTopBarProps = {
   topPadding: number;
@@ -29,11 +27,15 @@ function createTimelineTopBarStyles({
 }: AppearanceContextValue) {
   return {
     bar: {
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
       elevation: 2,
       paddingBottom: spacing.sm,
       paddingHorizontal: spacing.lg,
       zIndex: 20,
+    },
+    wordmark: {
+      height: 22,
+      width: 52,
     },
     row: {
       alignItems: 'center' as const,
@@ -53,7 +55,7 @@ function createTimelineTopBarStyles({
       marginLeft: 'auto' as const,
     },
     title: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),
       fontSize: 16,
@@ -78,7 +80,7 @@ export function TimelineTopBar({
     <View style={[styles.bar, { paddingTop: topPadding }]}>
       <View style={styles.row}>
         <View style={styles.side}>
-          <AppIconMark size={TOP_BAR_ICON_SIZE} />
+          <AuthWordmark style={styles.wordmark} />
         </View>
 
         <Text style={styles.title} pointerEvents="none">

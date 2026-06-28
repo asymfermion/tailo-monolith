@@ -140,7 +140,7 @@ export function ModalSwipeBack({
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   edgeHitTarget: {
     bottom: 0,

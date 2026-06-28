@@ -41,6 +41,32 @@ export function moveAssetIdInOrder(
   return next;
 }
 
+/**
+ * Moves the asset at `fromIndex` to `toIndex` (clamped into range), returning the
+ * reordered id list, or `null` when the move is a no-op or out of bounds. Used by
+ * the drag-to-reorder gallery and its accessibility move actions.
+ */
+export function moveAssetToIndex(
+  orderedIds: readonly string[],
+  fromIndex: number,
+  toIndex: number,
+): string[] | null {
+  if (fromIndex < 0 || fromIndex >= orderedIds.length) {
+    return null;
+  }
+
+  const targetIndex = Math.max(0, Math.min(orderedIds.length - 1, toIndex));
+
+  if (targetIndex === fromIndex) {
+    return null;
+  }
+
+  const next = [...orderedIds];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(targetIndex, 0, moved);
+  return next;
+}
+
 export async function reorderMomentMedia(
   database: SQLite.SQLiteDatabase,
   localEventId: string,

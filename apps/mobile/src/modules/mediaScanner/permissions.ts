@@ -1,12 +1,7 @@
-import type * as MediaLibrary from 'expo-media-library';
+import type * as MediaLibrary from 'expo-media-library/legacy';
 
 export type PhotoPermissionStatus =
-  | 'checking'
-  | 'undetermined'
-  | 'full'
-  | 'limited'
-  | 'denied'
-  | 'unavailable';
+  'checking' | 'undetermined' | 'full' | 'limited' | 'denied' | 'unavailable';
 
 export type PhotoPermissionResult = {
   status: PhotoPermissionStatus;

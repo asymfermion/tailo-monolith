@@ -58,7 +58,7 @@ function createMomentPhotoViewerStyles({
       flex: 1,
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: '#000',
     },
     content: {
@@ -110,6 +110,26 @@ function createMomentPhotoViewerStyles({
       fontSize: 14,
       fontWeight: '600' as const,
       textAlign: 'center' as const,
+    },
+    pageDots: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      gap: spacing.xs + 2,
+      justifyContent: 'center' as const,
+      left: 0,
+      position: 'absolute' as const,
+      right: 0,
+    },
+    dot: {
+      backgroundColor: colors.surface,
+      borderRadius: 3,
+      height: 6,
+      opacity: 0.4,
+      width: 6,
+    },
+    dotActive: {
+      opacity: 1,
+      width: 18,
     },
   };
 }
@@ -449,6 +469,26 @@ export function MomentPhotoViewer({
             </View>
           </View>
         </Animated.View>
+
+        {media.length > 1 ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.pageDots,
+              {
+                bottom: insets.bottom + spacing.xl,
+                opacity: backdropOpacity,
+              },
+            ]}
+          >
+            {media.map((item, index) => (
+              <View
+                key={item.localAssetId}
+                style={[styles.dot, index === activeIndex && styles.dotActive]}
+              />
+            ))}
+          </Animated.View>
+        ) : null}
       </View>
     </Modal>
   );

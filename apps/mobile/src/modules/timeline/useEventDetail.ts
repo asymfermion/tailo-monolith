@@ -8,7 +8,7 @@ import { loadLocalPetProfile } from '@/modules/pets';
 import { useNavigation } from '@/navigation/NavigationContext';
 import type { TimelineEvent } from '@/types';
 
-import { moveAssetIdInOrder, reorderMomentMedia } from './reorderMomentMedia';
+import { reorderMomentMedia } from './reorderMomentMedia';
 import { scheduleCloudSyncForMoment } from './scheduleCloudSyncForMoment';
 
 export type EventDetailState = {
@@ -18,10 +18,7 @@ export type EventDetailState = {
   errorMessage: string | null;
   refresh: () => Promise<void>;
   saveUpdate: (update: LocalEventUpdate) => Promise<boolean>;
-  moveMedia: (
-    localAssetId: string,
-    direction: 'up' | 'down',
-  ) => Promise<boolean>;
+  reorderMedia: (orderedAssetIds: string[]) => Promise<boolean>;
 };
 
 export function useEventDetail(localEventId: string): EventDetailState {
@@ -113,17 +110,9 @@ export function useEventDetail(localEventId: string): EventDetailState {
     [localEventId, loadEvent, navigation],
   );
 
-  const moveMedia = useCallback(
-    async (localAssetId: string, direction: 'up' | 'down') => {
+  const reorderMedia = useCallback(
+    async (orderedAssetIds: string[]) => {
       if (!event || event.media.length < 2) {
-        return false;
-      }
-
-      const currentIds = event.media.map((item) => item.localAssetId);
-      const fromIndex = currentIds.indexOf(localAssetId);
-      const nextIds = moveAssetIdInOrder(currentIds, fromIndex, direction);
-
-      if (!nextIds) {
         return false;
       }
 
@@ -132,7 +121,11 @@ export function useEventDetail(localEventId: string): EventDetailState {
 
       try {
         const database = await getDatabase();
-        const saved = await reorderMomentMedia(database, localEventId, nextIds);
+        const saved = await reorderMomentMedia(
+          database,
+          localEventId,
+          orderedAssetIds,
+        );
 
         if (!saved) {
           setErrorMessage(t('errors.couldNotSaveChanges'));
@@ -167,6 +160,6 @@ export function useEventDetail(localEventId: string): EventDetailState {
     errorMessage,
     refresh,
     saveUpdate,
-    moveMedia,
+    reorderMedia,
   };
 }

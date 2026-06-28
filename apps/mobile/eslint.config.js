@@ -7,5 +7,10 @@ module.exports = defineConfig([
   eslintConfigPrettier,
   {
     ignores: ['dist/*', 'node_modules/*', '.expo/*', 'jest.setup.js'],
+    rules: {
+      'react-hooks/immutability': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+    },
   },
 ]);

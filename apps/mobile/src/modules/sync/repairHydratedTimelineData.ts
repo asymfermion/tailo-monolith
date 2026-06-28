@@ -1,4 +1,4 @@
-import * as MediaLibrary from 'expo-media-library';
+import * as MediaLibrary from 'expo-media-library/legacy';
 import type * as SQLite from 'expo-sqlite';
 
 import { isDeviceMediaUri } from '@/lib/deviceMediaUri';

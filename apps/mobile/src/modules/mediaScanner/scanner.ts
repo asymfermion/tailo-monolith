@@ -1,4 +1,4 @@
-import * as MediaLibrary from 'expo-media-library';
+import * as MediaLibrary from 'expo-media-library/legacy';
 
 import { upsertLocalAssets } from '@/db/localAssets';
 import type { getDatabase } from '@/db';

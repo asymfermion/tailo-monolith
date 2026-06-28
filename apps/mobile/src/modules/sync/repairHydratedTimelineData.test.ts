@@ -1,9 +1,9 @@
-import * as MediaLibrary from 'expo-media-library';
+import * as MediaLibrary from 'expo-media-library/legacy';
 import type * as SQLite from 'expo-sqlite';
 
 import { repairHydratedTimelineData } from './repairHydratedTimelineData';
 
-jest.mock('expo-media-library', () => ({
+jest.mock('expo-media-library/legacy', () => ({
   isAvailableAsync: jest.fn(),
   getAssetInfoAsync: jest.fn(),
 }));

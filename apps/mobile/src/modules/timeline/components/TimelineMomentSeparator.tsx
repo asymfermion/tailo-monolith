@@ -3,28 +3,17 @@ import { View } from 'react-native';
 import { spacing } from '@/constants/theme';
 import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 
-function createTimelineMomentSeparatorStyles({
-  colors,
-}: AppearanceContextValue) {
+function createTimelineMomentSeparatorStyles(_: AppearanceContextValue) {
   return {
     separator: {
-      paddingBottom: spacing.lg,
-      paddingTop: spacing.xl,
-    },
-    line: {
-      backgroundColor: colors.timelineDivider,
-      height: 1,
+      height: spacing.lg,
     },
   };
 }
 
-/** Soft rhythm between timeline moments — gap first, hairline second. */
+/** Calm vertical breathing room between full-bleed moments and date dividers. */
 export function TimelineMomentSeparator() {
   const styles = useThemedStyles(createTimelineMomentSeparatorStyles);
 
-  return (
-    <View style={styles.separator}>
-      <View style={styles.line} />
-    </View>
-  );
+  return <View style={styles.separator} />;
 }

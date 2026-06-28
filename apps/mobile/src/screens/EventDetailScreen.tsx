@@ -28,6 +28,7 @@ import {
 import { useNavigation } from '@/navigation/NavigationContext';
 import { MomentActionMenu } from '@/modules/timeline/components/MomentActionMenu';
 import { MomentMediaReorderGallery } from '@/modules/timeline/components/MomentMediaReorderGallery';
+import { ShareMomentSheet } from '@/modules/timeline/components/ShareMomentSheet';
 import { deleteMoment } from '@/modules/timeline/deleteMoment';
 import { useEventDetail } from '@/modules/timeline/useEventDetail';
 const EDITABLE_EVENT_TYPES = EVENT_TYPES.filter((type) => type !== 'unknown');
@@ -185,6 +186,7 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
   const detail = useEventDetail(localEventId);
   const [captionDraft, setCaptionDraft] = useState('');
   const [captionFocused, setCaptionFocused] = useState(false);
+  const [shareVisible, setShareVisible] = useState(false);
   const { colors } = useAppearance();
   const styles = useThemedStyles(createEventDetailScreenStyles);
 
@@ -192,12 +194,8 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
     setCaptionDraft(detail.event?.caption ?? '');
   }, [detail.event?.caption, detail.event?.localEventId]);
 
-  // TODO: share-moment — export primary image (and optional caption) to the system share sheet.
   const handleShareMoment = useCallback(() => {
-    Alert.alert(
-      t('timeline.moment.shareSoonTitle'),
-      t('timeline.moment.shareSoonMessage'),
-    );
+    setShareVisible(true);
   }, []);
 
   const handleDeleteMoment = useCallback(() => {
@@ -272,8 +270,8 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
         <MomentMediaReorderGallery
           isSaving={detail.isSaving}
           media={event.media}
-          onMove={(localAssetId, direction) =>
-            void detail.moveMedia(localAssetId, direction)
+          onReorder={(orderedAssetIds) =>
+            void detail.reorderMedia(orderedAssetIds)
           }
         />
 
@@ -359,6 +357,12 @@ export function EventDetailScreen({ localEventId }: EventDetailScreenProps) {
         }
         topInset={getModalHeaderTopInset(insets.top)}
       />
+
+      <ShareMomentSheet
+        event={event}
+        visible={shareVisible}
+        onClose={() => setShareVisible(false)}
+      />
     </View>
   );
 }
@@ -403,8 +407,8 @@ function EventDetailToolbar({
             onPress={onToggleFavorite}
           >
             <Ionicons
-              color={isFavorite ? colors.accent : colors.textMuted}
-              name={isFavorite ? 'star' : 'star-outline'}
+              color={isFavorite ? colors.favorite : colors.textMuted}
+              name={isFavorite ? 'heart' : 'heart-outline'}
               size={24}
             />
           </Pressable>

@@ -3,9 +3,11 @@
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "strict": true,
-    "baseUrl": ".",
+    // expo/tsconfig.base still sets moduleResolution: node10, deprecated in TS 6.
+    "ignoreDeprecations": "6.0",
+    "types": ["jest"],
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"]

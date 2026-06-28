@@ -3,10 +3,12 @@ import {
   ActivityIndicator,
   Pressable,
   SafeAreaView,
+  StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { spacing } from '@/constants/theme';
@@ -35,6 +37,10 @@ import {
 import { AppShell } from '@/navigation/AppShell';
 
 configureTextAccessibility();
+
+const appRootStyles = StyleSheet.create({
+  gestureRoot: { flex: 1 },
+});
 
 type StartupState =
   | { status: 'loading' }
@@ -206,11 +212,13 @@ export default function App() {
   }
 
   return (
-    <AppearanceProvider>
-      <SafeAreaProvider>
-        <AppShell />
-      </SafeAreaProvider>
-    </AppearanceProvider>
+    <GestureHandlerRootView style={appRootStyles.gestureRoot}>
+      <AppearanceProvider>
+        <SafeAreaProvider>
+          <AppShell />
+        </SafeAreaProvider>
+      </AppearanceProvider>
+    </GestureHandlerRootView>
   );
 }
 

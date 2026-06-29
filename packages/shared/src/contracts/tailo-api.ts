@@ -5,7 +5,11 @@ export const TAILO_API_AUTH_ACTIONS = [
   'link-anonymous-user',
 ] as const;
 
-export const TAILO_API_PET_ACTIONS = ['upsert-pet', 'get-pet'] as const;
+export const TAILO_API_PET_ACTIONS = [
+  'upsert-pet',
+  'get-pet',
+  'upload-portrait',
+] as const;
 
 export const TAILO_API_ACCOUNT_ACTIONS = [
   'upsert-account-profile',
@@ -54,6 +58,7 @@ const ACTION_TO_FUNCTION: Record<TailoApiAction, TailoApiFunction> = {
   'link-anonymous-user': 'api-auth',
   'upsert-pet': 'api-pet',
   'get-pet': 'api-pet',
+  'upload-portrait': 'api-pet',
   'upsert-account-profile': 'api-account',
   'get-account-profile': 'api-account',
   'delete-account': 'api-account',

@@ -1,11 +1,7 @@
 import { Platform, type TextInputProps } from 'react-native';
 
 export type AuthFormFieldKind =
-  | 'email'
-  | 'password'
-  | 'newPassword'
-  | 'confirmPassword'
-  | 'code';
+  'email' | 'password' | 'newPassword' | 'confirmPassword' | 'code';
 
 /** All auth fields use the shared Done toolbar on iOS (and Android bar). */
 export function authFormFieldUsesKeyboardAccessory(

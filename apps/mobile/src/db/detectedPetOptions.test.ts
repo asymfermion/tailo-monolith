@@ -78,9 +78,27 @@ describe('getDetectedPetOptions', () => {
   it('merges rows that coerce to the same (type, null) breed key', async () => {
     // 'material' and 'structure' both coerce to null → should produce one dog:null row
     const getAllAsync = jest.fn().mockResolvedValue([
-      { type: 'dog', breed: 'material',  momentCount: 5, previewUri: 'ph://dog1', previewLocalAssetId: 'asset-1' },
-      { type: 'dog', breed: 'structure', momentCount: 3, previewUri: 'ph://dog2', previewLocalAssetId: 'asset-2' },
-      { type: 'dog', breed: 'hound',     momentCount: 8, previewUri: 'ph://dog3', previewLocalAssetId: 'asset-3' },
+      {
+        type: 'dog',
+        breed: 'material',
+        momentCount: 5,
+        previewUri: 'ph://dog1',
+        previewLocalAssetId: 'asset-1',
+      },
+      {
+        type: 'dog',
+        breed: 'structure',
+        momentCount: 3,
+        previewUri: 'ph://dog2',
+        previewLocalAssetId: 'asset-2',
+      },
+      {
+        type: 'dog',
+        breed: 'hound',
+        momentCount: 8,
+        previewUri: 'ph://dog3',
+        previewLocalAssetId: 'asset-3',
+      },
     ]);
     const db = { getAllAsync } as unknown as SQLite.SQLiteDatabase;
 

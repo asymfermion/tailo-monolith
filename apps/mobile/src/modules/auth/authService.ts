@@ -47,11 +47,7 @@ import { dismissAccountUpgradeNotifications } from '@/modules/notifications/noti
 import { applyIdentityDisplayNameIfMissing } from './remoteAccountProfile';
 
 export { getAuthProvider, resetAuthProvider, setAuthProvider };
-export {
-  getAuthAccessToken,
-  getAuthSession,
-  isRemoteAuthConfigured,
-};
+export { getAuthAccessToken, getAuthSession, isRemoteAuthConfigured };
 
 export async function bootstrapAuthSession(): Promise<BootstrapAuthResult> {
   if (!getAuthProvider().isConfigured()) {

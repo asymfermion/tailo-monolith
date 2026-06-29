@@ -6,6 +6,7 @@ export type RemotePetSummary = {
   pet_id: string;
   source_local_pet_id: string;
   profile_photo_local_asset_id: string | null;
+  portrait_url: string | null;
   name: string;
   type: PetType;
   gender: PetGender | null;
@@ -32,6 +33,9 @@ export function isRemotePetSummary(value: unknown): value is RemotePetSummary {
     (Reflect.get(value, 'profile_photo_local_asset_id') === null ||
       Reflect.get(value, 'profile_photo_local_asset_id') === undefined ||
       typeof Reflect.get(value, 'profile_photo_local_asset_id') === 'string') &&
+    (Reflect.get(value, 'portrait_url') === null ||
+      Reflect.get(value, 'portrait_url') === undefined ||
+      typeof Reflect.get(value, 'portrait_url') === 'string') &&
     typeof Reflect.get(value, 'name') === 'string' &&
     (type === 'dog' || type === 'cat') &&
     (gender === null ||
@@ -60,6 +64,7 @@ export function normalizeRemotePetSummary(
 ): RemotePetSummary {
   return {
     ...value,
+    portrait_url: value.portrait_url ?? null,
     birthday: parsePetBirthdayIso(value.birthday),
   };
 }

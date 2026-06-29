@@ -12,7 +12,9 @@ jest.mock('@/lib/supabase', () => ({
 }));
 
 jest.mock('../appleNativeAuth', () => {
-  const actual = jest.requireActual('../appleNativeAuth') as typeof import('../appleNativeAuth');
+  const actual = jest.requireActual(
+    '../appleNativeAuth',
+  ) as typeof import('../appleNativeAuth');
 
   return {
     requestAppleNativeCredential: jest.fn(),

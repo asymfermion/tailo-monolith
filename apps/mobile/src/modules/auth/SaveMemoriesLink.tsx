@@ -101,7 +101,11 @@ export function SaveMemoriesLink({
         return;
       }
 
-      if (!account.isConfigured || account.isLinked || !account.session?.isAnonymous) {
+      if (
+        !account.isConfigured ||
+        account.isLinked ||
+        !account.session?.isAnonymous
+      ) {
         if (active) {
           setIsVisible(false);
           setIsReady(true);

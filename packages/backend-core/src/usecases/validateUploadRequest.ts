@@ -26,8 +26,7 @@ export type ValidateUploadRequestFailure = {
 };
 
 export type ValidateUploadRequestResult =
-  | ValidateUploadRequestSuccess
-  | ValidateUploadRequestFailure;
+  ValidateUploadRequestSuccess | ValidateUploadRequestFailure;
 
 export function validateUploadRequest(
   input: ValidateUploadRequestInput,

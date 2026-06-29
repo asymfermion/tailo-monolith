@@ -3,10 +3,7 @@ import type { RemoteEventUpdate } from '@tailo/shared';
 import type { LocalEventRow } from '@/db/localEvents';
 
 export type RemoteEventApplyBlockReason =
-  | 'tombstoned'
-  | 'user_sync_lock'
-  | 'pending_outbound_sync'
-  | null;
+  'tombstoned' | 'user_sync_lock' | 'pending_outbound_sync' | null;
 
 export function getRemoteEventApplyBlockReason(input: {
   isTombstoned: boolean;

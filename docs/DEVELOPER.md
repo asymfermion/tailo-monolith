@@ -196,11 +196,11 @@ After upload, open **App Store Connect → TestFlight**, wait for processing, an
 
 #### Profiles
 
-| Profile       | Use |
-| ------------- | --- |
+| Profile       | Use                                              |
+| ------------- | ------------------------------------------------ |
 | `production`  | TestFlight and App Store (`distribution: store`) |
-| `preview`     | Internal ad-hoc installs for the team |
-| `development` | Dev client with `expo-dev-client` |
+| `preview`     | Internal ad-hoc installs for the team            |
+| `development` | Dev client with `expo-dev-client`                |
 
 #### Before TestFlight
 

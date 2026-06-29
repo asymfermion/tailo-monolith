@@ -24,15 +24,16 @@ export function scoreEventMedia({
 }: ScoreEventMediaOptions): ScoreEventMediaResult {
   const uniquenessByAssetId = calculateUniquenessScores(assets);
   const rankedEntries = assets
-    .map((asset) =>
-      ({
-        asset,
-        score: scoreAsset({
+    .map(
+      (asset) =>
+        ({
           asset,
-          localEventId,
-          uniqueness: uniquenessByAssetId.get(asset.localAssetId) ?? 1,
-        }),
-      }) as const,
+          score: scoreAsset({
+            asset,
+            localEventId,
+            uniqueness: uniquenessByAssetId.get(asset.localAssetId) ?? 1,
+          }),
+        }) as const,
     )
     .sort((left, right) => {
       if (right.score.overallScore !== left.score.overallScore) {

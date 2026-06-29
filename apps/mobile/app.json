@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tailo",
     "slug": "tailo",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/brand/app-icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,8 @@
         "NSPhotoLibraryAddUsageDescription": "Tailo can save photos you capture in the app to your photo library.",
         "NSCameraUsageDescription": "Tailo uses the camera so you can capture new pet moments.",
         "NSMicrophoneUsageDescription": "Tailo may use the microphone when recording video moments."
-      }
+      },
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.mtxforge.tailo",
@@ -41,9 +42,7 @@
           "photosPermission": "Tailo scans your recent photos to find pet moments for your timeline.",
           "savePhotosPermission": "Tailo can save photos you capture in the app to your photo library.",
           "isAccessMediaLocationEnabled": true,
-          "granularPermissions": [
-            "photo"
-          ]
+          "granularPermissions": ["photo"]
         }
       ],
       [

@@ -2,7 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import { useEffect, useRef } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { HomeIcon } from '@/components/HomeIcon';
 
@@ -65,7 +72,15 @@ type TabItemProps = {
   onPress: () => void;
 };
 
-function TabItem({ tab, isActive, colors, styles, petProfile, petInitial, onPress }: TabItemProps) {
+function TabItem({
+  tab,
+  isActive,
+  colors,
+  styles,
+  petProfile,
+  petInitial,
+  onPress,
+}: TabItemProps) {
   const scale = useRef(new Animated.Value(isActive ? ACTIVE_SCALE : 1)).current;
 
   useEffect(() => {
@@ -85,7 +100,9 @@ function TabItem({ tab, isActive, colors, styles, petProfile, petInitial, onPres
   return (
     <Pressable
       accessibilityRole="tab"
-      accessibilityLabel={t(`navigation.tabAccessibility.${tab.accessibilityKey}`)}
+      accessibilityLabel={t(
+        `navigation.tabAccessibility.${tab.accessibilityKey}`,
+      )}
       accessibilityState={{ selected: isActive }}
       hitSlop={8}
       style={isPetTab ? styles.petTab : styles.tab}
@@ -93,10 +110,17 @@ function TabItem({ tab, isActive, colors, styles, petProfile, petInitial, onPres
     >
       <Animated.View style={{ transform: [{ scale }] }}>
         {isPetTab ? (
-          <View style={[styles.petAvatarRing, isActive ? styles.petAvatarRingActive : null]}>
+          <View
+            style={[
+              styles.petAvatarRing,
+              isActive ? styles.petAvatarRingActive : null,
+            ]}
+          >
             {petProfile.profile?.profilePhotoUri ? (
               <Image
-                accessibilityLabel={t('accessibility.profilePhoto', { name: petProfile.profile.name })}
+                accessibilityLabel={t('accessibility.profilePhoto', {
+                  name: petProfile.profile.name,
+                })}
                 contentFit="cover"
                 source={{ uri: petProfile.profile.profilePhotoUri }}
                 style={styles.petAvatar}
@@ -106,7 +130,10 @@ function TabItem({ tab, isActive, colors, styles, petProfile, petInitial, onPres
             )}
           </View>
         ) : isHomeTab ? (
-          <HomeIcon color={isActive ? colors.text : colors.textMuted} size={ICON_SIZE} />
+          <HomeIcon
+            color={isActive ? colors.text : colors.textMuted}
+            size={ICON_SIZE}
+          />
         ) : (
           <Ionicons
             color={isActive ? colors.text : colors.textMuted}

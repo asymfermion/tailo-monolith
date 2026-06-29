@@ -1,7 +1,9 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import {
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
   Text,
@@ -22,6 +24,7 @@ import {
 import type { TimelineEvent, TimelineEventMedia } from '@/types';
 
 import { MomentActionMenu } from './MomentActionMenu';
+import { getMomentImageHeightForWidth } from './momentImageFit';
 
 type TimelineMomentCardProps = {
   event: TimelineEvent;
@@ -46,15 +49,22 @@ function createTimelineMomentCardStyles({
       overflow: 'hidden' as const,
     },
     hero: {
-      aspectRatio: 1.3,
       backgroundColor: colors.border,
+      overflow: 'hidden' as const,
+      width: '100%' as const,
+    },
+    heroPage: {
+      height: '100%' as const,
+    },
+    heroImage: {
+      height: '100%' as const,
       width: '100%' as const,
     },
     content: {
       gap: spacing.sm,
       paddingBottom: spacing.md,
       paddingHorizontal: spacing.md,
-      paddingTop: 14,
+      paddingTop: 12,
     },
     titleRow: {
       alignItems: 'center' as const,
@@ -68,9 +78,9 @@ function createTimelineMomentCardStyles({
     momentType: {
       color: colors.text,
       fontFamily: getFontFamily('600'),
-      fontSize: 22,
+      fontSize: 20,
       fontWeight: '600' as const,
-      lineHeight: 28,
+      lineHeight: 26,
     },
     favoriteButton: {
       alignItems: 'center' as const,
@@ -82,9 +92,9 @@ function createTimelineMomentCardStyles({
     caption: {
       color: colors.text,
       fontFamily: getFontFamily('500'),
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '500' as const,
-      lineHeight: 23,
+      lineHeight: 20,
     },
     heroDotsWrap: {
       alignItems: 'center' as const,
@@ -120,8 +130,8 @@ function createTimelineMomentCardStyles({
     metadataText: {
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),
-      fontSize: 13,
-      lineHeight: 18,
+      fontSize: 12,
+      lineHeight: 17,
     },
     metadataDot: {
       backgroundColor: colors.border,
@@ -263,9 +273,22 @@ function MomentHeroCarousel({
   const window = useWindowDimensions();
   const [pageWidth, setPageWidth] = useState(window.width);
   const [activeIndex, setActiveIndex] = useState(0);
+  const activeMedia =
+    media[Math.min(activeIndex, media.length - 1)] ?? media[0];
+  const targetHeight = getMomentImageHeightForWidth(activeMedia, pageWidth);
+  const heroHeight = useRef(new Animated.Value(targetHeight)).current;
   const hasMultiple = media.length > 1;
   const dotCount = Math.min(media.length, MAX_PAGE_DOTS);
   const activeDot = Math.min(activeIndex, dotCount - 1);
+
+  useEffect(() => {
+    Animated.timing(heroHeight, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      toValue: targetHeight,
+      useNativeDriver: false,
+    }).start();
+  }, [heroHeight, targetHeight]);
 
   const handleMomentumEnd = (
     event: NativeSyntheticEvent<NativeScrollEvent>,
@@ -279,13 +302,14 @@ function MomentHeroCarousel({
   };
 
   return (
-    <View
+    <Animated.View
       onLayout={(event) => {
         const width = event.nativeEvent.layout.width;
         if (width > 0) {
           setPageWidth(width);
         }
       }}
+      style={[styles.hero, { height: heroHeight }]}
     >
       <ScrollView
         horizontal
@@ -293,6 +317,7 @@ function MomentHeroCarousel({
         nestedScrollEnabled
         pagingEnabled
         showsHorizontalScrollIndicator={false}
+        style={styles.heroPage}
         onMomentumScrollEnd={handleMomentumEnd}
       >
         {media.map((item, index) => (
@@ -304,14 +329,10 @@ function MomentHeroCarousel({
                 : t('accessibility.momentPhoto')
             }
             accessibilityRole="button"
-            style={{ width: pageWidth }}
+            style={[styles.heroPage, { width: pageWidth }]}
             onPress={() => onPressPhoto(index)}
           >
-            <Image
-              contentFit="cover"
-              source={{ uri: item.uri }}
-              style={styles.hero}
-            />
+            <MomentHeroImage item={item} styles={styles} />
           </Pressable>
         ))}
       </ScrollView>
@@ -330,13 +351,31 @@ function MomentHeroCarousel({
           </View>
         </View>
       ) : null}
-    </View>
+    </Animated.View>
+  );
+}
+
+type MomentHeroImageProps = {
+  item: TimelineEventMedia;
+  styles: ReturnType<typeof createTimelineMomentCardStyles>;
+};
+
+function MomentHeroImage({ item, styles }: MomentHeroImageProps) {
+  return (
+    <Image
+      contentFit="cover"
+      source={{ uri: item.uri }}
+      style={styles.heroImage}
+    />
   );
 }
 
 function eventMediaSignature(media: TimelineEventMedia[]): string {
   return media
-    .map((item) => `${item.localAssetId}:${item.uri}:${item.isPrimary ? 1 : 0}`)
+    .map(
+      (item) =>
+        `${item.localAssetId}:${item.uri}:${item.width}x${item.height}:${item.isPrimary ? 1 : 0}`,
+    )
     .join('|');
 }
 

@@ -80,7 +80,11 @@ export async function promoteScoredCandidatesToLocalEvents({
   }
 
   logTailo('Upload', 'Starting cloud upload worker after promotion');
-  void runUploadQueueWorker();
+  void runUploadQueueWorker().catch((e: unknown) => {
+    logTailo('Upload', 'Cloud upload worker failed after promotion', {
+      message: e instanceof Error ? e.message : 'Unknown error.',
+    });
+  });
 
   onProgress?.({
     candidateCount: candidates.length,

@@ -310,7 +310,10 @@ export async function markNotificationCloudSynced(
 export async function upsertNotificationFromCloud(
   db: SQLite.SQLiteDatabase,
   update: RemoteNotificationUpdate,
-  resolveReadAt: (localReadAt: string | null, remoteReadAt: string | null) => string | null,
+  resolveReadAt: (
+    localReadAt: string | null,
+    remoteReadAt: string | null,
+  ) => string | null,
 ): Promise<{ changed: boolean; shouldSyncBack: boolean }> {
   const existing = await db.getFirstAsync<NotificationRow>(
     `

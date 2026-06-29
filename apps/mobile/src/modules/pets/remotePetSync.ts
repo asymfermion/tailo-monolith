@@ -4,6 +4,7 @@ import {
   isRemoteAuthConfigured,
 } from '@/modules/auth/authSessionAccess';
 import { isUpsertPetResponse, type UpsertPetResponse } from '@tailo/shared';
+import { uploadToSignedUrl } from '@/modules/sync/uploadToSignedUrl';
 
 import {
   loadLocalPetProfile,
@@ -49,6 +50,28 @@ export async function syncRemotePetProfileIfNeeded(): Promise<SyncRemotePetProfi
   }
 
   try {
+    // Upload portrait if we have one that hasn't been pushed to cloud yet
+    let portraitCloudUrl = profile.portraitCloudUrl;
+    if (profile.portraitUri !== null && portraitCloudUrl === null) {
+      try {
+        const uploadUrlResult = await invokeTailoApi('upload-portrait');
+        const p =
+          !('error' in uploadUrlResult) && uploadUrlResult.ok
+            ? (uploadUrlResult.payload as Record<string, unknown>)
+            : null;
+        if (
+          p !== null &&
+          typeof p.signed_upload_url === 'string' &&
+          typeof p.portrait_url === 'string'
+        ) {
+          await uploadToSignedUrl(p.signed_upload_url, profile.portraitUri);
+          portraitCloudUrl = p.portrait_url;
+        }
+      } catch {
+        // Portrait upload failure must not block pet profile sync
+      }
+    }
+
     const result = await invokeTailoApi('upsert-pet', {
       source_local_pet_id: profile.petId,
       name: profile.name.trim(),
@@ -56,6 +79,7 @@ export async function syncRemotePetProfileIfNeeded(): Promise<SyncRemotePetProfi
       gender: profile.gender,
       birthday: profile.birthday,
       profile_photo_local_asset_id: profile.profilePhotoLocalAssetId,
+      portrait_url: portraitCloudUrl,
     });
 
     if ('error' in result) {
@@ -78,7 +102,10 @@ export async function syncRemotePetProfileIfNeeded(): Promise<SyncRemotePetProfi
       };
     }
 
-    await saveLocalPetProfileWithRemoteId(profile, payload.pet_id);
+    await saveLocalPetProfileWithRemoteId(
+      { ...profile, portraitCloudUrl },
+      payload.pet_id,
+    );
 
     return { status: 'synced', response: payload };
   } catch (error) {

@@ -30,7 +30,11 @@ async function createProducerNotification(input: {
   idParts: (string | number)[];
   title: string;
   body: string;
-  kind: 'account_reminder' | 'sync_complete' | 'ai_job_complete' | 'continuity_risk';
+  kind:
+    | 'account_reminder'
+    | 'sync_complete'
+    | 'ai_job_complete'
+    | 'continuity_risk';
   source: 'account' | 'sync' | 'cloud_job' | 'local_app';
   target: ProducerTarget;
   priority?: NotificationPriority;

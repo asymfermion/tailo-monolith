@@ -237,8 +237,6 @@ export const handleSyncEvent: ApiHandler = async ({ user, log, payload }) => {
     return jsonResponse({ error: upsertError.message }, 500);
   }
 
-  await adminClient.from('event_media').delete().eq('event_id', merged.eventId);
-
   const mediaRows = body.media.map((item) => ({
     event_media_id: crypto.randomUUID(),
     event_id: merged.eventId,
@@ -253,10 +251,23 @@ export const handleSyncEvent: ApiHandler = async ({ user, log, payload }) => {
     detected_breed: item.detected_breed ?? null,
   }));
 
-  const { error: mediaError } = await adminClient.from('event_media').insert(mediaRows);
+  // Upsert new rows first so existing rows are untouched on failure.
+  const { error: mediaError } = await adminClient
+    .from('event_media')
+    .upsert(mediaRows, { onConflict: 'event_id,source_local_asset_id' });
 
   if (mediaError) {
     return jsonResponse({ error: mediaError.message }, 500);
+  }
+
+  // Remove stale rows not in the new payload. Worst case on failure: extra rows, not missing rows.
+  const newAssetIds = body.media.map((m) => m.source_local_asset_id);
+  if (newAssetIds.length > 0) {
+    await adminClient
+      .from('event_media')
+      .delete()
+      .eq('event_id', merged.eventId)
+      .not('source_local_asset_id', 'in', `(${newAssetIds.join(',')})`);
   }
 
   let aiJobResponse: { ai_job_id: string; status: 'pending' | 'skipped' } | undefined;

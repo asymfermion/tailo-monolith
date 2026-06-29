@@ -32,15 +32,15 @@ jest.mock('./onboardingScanPolicy', () => {
 });
 
 const scanRecentPhotosMock = jest.mocked(scanRecentPhotos);
-const runPipelineProcessingStagesMock = jest.mocked(runPipelineProcessingStages);
+const runPipelineProcessingStagesMock = jest.mocked(
+  runPipelineProcessingStages,
+);
 const getQualifiedOnboardingMomentMaxByPetTypeMock = jest.mocked(
   getQualifiedOnboardingMomentMaxByPetType,
 );
 const getPromotedMomentCountMock = jest.mocked(getPromotedMomentCount);
 
-function makeScanProgress(
-  overrides: Partial<ScanProgress> = {},
-): ScanProgress {
+function makeScanProgress(overrides: Partial<ScanProgress> = {}): ScanProgress {
   return {
     batchCount: 1,
     scannedCount: 50,
@@ -52,9 +52,7 @@ function makeScanProgress(
 }
 
 describe('runOnboardingLocalPipeline', () => {
-  const database = {} as Awaited<
-    ReturnType<typeof import('@/db').getDatabase>
-  >;
+  const database = {} as Awaited<ReturnType<typeof import('@/db').getDatabase>>;
 
   beforeEach(() => {
     jest.clearAllMocks();

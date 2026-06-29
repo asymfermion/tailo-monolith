@@ -13,15 +13,18 @@ export function useBlockingAuthAction(): UseBlockingAuthActionResult {
   const [isBlockingAuthInProgress, setIsBlockingAuthInProgress] =
     useState(false);
 
-  const runBlockingAuthAction = useCallback(async <T,>(action: () => Promise<T>) => {
-    setIsBlockingAuthInProgress(true);
+  const runBlockingAuthAction = useCallback(
+    async <T>(action: () => Promise<T>) => {
+      setIsBlockingAuthInProgress(true);
 
-    try {
-      return await action();
-    } finally {
-      setIsBlockingAuthInProgress(false);
-    }
-  }, []);
+      try {
+        return await action();
+      } finally {
+        setIsBlockingAuthInProgress(false);
+      }
+    },
+    [],
+  );
 
   return { isBlockingAuthInProgress, runBlockingAuthAction };
 }

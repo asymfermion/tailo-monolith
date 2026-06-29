@@ -4,10 +4,7 @@ export type MediaType = 'photo' | 'video';
 export type DetectedPetType = 'dog' | 'cat';
 
 export type AssetProcessingStatus =
-  | 'pending'
-  | 'processing'
-  | 'processed'
-  | 'failed';
+  'pending' | 'processing' | 'processed' | 'failed';
 
 export interface LocalAsset {
   localAssetId: string;

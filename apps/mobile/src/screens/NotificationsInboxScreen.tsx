@@ -6,10 +6,7 @@ import type { NotificationRecord } from '@tailo/shared';
 
 import { spacing } from '@/constants/theme';
 import { t } from '@/i18n';
-import {
-  useThemedStyles,
-  type AppearanceContextValue,
-} from '@/lib/appearance';
+import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 import { ModalBackButton } from '@/navigation/components/ModalBackButton';
 import { useNavigation } from '@/navigation/NavigationContext';
 import { getModalHeaderTopInset } from '@/navigation/modalHeaderInset';
@@ -176,7 +173,9 @@ export function NotificationsInboxScreen() {
       >
         {inbox.notifications.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>{t('notifications.emptyTitle')}</Text>
+            <Text style={styles.emptyTitle}>
+              {t('notifications.emptyTitle')}
+            </Text>
             <Text style={styles.emptyBody}>{t('notifications.emptyBody')}</Text>
           </View>
         ) : (
@@ -192,7 +191,9 @@ export function NotificationsInboxScreen() {
             >
               <View style={styles.cardTitleRow}>
                 <Text style={styles.cardTitle}>{notification.title}</Text>
-                {notification.read_at ? null : <View style={styles.unreadDot} />}
+                {notification.read_at ? null : (
+                  <View style={styles.unreadDot} />
+                )}
               </View>
               <Text style={styles.cardBody}>{notification.body}</Text>
               <Text style={styles.cardMeta}>

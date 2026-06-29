@@ -283,7 +283,7 @@ Cloud storage + API sync (`3.6.5`, `3.6.7`) is now implemented in this slice.
 
 ## Change log
 
-| Date       | Change |
-| ---------- | ------ |
+| Date       | Change                                                                                                                                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 2026-06-06 | Added cloud notification storage and sync: Supabase `notification_items` table + RLS, unified `sync-notifications` API (push + pull), mobile sync cursor and pending queue wiring, and cross-device read-state reconciliation. |
-| 2026-06-06 | Added mobile notification inbox foundation: SQLite schema v13, shared notification contract, Settings entry + inbox UI, initial app-side producers, push-fallback resolver, read-state reconciliation helper, and unit tests. |
+| 2026-06-06 | Added mobile notification inbox foundation: SQLite schema v13, shared notification contract, Settings entry + inbox UI, initial app-side producers, push-fallback resolver, read-state reconciliation helper, and unit tests.  |

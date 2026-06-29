@@ -86,6 +86,7 @@ Read only what is needed for the task. Do not load every doc by default.
 | Run/setup/debug commands         | `docs/DEVELOPER.md`                   |
 | Phase-specific implementation    | matching file in `docs/architecture/` |
 | Expo API behavior                | Expo SDK 54 docs                      |
+| Backend / non-UI code            | `docs/BACKEND_AGENTS.md`              |
 
 Prefer focused reading over broad context loading.
 

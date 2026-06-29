@@ -13,7 +13,9 @@ describe('evaluateNativeClassification', () => {
   });
 
   it('accepts breed when provided', () => {
-    expect(evaluateNativeClassification('dog', 0.82, 'golden_retriever')).toEqual({
+    expect(
+      evaluateNativeClassification('dog', 0.82, 'golden_retriever'),
+    ).toEqual({
       isPetCandidate: true,
       detectedPetType: 'dog',
       confidence: 0.82,

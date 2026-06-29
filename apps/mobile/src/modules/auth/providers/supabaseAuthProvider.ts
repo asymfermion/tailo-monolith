@@ -161,7 +161,9 @@ async function persistAppleProfileMetadataIfNeeded(
   const displayName =
     resolveAppleDisplayName(credential) ??
     options?.rememberedDisplayName ??
-    (options?.authUser ? resolveDisplayNameFromAuthUser(options.authUser) : null);
+    (options?.authUser
+      ? resolveDisplayNameFromAuthUser(options.authUser)
+      : null);
 
   if (!displayName) {
     return;

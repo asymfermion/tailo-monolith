@@ -2,6 +2,7 @@ import { acquireEventSyncLock } from '@/db/eventSyncLock';
 import { dismissLocalAssetsForMoment } from '@/db/localAssets';
 import { tombstoneLocalEvents } from '@/db/localEventTombstones';
 import { getLocalEventById, markLocalEventDeleted } from '@/db/localEvents';
+import { getLocalMediaScoresForEvent } from '@/db/localMediaScores';
 import { getSyncStateValue } from '@/db/syncState';
 import { cancelUploadQueueForEvent } from '@/db/uploadQueue';
 import { getDatabase } from '@/db';
@@ -20,6 +21,10 @@ jest.mock('@/db', () => ({
 jest.mock('@/db/localEvents', () => ({
   getLocalEventById: jest.fn(),
   markLocalEventDeleted: jest.fn(),
+}));
+
+jest.mock('@/db/localMediaScores', () => ({
+  getLocalMediaScoresForEvent: jest.fn(),
 }));
 
 jest.mock('@/db/localAssets', () => ({
@@ -84,6 +89,7 @@ describe('deleteMoment', () => {
     jest.clearAllMocks();
     jest.mocked(getDatabase).mockResolvedValue(database);
     jest.mocked(getLocalEventById).mockResolvedValue(baseLocal);
+    jest.mocked(getLocalMediaScoresForEvent).mockResolvedValue([]);
     jest.mocked(dismissLocalAssetsForMoment).mockResolvedValue(1);
     jest.mocked(cancelUploadQueueForEvent).mockResolvedValue(undefined);
     jest.mocked(getSyncStateValue).mockResolvedValue('2');
@@ -113,6 +119,34 @@ describe('deleteMoment', () => {
     expect(cancelUploadQueueForEvent).toHaveBeenCalledWith(database, 'event-1');
     expect(tombstoneLocalEvents).toHaveBeenCalled();
     expect(deleteEvent).not.toHaveBeenCalled();
+  });
+
+  it('dismisses scored-but-not-selected assets so they cannot be re-clustered', async () => {
+    jest.mocked(getLocalMediaScoresForEvent).mockResolvedValue([
+      {
+        localAssetId: 'asset-1',
+        isPrimary: 1,
+        detectedPetType: 'dog',
+        detectedBreed: null,
+      },
+      {
+        localAssetId: 'asset-2',
+        isPrimary: 0,
+        detectedPetType: 'dog',
+        detectedBreed: null,
+      },
+    ]);
+
+    await deleteMoment('event-1');
+
+    expect(dismissLocalAssetsForMoment).toHaveBeenCalledWith(
+      database,
+      expect.arrayContaining(['asset-1', 'asset-2']),
+      expect.any(String),
+    );
+    const [, dismissed] = jest.mocked(dismissLocalAssetsForMoment).mock
+      .calls[0];
+    expect(dismissed).toHaveLength(2);
   });
 
   it('calls delete-event when signed in', async () => {

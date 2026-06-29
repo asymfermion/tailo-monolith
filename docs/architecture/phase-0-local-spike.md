@@ -206,11 +206,11 @@ Continued in **[phase-1-local-mvp.md](./phase-1-local-mvp.md)**:
 
 ## Change log
 
-| Date       | Change                                                                                                                        |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 2026-05-17 | Initial Phase 0 architecture doc (reflects implemented pipeline 0.1–0.6)                                                      |
-| 2026-05-17 | Added dog/cat detection contract, `detected_pet_type` schema v2, and native detector fallback note                            |
-| 2026-05-17 | Added `TailoPetClassifier` local Expo module for iOS Vision/Core ML classification with built-in Vision fallback              |
-| 2026-05-18 | Pet detection: `VNRecognizeAnimalsRequest`, confidence floor 0.35, non-pet heuristic fallback; 0.3a.6 device validation noted |
-| 2026-05-18 | Moved Phase 1.1+ content to [phase-1-local-mvp.md](./phase-1-local-mvp.md); restored Phase 0 scope in this doc                |
+| Date       | Change                                                                                                                             |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-17 | Initial Phase 0 architecture doc (reflects implemented pipeline 0.1–0.6)                                                           |
+| 2026-05-17 | Added dog/cat detection contract, `detected_pet_type` schema v2, and native detector fallback note                                 |
+| 2026-05-17 | Added `TailoPetClassifier` local Expo module for iOS Vision/Core ML classification with built-in Vision fallback                   |
+| 2026-05-18 | Pet detection: `VNRecognizeAnimalsRequest`, confidence floor 0.35, non-pet heuristic fallback; 0.3a.6 device validation noted      |
+| 2026-05-18 | Moved Phase 1.1+ content to [phase-1-local-mvp.md](./phase-1-local-mvp.md); restored Phase 0 scope in this doc                     |
 | 2026-06-10 | Onboarding-only scan bounds: 10 promoted moments, 300 images, or 90-day window (first limit wins) via `runOnboardingLocalPipeline` |

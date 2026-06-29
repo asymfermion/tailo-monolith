@@ -14,8 +14,7 @@ import {
 } from './remoteAccountProfile';
 
 export type PersistAppPreferenceResult =
-  | { status: 'local_only' }
-  | SyncRemoteAccountProfileResult;
+  { status: 'local_only' } | SyncRemoteAccountProfileResult;
 
 async function persistAppPreferenceAndSync(
   applyLocal: () => Promise<void>,

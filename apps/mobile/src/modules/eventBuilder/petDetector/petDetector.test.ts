@@ -24,7 +24,8 @@ function makeNativeDetector(
   confidence: number,
   breed?: string,
 ) {
-  const isPet = (label === 'cat' || label === 'dog') && confidence >= MIN_CONFIDENCE;
+  const isPet =
+    (label === 'cat' || label === 'dog') && confidence >= MIN_CONFIDENCE;
   return {
     detect: async (): Promise<PetDetectorResult> => ({
       isPetCandidate: isPet,
@@ -131,7 +132,7 @@ describe('combined model — native + top-2 breed + pet selection pipeline', () 
     {
       name: 'cat photo with tool in scene',
       label: 'cat',
-      confidence: 0.60,
+      confidence: 0.6,
       breed: 'tool',
       expectedPetType: 'cat',
       expectedBreedInPicker: null,
@@ -155,7 +156,7 @@ describe('combined model — native + top-2 breed + pet selection pipeline', () 
     {
       name: 'cat photo with no breed detected',
       label: 'cat',
-      confidence: 0.80,
+      confidence: 0.8,
       breed: undefined,
       expectedPetType: 'cat',
       expectedBreedInPicker: null,
@@ -163,7 +164,7 @@ describe('combined model — native + top-2 breed + pet selection pipeline', () 
     {
       name: 'low confidence cat — below detection floor',
       label: 'cat',
-      confidence: 0.10,
+      confidence: 0.1,
       breed: undefined,
       expectedPetType: null, // below MIN_PET_CONFIDENCE (0.35)
       expectedBreedInPicker: null,

@@ -21,6 +21,11 @@ jest.mock('@/modules/eventBuilder/rebuildPipelineForProfilePetType', () => ({
   rebuildPipelineForProfilePetType: jest.fn(),
 }));
 
+jest.mock('@/lib/petPortrait', () => ({
+  cropAndSavePortrait: jest.fn().mockResolvedValue('file://portrait.jpg'),
+  PORTRAIT_FILE_PATH: 'file://portrait.jpg',
+}));
+
 jest.mock('./remotePetSync', () => ({
   syncRemotePetProfileIfNeeded: jest
     .fn()
@@ -182,10 +187,14 @@ describe('local pet profile storage', () => {
 
     expect(existing).not.toBeNull();
 
-    const profile = await saveLocalPetProfilePhoto(existing!, {
-      profilePhotoLocalAssetId: 'asset-new',
-      profilePhotoUri: 'file://new.jpg',
-    }, storage);
+    const profile = await saveLocalPetProfilePhoto(
+      existing!,
+      {
+        profilePhotoLocalAssetId: 'asset-new',
+        profilePhotoUri: 'file://new.jpg',
+      },
+      storage,
+    );
 
     expect(profile.name).toBe('Miso');
     expect(profile.type).toBe('cat');

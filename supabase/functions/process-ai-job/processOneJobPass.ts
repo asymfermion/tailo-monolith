@@ -18,13 +18,20 @@ export async function processOneJobPass(
     Date.now() + AI_JOB_LEASE_SECONDS * 1000,
   ).toISOString();
 
+  // Atomic lease: UPDATE WHERE status='pending' RETURNING avoids the SELECT+UPDATE race
+  // where two concurrent workers could both SELECT the same job before either UPDATE fires.
   const { data: job, error: leaseError } = await adminClient
     .from('ai_jobs')
-    .select('ai_job_id, event_id, status, attempt_count, input_snapshot')
+    .update({
+      status: 'processing',
+      leased_until: leaseUntil,
+      updated_at: nowIso,
+    })
     .eq('status', 'pending')
     .lte('next_attempt_at', nowIso)
     .order('next_attempt_at', { ascending: true })
     .limit(1)
+    .select('ai_job_id, event_id, attempt_count, input_snapshot')
     .maybeSingle();
 
   if (leaseError) {
@@ -41,16 +48,6 @@ export async function processOneJobPass(
     eventId: job.event_id,
     attemptCount: job.attempt_count,
   });
-
-  await adminClient
-    .from('ai_jobs')
-    .update({
-      status: 'processing',
-      leased_until: leaseUntil,
-      updated_at: nowIso,
-    })
-    .eq('ai_job_id', job.ai_job_id)
-    .eq('status', 'pending');
 
   const { data: event, error: eventError } = await adminClient
     .from('events')

@@ -1,12 +1,14 @@
 import { useCallback, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import * as MediaLibrary from 'expo-media-library';
+import * as MediaLibrary from 'expo-media-library/legacy';
 import * as Sharing from 'expo-sharing';
 import {
   ActivityIndicator,
   Alert,
   Modal,
   Pressable,
+  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -14,16 +16,27 @@ import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { spacing } from '@/constants/theme';
-import { formatEventType } from '@/lib/formatMoment';
+import { formatEventType, formatTimestamp } from '@/lib/formatMoment';
 import { t } from '@/i18n';
-import {
-  useAppearance,
-  useThemedStyles,
-  type AppearanceContextValue,
-} from '@/lib/appearance';
-import { useDialogMaxWidth } from '@/lib/responsive';
+import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 import { logTailo } from '@/lib/tailoLogger';
-import type { TimelineEvent } from '@/types';
+import type { TimelineEvent, TimelineEventMedia } from '@/types';
+
+import { shouldContainMomentImage } from './momentImageFit';
+import {
+  EXPORT_BACKGROUND,
+  EXPORT_BORDER,
+  EXPORT_MUTED_TEXT,
+  EXPORT_PREVIEW_HEIGHT,
+  EXPORT_PREVIEW_WIDTH,
+  EXPORT_SPECKLES,
+  EXPORT_SURFACE,
+  EXPORT_TEXT,
+  getShareMomentExportLayout,
+  getShareMomentExportMedia,
+  scaleExport,
+  type ShareMomentExportFrame,
+} from './shareMomentExportLayout';
 
 const wordmarkSource = require('../../../assets/auth/tailo-wordmark-dark-transparent.png');
 
@@ -36,107 +49,205 @@ type ShareMomentSheetProps = {
 type BusyAction = 'save' | 'share' | null;
 
 function createShareMomentSheetStyles({
-  colors,
   getFontFamily,
 }: AppearanceContextValue) {
   return {
-    backdrop: {
-      backgroundColor: 'rgba(11, 10, 9, 0.45)',
+    screen: {
+      backgroundColor: '#F3EEE7',
       flex: 1,
-      justifyContent: 'flex-end' as const,
     },
-    sheet: {
+    topBar: {
       alignItems: 'center' as const,
-      alignSelf: 'center' as const,
-      backgroundColor: colors.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      gap: spacing.md,
-      paddingBottom: spacing.xl,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.sm,
+      backgroundColor: EXPORT_SURFACE,
+      borderBottomColor: EXPORT_BORDER,
+      borderBottomWidth: 1,
+      flexDirection: 'row' as const,
+      height: 52,
+      justifyContent: 'space-between' as const,
+      paddingHorizontal: spacing.md,
       width: '100%' as const,
     },
-    grabber: {
-      backgroundColor: colors.border,
-      borderRadius: 3,
-      height: 5,
+    topIconButton: {
+      alignItems: 'center' as const,
+      height: 40,
+      justifyContent: 'center' as const,
       width: 40,
+      zIndex: 1,
     },
-    title: {
-      color: colors.text,
+    topTitle: {
+      color: EXPORT_TEXT,
       fontFamily: getFontFamily('600'),
-      fontSize: 18,
+      fontSize: 17,
       fontWeight: '600' as const,
-    },
-    preview: {
-      backgroundColor: colors.border,
-      borderRadius: 18,
-      overflow: 'hidden' as const,
-      width: 220,
-    },
-    previewImage: {
-      height: 250,
-      width: '100%' as const,
-    },
-    previewOverlay: {
-      backgroundColor: 'rgba(21, 20, 18, 0.42)',
-      bottom: 0,
-      gap: 6,
       left: 0,
-      padding: spacing.md,
+      lineHeight: 22,
       position: 'absolute' as const,
       right: 0,
+      textAlign: 'center' as const,
+      top: 15,
     },
-    previewTitle: {
-      color: '#FFFFFF',
+    stage: {
+      alignItems: 'center' as const,
+      backgroundColor: '#25211D',
+      flex: 1,
+      width: '100%' as const,
+    },
+    preview: {
+      backgroundColor: EXPORT_BACKGROUND,
+      borderColor: EXPORT_BORDER,
+      borderRadius: scaleExport(21),
+      borderWidth: 1.2,
+      height: EXPORT_PREVIEW_HEIGHT,
+      marginTop: 13,
+      overflow: 'hidden' as const,
+      width: EXPORT_PREVIEW_WIDTH,
+    },
+    previewSpeckle: {
+      backgroundColor: 'rgba(21, 20, 18, 0.07)',
+      borderRadius: 1,
+      height: 2,
+      position: 'absolute' as const,
+      width: 2,
+    },
+    exportPhotoFrame: {
+      backgroundColor: '#BCA888',
+      overflow: 'hidden' as const,
+      position: 'absolute' as const,
+    },
+    exportPhotoBackdrop: {
+      ...StyleSheet.absoluteFill,
+      opacity: 0.35,
+    },
+    exportPhotoImage: {
+      ...StyleSheet.absoluteFill,
+    },
+    exportTitle: {
+      color: EXPORT_TEXT,
       fontFamily: getFontFamily('600'),
-      fontSize: 16,
+      fontSize: scaleExport(17),
       fontWeight: '600' as const,
+      left: scaleExport(11),
+      lineHeight: scaleExport(22),
+      position: 'absolute' as const,
+      top: scaleExport(407),
+      width: scaleExport(279),
     },
-    previewCaption: {
-      color: 'rgba(255, 255, 255, 0.92)',
+    exportCaption: {
+      color: EXPORT_TEXT,
+      fontFamily: getFontFamily('500'),
+      fontSize: scaleExport(10),
+      fontWeight: '500' as const,
+      left: scaleExport(11),
+      lineHeight: scaleExport(14),
+      position: 'absolute' as const,
+      top: scaleExport(437),
+      width: scaleExport(279),
+    },
+    exportMetadata: {
+      color: EXPORT_MUTED_TEXT,
       fontFamily: getFontFamily('400'),
-      fontSize: 13,
-      lineHeight: 18,
+      fontSize: scaleExport(8),
+      left: scaleExport(11),
+      lineHeight: scaleExport(12),
+      position: 'absolute' as const,
+      top: scaleExport(485),
+      width: scaleExport(145),
     },
-    previewWordmark: {
-      height: 16,
-      marginTop: spacing.xs,
-      width: 44,
+    previewWatermark: {
+      height: scaleExport(17),
+      left: scaleExport(250),
+      position: 'absolute' as const,
+      top: scaleExport(496),
+      width: scaleExport(40),
     },
     button: {
       alignItems: 'center' as const,
+      flex: 1,
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+      height: 50,
       borderRadius: 16,
       justifyContent: 'center' as const,
-      paddingVertical: 15,
-      width: '100%' as const,
     },
     buttonPrimary: {
-      backgroundColor: colors.accent,
+      backgroundColor: EXPORT_TEXT,
     },
     buttonPrimaryText: {
-      color: colors.surface,
+      color: EXPORT_SURFACE,
       fontFamily: getFontFamily('600'),
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '600' as const,
+      lineHeight: 22,
     },
     buttonSecondary: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
+      backgroundColor: EXPORT_SURFACE,
+      borderColor: EXPORT_BORDER,
       borderWidth: 1,
     },
     buttonSecondaryText: {
-      color: colors.text,
+      color: EXPORT_TEXT,
       fontFamily: getFontFamily('600'),
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '600' as const,
+      lineHeight: 22,
+    },
+    controls: {
+      backgroundColor: EXPORT_SURFACE,
+      borderTopColor: EXPORT_BORDER,
+      borderTopWidth: 1,
+      height: 111,
+      paddingHorizontal: 20,
+      width: '100%' as const,
+    },
+    controlRow: {
+      alignItems: 'flex-start' as const,
+      flexDirection: 'row' as const,
+      height: 51,
+      justifyContent: 'space-between' as const,
+      paddingTop: 13,
+    },
+    controlDivider: {
+      backgroundColor: EXPORT_BORDER,
+      height: 1,
+      width: '100%' as const,
+    },
+    controlLabel: {
+      color: EXPORT_MUTED_TEXT,
+      fontFamily: getFontFamily('600'),
+      fontSize: 11,
+      fontWeight: '600' as const,
+      lineHeight: 15,
+    },
+    controlValue: {
+      color: EXPORT_TEXT,
+      fontFamily: getFontFamily('600'),
+      fontSize: 14,
+      fontWeight: '600' as const,
+      lineHeight: 20,
+    },
+    controlValueWrap: {
+      alignItems: 'center' as const,
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+    },
+    actions: {
+      backgroundColor: EXPORT_SURFACE,
+      borderTopColor: EXPORT_BORDER,
+      borderTopWidth: 1,
+      paddingHorizontal: 20,
+      paddingTop: 11,
+      width: '100%' as const,
+    },
+    actionRow: {
+      flexDirection: 'row' as const,
+      gap: 17,
     },
     footer: {
-      color: colors.textMuted,
+      color: EXPORT_MUTED_TEXT,
       fontFamily: getFontFamily('400'),
-      fontSize: 13,
-      lineHeight: 18,
+      fontSize: 11,
+      lineHeight: 15,
+      marginTop: spacing.xs,
       textAlign: 'center' as const,
     },
   };
@@ -148,8 +259,6 @@ export function ShareMomentSheet({
   onClose,
 }: ShareMomentSheetProps) {
   const insets = useSafeAreaInsets();
-  const dialogMaxWidth = useDialogMaxWidth();
-  const { colors } = useAppearance();
   const styles = useThemedStyles(createShareMomentSheetStyles);
   const shotRef = useRef<View>(null);
   const [busy, setBusy] = useState<BusyAction>(null);
@@ -184,8 +293,8 @@ export function ShareMomentSheet({
         message: error instanceof Error ? error.message : String(error),
       });
       Alert.alert(
-        t('timeline.moment.shareFailedTitle'),
-        t('timeline.moment.shareFailedMessage'),
+        t('timeline.moment.shareSaveFailedTitle'),
+        t('timeline.moment.shareSaveFailedMessage'),
       );
     } finally {
       setBusy(null);
@@ -229,92 +338,234 @@ export function ShareMomentSheet({
     return null;
   }
 
-  const primaryMedia = event.media[0];
+  const exportMedia = getShareMomentExportMedia(event.media);
+  const exportPhotoCountLabel =
+    exportMedia.length === 1
+      ? t('timeline.moment.photoCountSingle')
+      : t('timeline.moment.photoCountPlural', {
+          count: String(exportMedia.length),
+        });
 
   return (
-    <Modal
-      animationType="slide"
-      transparent
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <Pressable
-        accessibilityLabel={t('common.cancel')}
-        style={styles.backdrop}
-        onPress={busy ? undefined : onClose}
-      >
-        <Pressable
-          style={[
-            styles.sheet,
-            {
-              maxWidth: dialogMaxWidth,
-              paddingBottom: insets.bottom + spacing.lg,
-            },
-          ]}
-          onPress={() => undefined}
-        >
-          <View style={styles.grabber} />
-          <Text style={styles.title}>{t('timeline.moment.shareTitle')}</Text>
+    <Modal animationType="slide" visible={visible} onRequestClose={onClose}>
+      <View style={styles.screen}>
+        <View style={{ height: insets.top }} />
+        <View style={styles.topBar}>
+          <Pressable
+            accessibilityLabel={t('common.cancel')}
+            accessibilityRole="button"
+            hitSlop={16}
+            style={styles.topIconButton}
+            onPress={busy ? undefined : onClose}
+          >
+            <Ionicons color={EXPORT_TEXT} name="close" size={24} />
+          </Pressable>
+          <Text pointerEvents="none" style={styles.topTitle}>
+            {t('timeline.moment.sharePreview')}
+          </Text>
+          <View style={styles.topIconButton} />
+        </View>
 
+        <View style={styles.stage}>
           <View ref={shotRef} collapsable={false} style={styles.preview}>
-            {primaryMedia ? (
-              <Image
-                contentFit="cover"
-                source={{ uri: primaryMedia.uri }}
-                style={styles.previewImage}
+            {EXPORT_SPECKLES.map((speckle, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.previewSpeckle,
+                  {
+                    left: scaleExport(speckle.left),
+                    top: scaleExport(speckle.top),
+                  },
+                ]}
               />
-            ) : null}
-            <View style={styles.previewOverlay}>
-              <Text style={styles.previewTitle}>
-                {formatEventType(event.eventType)}
+            ))}
+            <ShareMomentExportPhotos media={exportMedia} styles={styles} />
+            <Text numberOfLines={2} style={styles.exportTitle}>
+              {formatEventType(event.eventType)}
+            </Text>
+            {event.caption ? (
+              <Text numberOfLines={2} style={styles.exportCaption}>
+                {event.caption}
               </Text>
-              {event.caption ? (
-                <Text numberOfLines={2} style={styles.previewCaption}>
-                  {event.caption}
-                </Text>
-              ) : null}
-              <Image
-                contentFit="contain"
-                source={wordmarkSource}
-                style={styles.previewWordmark}
-                tintColor="#FFFFFF"
+            ) : null}
+            <Text style={styles.exportMetadata}>
+              {formatTimestamp(event.timestamp)} · {exportPhotoCountLabel}
+            </Text>
+            <Image
+              contentFit="contain"
+              source={wordmarkSource}
+              style={styles.previewWatermark}
+            />
+          </View>
+        </View>
+
+        <View style={styles.controls}>
+          <View style={styles.controlRow}>
+            <Text style={styles.controlLabel}>
+              {t('timeline.moment.shareFormatLabel')}
+            </Text>
+            <View style={styles.controlValueWrap}>
+              <Text style={styles.controlValue}>
+                {t('timeline.moment.shareStoryFormat')}
+              </Text>
+              <Ionicons
+                color={EXPORT_MUTED_TEXT}
+                name="chevron-forward"
+                size={18}
               />
             </View>
           </View>
-
-          <Pressable
-            accessibilityRole="button"
-            disabled={busy !== null}
-            style={[styles.button, styles.buttonPrimary]}
-            onPress={() => void handleSave()}
-          >
-            {busy === 'save' ? (
-              <ActivityIndicator color={colors.surface} />
-            ) : (
-              <Text style={styles.buttonPrimaryText}>
-                {t('timeline.moment.shareSaveAction')}
+          <View style={styles.controlDivider} />
+          <View style={styles.controlRow}>
+            <Text style={styles.controlLabel}>
+              {t('timeline.moment.sharePhotosLabel')}
+            </Text>
+            <View style={styles.controlValueWrap}>
+              <Text style={styles.controlValue}>
+                {t('timeline.moment.shareSelectedPhotos', {
+                  count: String(exportMedia.length),
+                })}
               </Text>
-            )}
-          </Pressable>
+              <Ionicons
+                color={EXPORT_MUTED_TEXT}
+                name="chevron-forward"
+                size={18}
+              />
+            </View>
+          </View>
+        </View>
 
-          <Pressable
-            accessibilityRole="button"
-            disabled={busy !== null}
-            style={[styles.button, styles.buttonSecondary]}
-            onPress={() => void handleShareToApp()}
-          >
-            {busy === 'share' ? (
-              <ActivityIndicator color={colors.text} />
-            ) : (
-              <Text style={styles.buttonSecondaryText}>
-                {t('timeline.moment.shareToAppAction')}
-              </Text>
-            )}
-          </Pressable>
+        <View
+          style={[
+            styles.actions,
+            {
+              paddingBottom: insets.bottom,
+            },
+          ]}
+        >
+          <View style={styles.actionRow}>
+            <Pressable
+              accessibilityLabel={t('timeline.moment.shareSaveAction')}
+              accessibilityRole="button"
+              disabled={busy !== null}
+              style={[styles.button, styles.buttonSecondary]}
+              onPress={() => void handleSave()}
+            >
+              {busy === 'save' ? (
+                <ActivityIndicator color={EXPORT_TEXT} />
+              ) : (
+                <>
+                  <Ionicons
+                    color={EXPORT_TEXT}
+                    name="download-outline"
+                    size={20}
+                  />
+                  <Text style={styles.buttonSecondaryText}>
+                    {t('timeline.moment.shareSaveShort')}
+                  </Text>
+                </>
+              )}
+            </Pressable>
 
-          <Text style={styles.footer}>{t('timeline.moment.shareFooter')}</Text>
-        </Pressable>
-      </Pressable>
+            <Pressable
+              accessibilityLabel={t('timeline.moment.shareToAppAction')}
+              accessibilityRole="button"
+              disabled={busy !== null}
+              style={[styles.button, styles.buttonPrimary]}
+              onPress={() => void handleShareToApp()}
+            >
+              {busy === 'share' ? (
+                <ActivityIndicator color={EXPORT_SURFACE} />
+              ) : (
+                <>
+                  <Ionicons
+                    color={EXPORT_SURFACE}
+                    name="paper-plane-outline"
+                    size={20}
+                  />
+                  <Text style={styles.buttonPrimaryText}>
+                    {t('timeline.moment.shareShareShort')}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+
+          <Text style={styles.footer}>
+            {t('timeline.moment.shareNothingPosted')}
+          </Text>
+        </View>
+      </View>
     </Modal>
+  );
+}
+
+type ShareMomentExportPhotosProps = {
+  media: TimelineEventMedia[];
+  styles: ReturnType<typeof createShareMomentSheetStyles>;
+};
+
+function ShareMomentExportPhotos({
+  media,
+  styles,
+}: ShareMomentExportPhotosProps) {
+  const layout = getShareMomentExportLayout(media.length);
+
+  return (
+    <>
+      {media.map((item, index) => (
+        <ShareMomentExportPhoto
+          key={item.localAssetId}
+          frame={layout[index]}
+          item={item}
+          styles={styles}
+        />
+      ))}
+    </>
+  );
+}
+
+type ShareMomentExportPhotoProps = {
+  frame: ShareMomentExportFrame | undefined;
+  item: TimelineEventMedia;
+  styles: ReturnType<typeof createShareMomentSheetStyles>;
+};
+
+function ShareMomentExportPhoto({
+  frame,
+  item,
+  styles,
+}: ShareMomentExportPhotoProps) {
+  if (!frame) {
+    return null;
+  }
+
+  const source = { uri: item.uri };
+
+  return (
+    <View style={[styles.exportPhotoFrame, frame]}>
+      {shouldContainMomentImage(item) ? (
+        <>
+          <Image
+            blurRadius={18}
+            contentFit="cover"
+            source={source}
+            style={styles.exportPhotoBackdrop}
+          />
+          <Image
+            contentFit="contain"
+            source={source}
+            style={styles.exportPhotoImage}
+          />
+        </>
+      ) : (
+        <Image
+          contentFit="cover"
+          source={source}
+          style={styles.exportPhotoImage}
+        />
+      )}
+    </View>
   );
 }

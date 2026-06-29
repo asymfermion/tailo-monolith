@@ -2,6 +2,7 @@ import { acquireEventSyncLock } from '@/db/eventSyncLock';
 import { dismissLocalAssetsForMoment } from '@/db/localAssets';
 import { tombstoneLocalEvents } from '@/db/localEventTombstones';
 import { getLocalEventById, markLocalEventDeleted } from '@/db/localEvents';
+import { getLocalMediaScoresForEvent } from '@/db/localMediaScores';
 import { getSyncStateValue, SYNC_STATE_KEYS } from '@/db/syncState';
 import { cancelUploadQueueForEvent } from '@/db/uploadQueue';
 import { getDatabase } from '@/db';
@@ -12,8 +13,7 @@ import {
 import { deleteEvent } from '@/modules/sync/deleteEvent';
 
 export type DeleteMomentResult =
-  | { ok: true; deletedAt: string }
-  | { ok: false; errorMessage: string };
+  { ok: true; deletedAt: string } | { ok: false; errorMessage: string };
 
 export async function deleteMoment(
   localEventId: string,
@@ -30,8 +30,18 @@ export async function deleteMoment(
   await acquireEventSyncLock(database, localEventId, 'user');
   await markLocalEventDeleted(database, localEventId, deletedAt);
 
-  const assetIds = parseSelectedAssetIds(local.selectedAssetIds);
-  await dismissLocalAssetsForMoment(database, assetIds, deletedAt);
+  const selectedAssetIds = parseSelectedAssetIds(local.selectedAssetIds);
+  const scoredAssets = await getLocalMediaScoresForEvent(
+    database,
+    localEventId,
+  );
+  const allAssetIds = [
+    ...new Set([
+      ...selectedAssetIds,
+      ...scoredAssets.map((s) => s.localAssetId),
+    ]),
+  ];
+  await dismissLocalAssetsForMoment(database, allAssetIds, deletedAt);
   await cancelUploadQueueForEvent(database, localEventId);
 
   const generationRaw = await getSyncStateValue(

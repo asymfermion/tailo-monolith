@@ -1,4 +1,5 @@
 import { invokeTailoApi } from '@/lib/invokeTailoApi';
+import { downloadAndSavePortrait } from '@/lib/petPortrait';
 import { logAuth } from '@/modules/auth/authLogger';
 import {
   getAuthSession,
@@ -114,12 +115,27 @@ export async function pullRemotePetProfileIfNeeded(
     profilePhotoUri: isSameRemotePet
       ? (existing?.profilePhotoUri ?? null)
       : null,
+    portraitUri: isSameRemotePet ? (existing?.portraitUri ?? null) : null,
+    portraitCloudUrl: remote.portrait_url,
     remotePetId: remote.pet_id,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
 
-  await saveLocalPetProfileWithRemoteId(profile, remote.pet_id);
+  // Download portrait from cloud when the device has none (new install / new device)
+  let portraitUri = profile.portraitUri;
+  if (portraitUri === null && remote.portrait_url !== null) {
+    try {
+      portraitUri = await downloadAndSavePortrait(remote.portrait_url);
+    } catch {
+      // Portrait download failure must not block profile restore
+    }
+  }
+
+  await saveLocalPetProfileWithRemoteId(
+    { ...profile, portraitUri },
+    remote.pet_id,
+  );
   logAuth('Remote pet profile hydrated on device', {
     petId: remote.pet_id,
     name: remote.name,

@@ -43,7 +43,12 @@ export async function runNotificationSyncPass(
 
   const session = await getAuthSession();
   if (!session) {
-    return { pushed: 0, pulled: 0, errors: 0, skippedReason: 'missing_session' };
+    return {
+      pushed: 0,
+      pulled: 0,
+      errors: 0,
+      skippedReason: 'missing_session',
+    };
   }
 
   let pushed = 0;

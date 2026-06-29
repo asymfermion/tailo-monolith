@@ -7,8 +7,7 @@ import {
 import { invokeTailoApi, readApiErrorMessage } from '@/lib/invokeTailoApi';
 
 type ApiResult<T> =
-  | { status: 'success'; response: T }
-  | { status: 'error'; message: string };
+  { status: 'success'; response: T } | { status: 'error'; message: string };
 
 export async function syncNotifications(
   request: SyncNotificationsRequest,
@@ -43,7 +42,9 @@ export async function syncNotifications(
     return {
       status: 'error',
       message:
-        error instanceof Error ? error.message : 'Could not sync notifications.',
+        error instanceof Error
+          ? error.message
+          : 'Could not sync notifications.',
     };
   }
 }

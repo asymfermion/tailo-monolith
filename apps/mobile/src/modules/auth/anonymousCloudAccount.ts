@@ -19,8 +19,7 @@ export type EnsureAnonymousCloudAccountResult =
   | { status: 'error'; message: string };
 
 export type PrepareAppRemoteAuthResult =
-  | { status: 'deferred' }
-  | BootstrapAuthResult;
+  { status: 'deferred' } | BootstrapAuthResult;
 
 function isRemoteAuthConfigured(): boolean {
   return getAuthProvider().isConfigured();
@@ -166,9 +165,12 @@ export async function prepareAppRemoteAuth(): Promise<PrepareAppRemoteAuthResult
   }
 
   if (!(await hasReadyLocalPetProfile())) {
-    logAuth('Deferred anonymous cloud account until first pet profile is saved', {
-      hasPersistedAuthBlob: await hasPersistedSupabaseAuthBlob(),
-    });
+    logAuth(
+      'Deferred anonymous cloud account until first pet profile is saved',
+      {
+        hasPersistedAuthBlob: await hasPersistedSupabaseAuthBlob(),
+      },
+    );
     return { status: 'deferred' };
   }
 

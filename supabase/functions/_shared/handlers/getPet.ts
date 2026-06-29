@@ -18,7 +18,7 @@ export const handleGetPet: ApiHandler = async ({ user, log }) => {
   const { data: rows, error } = await adminClient
     .from('pets')
     .select(
-      'pet_id, source_local_pet_id, profile_photo_local_asset_id, name, type, gender, birthday, updated_at',
+      'pet_id, source_local_pet_id, profile_photo_local_asset_id, portrait_url, name, type, gender, birthday, updated_at',
     )
     .eq('app_user_id', appUser.appUserId)
     .order('updated_at', { ascending: false })
@@ -39,6 +39,7 @@ export const handleGetPet: ApiHandler = async ({ user, log }) => {
     pet_id: row.pet_id,
     source_local_pet_id: row.source_local_pet_id,
     profile_photo_local_asset_id: row.profile_photo_local_asset_id ?? null,
+    portrait_url: row.portrait_url ?? null,
     name: row.name,
     type: row.type,
     gender: row.gender,

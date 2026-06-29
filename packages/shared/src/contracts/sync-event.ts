@@ -169,8 +169,7 @@ export function parseSyncEventRequest(body: unknown): SyncEventRequest | null {
         detectedPetType === 'dog' || detectedPetType === 'cat'
           ? detectedPetType
           : null,
-      detected_breed:
-        typeof detectedBreed === 'string' ? detectedBreed : null,
+      detected_breed: typeof detectedBreed === 'string' ? detectedBreed : null,
     });
   }
 

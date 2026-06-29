@@ -45,21 +45,6 @@ type MediaRow = {
   detected_breed: string | null;
 };
 
-async function signThumbnailUrl(
-  adminClient: ReturnType<typeof getServiceRoleClient>,
-  thumbnailPath: string,
-): Promise<string | null> {
-  const { data, error } = await adminClient.storage
-    .from('event-media')
-    .createSignedUrl(thumbnailPath, MEDIA_READ_SIGNED_URL_TTL_SECONDS);
-
-  if (error || !data?.signedUrl) {
-    return null;
-  }
-
-  return data.signedUrl;
-}
-
 export const handleBootstrapTimeline: ApiHandler = async ({
   user,
   log,
@@ -131,9 +116,27 @@ export const handleBootstrapTimeline: ApiHandler = async ({
     return jsonResponse({ error: mediaError.message }, 500);
   }
 
+  const typedMediaRows = (mediaRows ?? []) as MediaRow[];
+
+  // Sign all thumbnail URLs in one batch call instead of serially per item.
+  const allThumbnailPaths = typedMediaRows.map((m) => m.thumbnail_path);
+  const signedUrlByPath = new Map<string, string>();
+
+  if (allThumbnailPaths.length > 0) {
+    const { data: signedUrls } = await adminClient.storage
+      .from('event-media')
+      .createSignedUrls(allThumbnailPaths, MEDIA_READ_SIGNED_URL_TTL_SECONDS);
+
+    for (const item of signedUrls ?? []) {
+      if (item.signedUrl) {
+        signedUrlByPath.set(item.path, item.signedUrl);
+      }
+    }
+  }
+
   const mediaByEvent = new Map<string, MediaRow[]>();
 
-  for (const media of (mediaRows ?? []) as MediaRow[]) {
+  for (const media of typedMediaRows) {
     const bucket = mediaByEvent.get(media.event_id) ?? [];
     bucket.push(media);
     mediaByEvent.set(media.event_id, bucket);
@@ -146,10 +149,7 @@ export const handleBootstrapTimeline: ApiHandler = async ({
     const media: BootstrapTimelineMedia[] = [];
 
     for (const item of mediaForEvent) {
-      const thumbnailUrl = await signThumbnailUrl(
-        adminClient,
-        item.thumbnail_path,
-      );
+      const thumbnailUrl = signedUrlByPath.get(item.thumbnail_path) ?? null;
 
       if (!thumbnailUrl) {
         continue;

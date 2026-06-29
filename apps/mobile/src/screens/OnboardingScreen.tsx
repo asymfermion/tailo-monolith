@@ -48,11 +48,7 @@ import {
   getTabScreenTopPadding,
 } from '@/navigation/modalHeaderInset';
 import { useNavigation } from '@/navigation/NavigationContext';
-import {
-  formatPetOptionPhotoCount,
-  getPetTypeStepTitle,
-  t,
-} from '@/i18n';
+import { formatPetOptionPhotoCount, getPetTypeStepTitle, t } from '@/i18n';
 import { getDatabase } from '@/db';
 import {
   getDetectedPetOptions,
@@ -791,11 +787,7 @@ export function OnboardingScreen({
       isLinkedAccount: isLinked,
     }),
   });
-  const {
-    initialScanCompleted,
-    permissionStatus,
-    startScan,
-  } = photoAccess;
+  const { initialScanCompleted, permissionStatus, startScan } = photoAccess;
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState<LocalPetType | null>(null);
   const [petBreed, setPetBreed] = useState<string | null>(null);
@@ -1609,14 +1601,38 @@ function PetLoadingAnimation({ isComplete }: { isComplete: boolean }) {
       const anim = Animated.loop(
         Animated.sequence([
           Animated.parallel([
-            Animated.timing(dogX, { toValue: 8, duration: 500, useNativeDriver: true }),
-            Animated.timing(catX, { toValue: -8, duration: 500, useNativeDriver: true }),
-            Animated.timing(scale, { toValue: 1.15, duration: 500, useNativeDriver: true }),
+            Animated.timing(dogX, {
+              toValue: 8,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(catX, {
+              toValue: -8,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(scale, {
+              toValue: 1.15,
+              duration: 500,
+              useNativeDriver: true,
+            }),
           ]),
           Animated.parallel([
-            Animated.timing(dogX, { toValue: -20, duration: 500, useNativeDriver: true }),
-            Animated.timing(catX, { toValue: 20, duration: 500, useNativeDriver: true }),
-            Animated.timing(scale, { toValue: 1, duration: 500, useNativeDriver: true }),
+            Animated.timing(dogX, {
+              toValue: -20,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(catX, {
+              toValue: 20,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(scale, {
+              toValue: 1,
+              duration: 500,
+              useNativeDriver: true,
+            }),
           ]),
         ]),
       );
@@ -1628,10 +1644,20 @@ function PetLoadingAnimation({ isComplete }: { isComplete: boolean }) {
 
   return (
     <View style={styles.scanAnimation}>
-      <Animated.Text style={[styles.petEmoji, { transform: [{ translateX: dogX }, { scale }] }]}>
+      <Animated.Text
+        style={[
+          styles.petEmoji,
+          { transform: [{ translateX: dogX }, { scale }] },
+        ]}
+      >
         🐶
       </Animated.Text>
-      <Animated.Text style={[styles.petEmoji, { transform: [{ translateX: catX }, { scale }] }]}>
+      <Animated.Text
+        style={[
+          styles.petEmoji,
+          { transform: [{ translateX: catX }, { scale }] },
+        ]}
+      >
         🐱
       </Animated.Text>
     </View>
@@ -1962,12 +1988,8 @@ function PetOptionCard({
         </View>
       )}
       <View style={styles.petOptionMeta}>
-        <Text style={styles.petOptionLabel}>
-          {breed ?? label}
-        </Text>
-        {breed ? (
-          <Text style={styles.petOptionBreedType}>{label}</Text>
-        ) : null}
+        <Text style={styles.petOptionLabel}>{breed ?? label}</Text>
+        {breed ? <Text style={styles.petOptionBreedType}>{label}</Text> : null}
         <Text style={styles.petOptionCount}>
           {formatPetOptionPhotoCount(momentCount)}
         </Text>

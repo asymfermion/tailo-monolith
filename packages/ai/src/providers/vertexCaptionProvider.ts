@@ -63,9 +63,7 @@ export type VertexCaptionError = {
 };
 
 export type VertexCaptionOutcome =
-  | AiCaptionResult
-  | VertexCaptionError
-  | { error: string };
+  AiCaptionResult | VertexCaptionError | { error: string };
 
 function preview(text: string, max = LOG_PREVIEW_CHARS): string {
   if (text.length <= max) {

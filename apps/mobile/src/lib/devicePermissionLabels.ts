@@ -1,10 +1,7 @@
 import type { PhotoPermissionStatus } from '@/modules/mediaScanner/permissions';
 
 export type CameraPermissionStatus =
-  | 'checking'
-  | 'undetermined'
-  | 'granted'
-  | 'denied';
+  'checking' | 'undetermined' | 'granted' | 'denied';
 
 type PermissionLabelKey =
   | 'settings.permissionStatusFullAccess'

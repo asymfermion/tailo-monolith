@@ -1,7 +1,10 @@
 import type * as SQLite from 'expo-sqlite';
 
 import { getSyncStateValue, setSyncStateValue } from '@/db/syncState';
-import { getAuthSession, isRemoteAuthConfigured } from '@/modules/auth/authService';
+import {
+  getAuthSession,
+  isRemoteAuthConfigured,
+} from '@/modules/auth/authService';
 
 import { syncNotifications } from './api';
 import {

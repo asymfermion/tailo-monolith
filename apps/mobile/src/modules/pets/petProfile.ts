@@ -2,6 +2,7 @@ import { parsePetBirthdayIso } from '@tailo/shared';
 
 import { getDatabase } from '@/db';
 import { logTailo } from '@/lib/tailoLogger';
+import { cropAndSavePortrait } from '@/lib/petPortrait';
 import { type SecureStorage } from '@/modules/auth/secureStorage';
 import { workspaceSecureStorage } from '@/modules/auth/localWorkspace';
 import { LOCAL_PET_PROFILE_KEY } from './keys';
@@ -18,6 +19,10 @@ export type LocalPetProfile = {
   birthday: string | null;
   profilePhotoLocalAssetId: string | null;
   profilePhotoUri: string | null;
+  /** Square-cropped 300×300 JPEG saved locally for portrait display. */
+  portraitUri: string | null;
+  /** Public URL of the portrait in Supabase Storage after a successful upload. */
+  portraitCloudUrl: string | null;
   /** Canonical server pet id after upsert-pet succeeds. */
   remotePetId: string | null;
   createdAt: string;
@@ -79,6 +84,8 @@ export async function saveSelectedPetType(
     birthday: existingProfile?.birthday ?? null,
     profilePhotoLocalAssetId: existingProfile?.profilePhotoLocalAssetId ?? null,
     profilePhotoUri: existingProfile?.profilePhotoUri ?? null,
+    portraitUri: existingProfile?.portraitUri ?? null,
+    portraitCloudUrl: existingProfile?.portraitCloudUrl ?? null,
     remotePetId: existingProfile?.remotePetId ?? null,
     createdAt: existingProfile?.createdAt ?? now,
     updatedAt: now,
@@ -100,6 +107,32 @@ export async function saveLocalPetProfile(
 ): Promise<LocalPetProfile> {
   const existingProfile = await loadLocalPetProfile(storage);
   const now = new Date().toISOString();
+
+  const newPhotoUri = input.profilePhotoUri ?? null;
+  const existingPhotoUri = existingProfile?.profilePhotoUri ?? null;
+  let portraitUri: string | null = existingProfile?.portraitUri ?? null;
+  let portraitCloudUrl: string | null =
+    existingProfile?.portraitCloudUrl ?? null;
+  if (newPhotoUri !== existingPhotoUri) {
+    if (newPhotoUri !== null) {
+      try {
+        portraitUri = await cropAndSavePortrait(newPhotoUri);
+        portraitCloudUrl = null; // new portrait not yet uploaded
+      } catch (error) {
+        logTailo(
+          'Sync',
+          'Portrait crop failed; profile saved without portrait',
+          {
+            message: error instanceof Error ? error.message : 'Unknown.',
+          },
+        );
+      }
+    } else {
+      portraitUri = null;
+      portraitCloudUrl = null;
+    }
+  }
+
   const profile: LocalPetProfile = {
     petId: existingProfile?.petId ?? generateLocalPetId(),
     name: input.name.trim(),
@@ -107,7 +140,9 @@ export async function saveLocalPetProfile(
     gender: input.gender ?? null,
     birthday: parsePetBirthdayIso(input.birthday ?? existingProfile?.birthday),
     profilePhotoLocalAssetId: input.profilePhotoLocalAssetId ?? null,
-    profilePhotoUri: input.profilePhotoUri ?? null,
+    profilePhotoUri: newPhotoUri,
+    portraitUri,
+    portraitCloudUrl,
     remotePetId: existingProfile?.remotePetId ?? null,
     createdAt: existingProfile?.createdAt ?? now,
     updatedAt: now,
@@ -238,6 +273,12 @@ function normalizeLocalPetProfile(value: unknown): LocalPetProfile | null {
         : null,
     profilePhotoUri:
       typeof value.profilePhotoUri === 'string' ? value.profilePhotoUri : null,
+    portraitUri:
+      typeof value.portraitUri === 'string' ? value.portraitUri : null,
+    portraitCloudUrl:
+      typeof value.portraitCloudUrl === 'string'
+        ? value.portraitCloudUrl
+        : null,
     remotePetId:
       typeof value.remotePetId === 'string' ? value.remotePetId : null,
     createdAt:

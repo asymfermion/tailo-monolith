@@ -84,9 +84,9 @@ export const handleCreateUploadUrls: ApiHandler = async ({
   let eventId = existingEvent?.event_id as string | undefined;
 
   if (!eventId) {
-    eventId = crypto.randomUUID();
+    const newEventId = crypto.randomUUID();
     const { error: insertEventError } = await adminClient.from('events').insert({
-      event_id: eventId,
+      event_id: newEventId,
       app_user_id: appUser.appUserId,
       pet_id: body.pet_id,
       source_local_event_id: body.source_local_event_id,
@@ -94,7 +94,32 @@ export const handleCreateUploadUrls: ApiHandler = async ({
     });
 
     if (insertEventError) {
-      return jsonResponse({ error: insertEventError.message }, 500);
+      // 23505 = unique_violation: a concurrent request created the row first — re-read it.
+      if (insertEventError.code === '23505') {
+        const { data: racedRow } = await adminClient
+          .from('events')
+          .select('event_id, pet_id')
+          .eq('app_user_id', appUser.appUserId)
+          .eq('source_local_event_id', body.source_local_event_id)
+          .maybeSingle();
+
+        if (!racedRow) {
+          return jsonResponse({ error: insertEventError.message }, 500);
+        }
+
+        eventId = racedRow.event_id;
+
+        if (racedRow.pet_id !== body.pet_id) {
+          return jsonResponse(
+            { error: 'Event already exists for a different pet.', code: 'conflict' },
+            409,
+          );
+        }
+      } else {
+        return jsonResponse({ error: insertEventError.message }, 500);
+      }
+    } else {
+      eventId = newEventId;
     }
   } else if (existingEvent.pet_id !== body.pet_id) {
     return jsonResponse(

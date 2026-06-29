@@ -74,10 +74,9 @@ const ACCOUNT_UPGRADE_NOTIFICATION_KINDS = [
 /** Clears anonymous-account upgrade prompts after the user links Apple, Google, or email. */
 export async function dismissAccountUpgradeNotifications(): Promise<number> {
   const db = await getDatabase();
-  const dismissed = await markUnreadNotificationsReadByKinds(
-    db,
-    [...ACCOUNT_UPGRADE_NOTIFICATION_KINDS],
-  );
+  const dismissed = await markUnreadNotificationsReadByKinds(db, [
+    ...ACCOUNT_UPGRADE_NOTIFICATION_KINDS,
+  ]);
 
   if (dismissed > 0) {
     emitNotificationChange();

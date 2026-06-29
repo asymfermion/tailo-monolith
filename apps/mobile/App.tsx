@@ -35,6 +35,7 @@ import {
   runUploadQueueWorker,
 } from '@/modules/sync';
 import { AppShell } from '@/navigation/AppShell';
+import { AppLoadingScreen } from '@/screens/AppLoadingScreen';
 
 configureTextAccessibility();
 
@@ -102,6 +103,7 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
+    const startedAt = Date.now();
 
     async function prepareApp() {
       try {
@@ -138,6 +140,10 @@ export default function App() {
           }
         }
 
+        const remaining = 3000 - (Date.now() - startedAt);
+        if (remaining > 0) {
+          await new Promise<void>((resolve) => setTimeout(resolve, remaining));
+        }
         if (isMounted) {
           setStartupState({ status: 'ready' });
         }
@@ -164,7 +170,7 @@ export default function App() {
   if (!fontsLoaded || startupState.status === 'loading') {
     return (
       <AppearanceProvider>
-        <StartupScreen />
+        <AppLoadingScreen />
       </AppearanceProvider>
     );
   }

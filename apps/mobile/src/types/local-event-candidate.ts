@@ -4,11 +4,7 @@ import type { EntityProcessingState } from './processing-state';
 
 /** Pipeline stage for a grouped moment before it appears on the timeline. */
 export type CandidateStatus =
-  | 'pending'
-  | 'clustering'
-  | 'scored'
-  | 'ready'
-  | 'rejected';
+  'pending' | 'clustering' | 'scored' | 'ready' | 'rejected';
 
 export interface LocalEventCandidate {
   localEventId: string;

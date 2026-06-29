@@ -46,8 +46,7 @@ export type UpsertAccountProfileFailure = {
 };
 
 export type UpsertAccountProfileResult =
-  | UpsertAccountProfileSuccess
-  | UpsertAccountProfileFailure;
+  UpsertAccountProfileSuccess | UpsertAccountProfileFailure;
 
 function normalizeDisplayName(value: string | null | undefined): string | null {
   if (value === undefined || value === null) {

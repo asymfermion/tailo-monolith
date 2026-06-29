@@ -100,6 +100,8 @@ describe('runUploadQueueWorker', () => {
       birthday: null,
       profilePhotoLocalAssetId: null,
       profilePhotoUri: null,
+      portraitUri: null,
+      portraitCloudUrl: null,
       remotePetId: 'pet-remote-1',
       createdAt: '2026-05-18T00:00:00.000Z',
       updatedAt: '2026-05-18T00:00:00.000Z',

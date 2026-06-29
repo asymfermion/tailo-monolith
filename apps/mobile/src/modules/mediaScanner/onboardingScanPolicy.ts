@@ -61,8 +61,7 @@ export async function hasReachedOnboardingMomentTargetForPetType(
       database,
       petType,
       ONBOARDING_MIN_PRIMARY_OVERALL_SCORE,
-    )) >=
-    targetMoments
+    )) >= targetMoments
   );
 }
 

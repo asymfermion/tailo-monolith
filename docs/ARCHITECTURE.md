@@ -9,7 +9,7 @@ Living architecture docs for the monorepo. **Update these when implementing some
 | [architecture/phase-2-backend-mvp.md](./architecture/phase-2-backend-mvp.md)                           | Backend MVP, sync, uploads, AI, portability ([data sync workflow](./architecture/phase-2-backend-mvp.md#data-syncing-workflow)) | Planned     |
 | [architecture/account-upgrade-ux.md](./architecture/account-upgrade-ux.md)                             | Legacy pointer to the canonical auth document                                                                                   | Merged      |
 | [architecture/authentication-and-account-flows.md](./architecture/authentication-and-account-flows.md) | Canonical auth + account UX: anonymous-first, reminders, email/Apple/Google, login, recovery, and account profile               | Planned     |
-| [architecture/notifications-and-inbox.md](./architecture/notifications-and-inbox.md)                   | Notification contract, local inbox model, producers, and read-state behavior                                                     | In progress |
+| [architecture/notifications-and-inbox.md](./architecture/notifications-and-inbox.md)                   | Notification contract, local inbox model, producers, and read-state behavior                                                    | In progress |
 | [architecture/encrypted-media-ai-plan.md](./architecture/encrypted-media-ai-plan.md)                   | Encrypted media at rest with decrypt-for-AI flow                                                                                | Planned     |
 
 **Related:** [MOBILE_TASKS.md](./MOBILE_TASKS.md) (mobile + backend checklist) · [DEVELOPER.md](./DEVELOPER.md) (setup) · [AGENTS.md](../AGENTS.md) (agent instructions)

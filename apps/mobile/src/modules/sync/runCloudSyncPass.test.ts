@@ -99,6 +99,12 @@ describe('runCloudSyncPass', () => {
 
     await runCloudSyncPass(database);
 
-    expect(callOrder).toEqual(['pet', 'upload', 'edits', 'poll', 'notifications']);
+    expect(callOrder).toEqual([
+      'pet',
+      'upload',
+      'edits',
+      'poll',
+      'notifications',
+    ]);
   });
 });

@@ -1,6 +1,10 @@
 import type { getDatabase } from '@/db';
 import { logTailo } from '@/lib/tailoLogger';
-import { clearScanSyncState, saveScanProgress, setPipelinePhase } from '@/db/syncState';
+import {
+  clearScanSyncState,
+  saveScanProgress,
+  setPipelinePhase,
+} from '@/db/syncState';
 
 import {
   getQualifiedOnboardingMomentMaxByPetType,
@@ -10,7 +14,10 @@ import {
   ONBOARDING_SCAN_LIMITS,
   type OnboardingScanLimits,
 } from './onboardingScanPolicy';
-import { runPipelineProcessingStages, type LocalPipelineProgress } from './runLocalPipeline';
+import {
+  runPipelineProcessingStages,
+  type LocalPipelineProgress,
+} from './runLocalPipeline';
 import { scanRecentPhotos } from './scanner';
 
 export type RunOnboardingLocalPipelineOptions = {

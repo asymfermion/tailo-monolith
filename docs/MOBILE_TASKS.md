@@ -503,10 +503,10 @@ See [FUTURE_FEATURES.md](./FUTURE_FEATURES.md#10-user-edit-moment-capabilities).
 
 **Scope split (keep separate from 3.9.8):**
 
-| Workflow | Trigger | Destination | Gate |
-| -------- | ------- | ----------- | ---- |
-| **3.9.11** (this task) | Push to `main` | TestFlight (internal testing) | CI checks only |
-| **3.9.8** (existing) | Version tag / GitHub Release | App Store production | Manual approval before store release |
+| Workflow               | Trigger                      | Destination                   | Gate                                 |
+| ---------------------- | ---------------------------- | ----------------------------- | ------------------------------------ |
+| **3.9.11** (this task) | Push to `main`               | TestFlight (internal testing) | CI checks only                       |
+| **3.9.8** (existing)   | Version tag / GitHub Release | App Store production          | Manual approval before store release |
 
 **Recommended trigger (not literally every file on `main`):**
 
@@ -521,7 +521,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/deploy-ios-testflight.yml'
-  workflow_dispatch:   # manual re-run without a commit
+  workflow_dispatch: # manual re-run without a commit
 ```
 
 Path filters avoid burning EAS minutes on landing-only or docs-only merges. Drop or widen filters if you truly want every `main` commit.
@@ -552,13 +552,13 @@ flowchart LR
 
 **GitHub secrets (repository settings):**
 
-| Secret | Purpose |
-| ------ | ------- |
-| `EXPO_TOKEN` | Expo personal access token ([expo.dev/settings/access-tokens](https://expo.dev/settings/access-tokens)) |
-| `ASC_API_KEY_ID` | App Store Connect API key id (submit) |
-| `ASC_API_KEY_ISSUER_ID` | App Store Connect issuer id |
-| `ASC_API_KEY` | Base64 `.p8` key contents (submit) |
-| `ASC_APP_ID` | Optional — App Store Connect app Apple ID; skips lookup prompts |
+| Secret                  | Purpose                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| `EXPO_TOKEN`            | Expo personal access token ([expo.dev/settings/access-tokens](https://expo.dev/settings/access-tokens)) |
+| `ASC_API_KEY_ID`        | App Store Connect API key id (submit)                                                                   |
+| `ASC_API_KEY_ISSUER_ID` | App Store Connect issuer id                                                                             |
+| `ASC_API_KEY`           | Base64 `.p8` key contents (submit)                                                                      |
+| `ASC_APP_ID`            | Optional — App Store Connect app Apple ID; skips lookup prompts                                         |
 
 **Prerequisites before enabling the workflow:**
 

@@ -48,10 +48,13 @@ export async function enqueueEventMediaUploads(
     .map((asset) => asset.localAssetId);
 
   if (validAssetIds.length === 0) {
-    logDbInfo('Skipped upload_queue enqueue — no uploadable local_assets rows', {
-      localEventId,
-      requestedAssetIds: uniqueAssetIds,
-    });
+    logDbInfo(
+      'Skipped upload_queue enqueue — no uploadable local_assets rows',
+      {
+        localEventId,
+        requestedAssetIds: uniqueAssetIds,
+      },
+    );
     return 0;
   }
 

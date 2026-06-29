@@ -1,5 +1,8 @@
 import { invalidateDatabaseConnection } from '@/db';
-import { HISTORICAL_BACKFILL_COMPLETED_KEY, LAST_SCAN_TIMESTAMP_KEY } from '@/modules/mediaScanner/scanState';
+import {
+  HISTORICAL_BACKFILL_COMPLETED_KEY,
+  LAST_SCAN_TIMESTAMP_KEY,
+} from '@/modules/mediaScanner/scanState';
 import { LOCAL_PET_PROFILE_KEY } from '@/modules/pets/keys';
 
 import { ANONYMOUS_USER_ID_KEY } from './identity';

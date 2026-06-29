@@ -50,8 +50,7 @@ function isString(value: unknown): value is string {
 
 export function isNotificationKind(value: unknown): value is NotificationKind {
   return (
-    isString(value) &&
-    (NOTIFICATION_KINDS as readonly string[]).includes(value)
+    isString(value) && (NOTIFICATION_KINDS as readonly string[]).includes(value)
   );
 }
 
@@ -82,7 +81,9 @@ export function isNotificationDelivery(
   );
 }
 
-export function isNotificationTarget(value: unknown): value is NotificationTarget {
+export function isNotificationTarget(
+  value: unknown,
+): value is NotificationTarget {
   if (!value || typeof value !== 'object') {
     return false;
   }
@@ -100,17 +101,15 @@ export function isNotificationTarget(value: unknown): value is NotificationTarge
 
   if (type === 'account_settings') {
     const mode = target.mode;
-    return (
-      mode === undefined ||
-      mode === 'link' ||
-      mode === 'create'
-    );
+    return mode === undefined || mode === 'link' || mode === 'create';
   }
 
   return false;
 }
 
-export function isNotificationRecord(value: unknown): value is NotificationRecord {
+export function isNotificationRecord(
+  value: unknown,
+): value is NotificationRecord {
   if (!value || typeof value !== 'object') {
     return false;
   }

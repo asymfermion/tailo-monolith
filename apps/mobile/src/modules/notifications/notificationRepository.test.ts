@@ -118,7 +118,10 @@ function createFakeDb() {
       }));
     }),
     getFirstAsync: jest.fn(async (sql: string, params: unknown[] = []) => {
-      if (sql.includes('COUNT(*) AS count') && sql.includes('read_at IS NULL')) {
+      if (
+        sql.includes('COUNT(*) AS count') &&
+        sql.includes('read_at IS NULL')
+      ) {
         if (sql.includes('kind = ?')) {
           const [kind, source, target] = params;
           const count = rows.filter(

@@ -28,8 +28,7 @@ export type UpsertPetProfileFailure = {
 };
 
 export type UpsertPetProfileResult =
-  | UpsertPetProfileSuccess
-  | UpsertPetProfileFailure;
+  UpsertPetProfileSuccess | UpsertPetProfileFailure;
 
 const LOCAL_PET_PREFIX = 'local_pet_';
 

@@ -390,7 +390,9 @@ const migrations: Migration[] = [
     version: 15,
     name: 'add detected breed to local assets',
     up: async (db) => {
-      await db.execAsync(`ALTER TABLE local_assets ADD COLUMN detected_breed TEXT;`);
+      await db.execAsync(
+        `ALTER TABLE local_assets ADD COLUMN detected_breed TEXT;`,
+      );
     },
   },
 ];

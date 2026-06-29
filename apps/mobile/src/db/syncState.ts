@@ -20,12 +20,7 @@ export type SyncStateKey =
   (typeof SYNC_STATE_KEYS)[keyof typeof SYNC_STATE_KEYS];
 
 export type PipelinePhase =
-  | 'idle'
-  | 'scan'
-  | 'detect'
-  | 'cluster'
-  | 'select'
-  | 'promote';
+  'idle' | 'scan' | 'detect' | 'cluster' | 'select' | 'promote';
 
 export type ScanMode = 'idle' | 'recent' | 'older';
 

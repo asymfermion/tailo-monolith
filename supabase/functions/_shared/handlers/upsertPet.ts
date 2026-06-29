@@ -68,12 +68,13 @@ export const handleUpsertPet: ApiHandler = async ({ user, log, payload }) => {
   const now = new Date().toISOString();
 
   if (decision.created) {
-    const petId = crypto.randomUUID();
+    const newPetId = crypto.randomUUID();
     const { error: insertError } = await adminClient.from('pets').insert({
-      pet_id: petId,
+      pet_id: newPetId,
       app_user_id: appUser.appUserId,
       source_local_pet_id: body.source_local_pet_id,
       profile_photo_local_asset_id: body.profile_photo_local_asset_id ?? null,
+      portrait_url: body.portrait_url ?? null,
       name: body.name,
       type: body.type,
       gender: body.gender ?? null,
@@ -82,17 +83,35 @@ export const handleUpsertPet: ApiHandler = async ({ user, log, payload }) => {
     });
 
     if (insertError) {
+      // 23505 = unique_violation: a concurrent request created the row first — re-read it.
+      if (insertError.code === '23505') {
+        const { data: racedRow } = await adminClient
+          .from('pets')
+          .select('pet_id')
+          .eq('app_user_id', appUser.appUserId)
+          .eq('source_local_pet_id', body.source_local_pet_id)
+          .maybeSingle();
+
+        if (!racedRow) {
+          return jsonResponse({ error: insertError.message }, 500);
+        }
+
+        log.info('upsert_pet_race_ok', { petId: racedRow.pet_id });
+        return jsonResponse({ pet_id: racedRow.pet_id, created: true });
+      }
+
       return jsonResponse({ error: insertError.message }, 500);
     }
 
-    log.info('upsert_pet_created', { petId });
-    return jsonResponse({ pet_id: petId, created: true });
+    log.info('upsert_pet_created', { petId: newPetId });
+    return jsonResponse({ pet_id: newPetId, created: true });
   }
 
   const { error: updateError } = await adminClient
     .from('pets')
     .update({
       profile_photo_local_asset_id: body.profile_photo_local_asset_id ?? null,
+      portrait_url: body.portrait_url ?? null,
       name: body.name,
       type: body.type,
       gender: body.gender ?? null,

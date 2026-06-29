@@ -23,16 +23,43 @@ type DetectedPetOptionRow = {
 // second-ranked label (top-2 approach) for background-heavy photos.
 const NON_ANIMAL_SUBSTRINGS = [
   // biological taxonomy (too generic — not a breed)
-  'mammal', 'animal', 'vertebrate', 'carnivore',
+  'mammal',
+  'animal',
+  'vertebrate',
+  'carnivore',
   // scene / environment
-  'plant', 'flower', 'tree', 'grass', 'frozen',
-  'sky', 'water', 'mountain', 'outdoor', 'indoor', 'room', 'floor', 'surface',
+  'plant',
+  'flower',
+  'tree',
+  'grass',
+  'frozen',
+  'sky',
+  'water',
+  'mountain',
+  'outdoor',
+  'indoor',
+  'room',
+  'floor',
+  'surface',
   // objects
-  'food', 'furniture', 'tool', 'equipment', 'appliance', 'instrument',
-  'vehicle', 'conveyance', 'building', 'structure', 'textile', 'material', 'object',
-  'clothing', 'liquid',
+  'food',
+  'furniture',
+  'tool',
+  'equipment',
+  'appliance',
+  'instrument',
+  'vehicle',
+  'conveyance',
+  'building',
+  'structure',
+  'textile',
+  'material',
+  'object',
+  'clothing',
+  'liquid',
   // people
-  'person', 'human',
+  'person',
+  'human',
 ];
 
 export function coerceBreedLabel(raw: string | null): string | null {
@@ -105,9 +132,10 @@ export async function getDetectedPetOptions(
   }
 
   return [...merged.values()]
-    .sort((a, b) =>
-      b.momentCount - a.momentCount ||
-      (a.breed === null ? 1 : 0) - (b.breed === null ? 1 : 0),
+    .sort(
+      (a, b) =>
+        b.momentCount - a.momentCount ||
+        (a.breed === null ? 1 : 0) - (b.breed === null ? 1 : 0),
     )
     .slice(0, 4);
 }

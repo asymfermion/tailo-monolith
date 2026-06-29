@@ -87,7 +87,10 @@ export const handleLinkAnonymousUser: ApiHandler = async ({
       });
 
     if (insertError) {
-      return jsonResponse({ error: insertError.message }, 500);
+      // 23505 = unique_violation (PK conflict): a concurrent request created the link — treat as success.
+      if (insertError.code !== '23505') {
+        return jsonResponse({ error: insertError.message }, 500);
+      }
     }
 
     log.info('link_created', { userId: decision.userId, appUserId });

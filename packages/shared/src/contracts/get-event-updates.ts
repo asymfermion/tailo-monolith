@@ -1,12 +1,7 @@
 import { EVENT_TYPES, type EventType } from '../constants/event-types.ts';
 
 export type RemoteAiJobStatus =
-  | 'pending'
-  | 'processing'
-  | 'done'
-  | 'failed'
-  | 'skipped'
-  | null;
+  'pending' | 'processing' | 'done' | 'failed' | 'skipped' | null;
 
 export type PetValidationStatus = 'pending' | 'valid' | 'rejected';
 

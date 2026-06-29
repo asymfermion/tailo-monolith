@@ -2,10 +2,7 @@ import type { LocalAssetDetectionInput } from '@/db/localAssets';
 import type { DetectedPetType } from '@/types';
 
 export type DetectionSource =
-  | 'native'
-  | 'heuristic'
-  | 'timeout_heuristic'
-  | 'in_app';
+  'native' | 'heuristic' | 'timeout_heuristic' | 'in_app';
 
 export type PetDetectorInput = LocalAssetDetectionInput;
 

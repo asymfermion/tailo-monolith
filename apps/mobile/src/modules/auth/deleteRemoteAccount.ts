@@ -2,10 +2,7 @@ import { invokeTailoApi, readApiErrorMessage } from '@/lib/invokeTailoApi';
 import { isDeleteAccountResponse } from '@tailo/shared';
 
 import { logAuth } from './authLogger';
-import {
-  getAuthSession,
-  isRemoteAuthConfigured,
-} from './authSessionAccess';
+import { getAuthSession, isRemoteAuthConfigured } from './authSessionAccess';
 
 export type DeleteRemoteAccountResult =
   | { status: 'skipped' }

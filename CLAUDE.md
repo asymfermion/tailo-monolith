@@ -8,19 +8,19 @@ The full agent rulebook lives in **[AGENTS.md](./AGENTS.md)** and is imported be
 
 ## Quick orientation (pointers only — see AGENTS.md for rules)
 
-**What this is:** Tailo — a passive, local-first pet *memory* app. Monorepo, npm workspaces (`apps/*`, `packages/*`). Node >= 20. Default phase is Phase 0/1 mobile-first unless the user asks for backend.
+**What this is:** Tailo — a passive, local-first pet _memory_ app. Monorepo, npm workspaces (`apps/*`, `packages/*`). Node >= 20. Default phase is Phase 0/1 mobile-first unless the user asks for backend.
 
 **Where things live:**
 
-| Path                   | Purpose                                          |
-| ---------------------- | ------------------------------------------------ |
-| `apps/mobile/`         | React Native + Expo (SDK 54) app — main focus    |
-| `apps/landing/`        | Public landing site                              |
-| `packages/shared/`     | Shared types, constants, contracts, Zod schemas  |
-| `packages/ai/`         | AI prompts + response schemas                    |
-| `packages/backend-core/` | Portable backend business logic                |
-| `supabase/`            | Migrations, storage, Edge Functions (Phase 2+)   |
-| `docs/`                | Architecture, tasks, and UI principles           |
+| Path                     | Purpose                                         |
+| ------------------------ | ----------------------------------------------- |
+| `apps/mobile/`           | React Native + Expo (SDK 54) app — main focus   |
+| `apps/landing/`          | Public landing site                             |
+| `packages/shared/`       | Shared types, constants, contracts, Zod schemas |
+| `packages/ai/`           | AI prompts + response schemas                   |
+| `packages/backend-core/` | Portable backend business logic                 |
+| `supabase/`              | Migrations, storage, Edge Functions (Phase 2+)  |
+| `docs/`                  | Architecture, tasks, and UI principles          |
 
 **Key docs:** `docs/MOBILE_TASKS.md` (task plan) · `docs/ARCHITECTURE.md` · `docs/DEVELOPER.md` (run/setup) · `docs/architecture/` (per-phase) · `docs/UI/` (UI principles, style, sketches).
 

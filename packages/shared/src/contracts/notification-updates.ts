@@ -91,7 +91,10 @@ export function parseSyncNotificationRequest(
   const createdAt = Reflect.get(body, 'created_at');
   const expiresAt = Reflect.get(body, 'expires_at');
 
-  if (typeof sourceNotificationId !== 'string' || sourceNotificationId.length === 0) {
+  if (
+    typeof sourceNotificationId !== 'string' ||
+    sourceNotificationId.length === 0
+  ) {
     return null;
   }
 
@@ -121,7 +124,11 @@ export function parseSyncNotificationRequest(
     return null;
   }
 
-  if (expiresAt !== undefined && expiresAt !== null && typeof expiresAt !== 'string') {
+  if (
+    expiresAt !== undefined &&
+    expiresAt !== null &&
+    typeof expiresAt !== 'string'
+  ) {
     return null;
   }
 
@@ -136,7 +143,8 @@ export function parseSyncNotificationRequest(
     delivery,
     read_at: readAt === undefined ? undefined : (readAt as string | null),
     created_at: createdAt === undefined ? undefined : createdAt,
-    expires_at: expiresAt === undefined ? undefined : (expiresAt as string | null),
+    expires_at:
+      expiresAt === undefined ? undefined : (expiresAt as string | null),
   };
 }
 
@@ -300,10 +308,13 @@ export function isSyncNotificationsResponse(
     );
   });
 
-  return syncedValid && isGetNotificationUpdatesResponse({
-    notifications,
-    next_cursor: nextCursor,
-  });
+  return (
+    syncedValid &&
+    isGetNotificationUpdatesResponse({
+      notifications,
+      next_cursor: nextCursor,
+    })
+  );
 }
 
 type NotificationUpdateCursor = {

@@ -110,10 +110,7 @@ export function shouldAllowAnonymousCloudFeatures(): boolean {
 }
 
 export type LegacyLinkAttempt =
-  | 'create'
-  | 'idempotent'
-  | 'conflict'
-  | 'invalid_legacy_id';
+  'create' | 'idempotent' | 'conflict' | 'invalid_legacy_id';
 
 export function classifyLegacyLinkAttempt(input: {
   legacyAnonymousUserId: string;

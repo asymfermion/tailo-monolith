@@ -21,8 +21,7 @@ export type LinkAnonymousUserFailure = {
 };
 
 export type LinkAnonymousUserResult =
-  | LinkAnonymousUserSuccess
-  | LinkAnonymousUserFailure;
+  LinkAnonymousUserSuccess | LinkAnonymousUserFailure;
 
 const LEGACY_ANON_PREFIX = 'anon_';
 

@@ -465,8 +465,15 @@ cmd_submit() {
 }
 
 cmd_release() {
+  local submit_args=()
+  for arg in "$@"; do
+    case "$arg" in
+      --bump|--no-bump) ;;
+      *) submit_args+=("$arg") ;;
+    esac
+  done
   cmd_build --profile production "$@"
-  cmd_submit --profile production --latest "$@"
+  cmd_submit --profile production --latest "${submit_args[@]}"
 }
 
 cmd_credentials() {

@@ -61,15 +61,16 @@ function createTimelineMomentCardStyles({
       width: '100%' as const,
     },
     content: {
-      gap: spacing.sm,
+      minHeight: 182,
       paddingBottom: spacing.md,
       paddingHorizontal: spacing.md,
-      paddingTop: 12,
+      paddingTop: 14,
     },
     titleRow: {
       alignItems: 'center' as const,
       flexDirection: 'row' as const,
       gap: spacing.sm,
+      height: 40,
     },
     titleTap: {
       flex: 1,
@@ -78,9 +79,9 @@ function createTimelineMomentCardStyles({
     momentType: {
       color: colors.text,
       fontFamily: getFontFamily('600'),
-      fontSize: 20,
+      fontSize: 22,
       fontWeight: '600' as const,
-      lineHeight: 26,
+      lineHeight: 28,
     },
     favoriteButton: {
       alignItems: 'center' as const,
@@ -92,9 +93,12 @@ function createTimelineMomentCardStyles({
     caption: {
       color: colors.text,
       fontFamily: getFontFamily('500'),
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: '500' as const,
-      lineHeight: 20,
+      lineHeight: 23,
+    },
+    captionTap: {
+      marginTop: spacing.sm,
     },
     heroDotsWrap: {
       alignItems: 'center' as const,
@@ -125,13 +129,14 @@ function createTimelineMomentCardStyles({
       alignItems: 'center' as const,
       flexDirection: 'row' as const,
       gap: spacing.sm,
-      paddingTop: spacing.xs,
+      height: 44,
+      marginTop: 'auto' as const,
     },
     metadataText: {
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),
-      fontSize: 12,
-      lineHeight: 17,
+      fontSize: 13,
+      lineHeight: 18,
     },
     metadataDot: {
       backgroundColor: colors.border,
@@ -217,6 +222,7 @@ function TimelineMomentCardComponent({
         {event.caption ? (
           <Pressable
             accessibilityRole="button"
+            style={styles.captionTap}
             onPress={() => onPress(event.localEventId)}
           >
             <Text style={styles.caption}>{event.caption}</Text>

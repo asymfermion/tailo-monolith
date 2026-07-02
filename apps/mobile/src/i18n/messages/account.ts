@@ -17,7 +17,7 @@ export const accountMessages = {
   deleteAccountFailedMessage: 'Try again in a moment.',
   saveMemoriesLink: 'Create account',
   title: 'Create your account',
-  body: 'Link an email to save your memories and unlock more.',
+  body: 'Link an email to save your moments and unlock more.',
   createTitle: 'Create your account',
   createBody:
     'Use your email to create a Tailo account while you get started. Your pet profile and saved moments stay connected to you on this device.',
@@ -74,7 +74,7 @@ export const accountMessages = {
   savingProfile: 'Saving profile...',
   devAuthUserIdLabel: 'Auth user id',
   devAppUserIdLabel: 'Tailo app user id',
-  linkedTitle: 'Memories saved',
+  linkedTitle: 'Moments saved',
   linkedBody:
     'Your account is linked to {{email}}. Your timeline stays on this device until moments sync.',
   unavailableBody: 'Cloud sync is not configured on this build.',

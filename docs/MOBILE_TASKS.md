@@ -586,6 +586,48 @@ flowchart LR
 - [ ] **3.10.1** Benchmark improved on-device pet detection models against the current Apple Vision fallback: collect a Tailo-like dog/cat/no-pet photo set, compare precision/recall, latency, binary size, battery impact, and false-positive behavior before replacing the bundled `TailoPetClassifier` path
 - [ ] **3.10.2** Add Android on-device pet detection model/runtime plan and implementation path: decide TFLite vs ONNX Runtime Mobile vs train-once/export-twice, wire an Android native detector behind the existing `PetDetector` abstraction, and keep iOS/Android thresholds and output labels aligned
 
+### 3.11 Reminders
+
+Spec: [architecture/reminders.md](./architecture/reminders.md) · Design: [Figma node 658-152](https://www.figma.com/design/7yEq5gHBjjwxMrUzsBenVF/Tailo?node-id=658-152)
+
+**Goal:** Pet care reminders (medicine, grooming, vet, flea treatment) with per-pet completion tracking, local OS notifications, and optional snooze.
+
+#### 3.11.1 Data layer
+
+- [ ] **3.11.1** SQLite migration v16: add `reminders` and `reminder_completions` tables per schema in reminders.md
+- [ ] **3.11.2** `reminderRepository.ts` — insert, query (today / upcoming), mark completion, reset slots, update scheduled_at, delete
+- [ ] **3.11.3** `reminderRecurrence.ts` — pure `nextOccurrence(scheduledAt, repeatInterval)` function; unit tests for all repeat intervals including month-boundary edge cases
+- [ ] **3.11.4** `reminderTypes.ts` — `Reminder`, `ReminderCompletion`, `RepeatInterval` types
+
+#### 3.11.2 Business logic
+
+- [ ] **3.11.5** `reminderService.ts` — `createReminder`, `completeForPet`, `advanceToNextOccurrence`, `snooze`, `deleteReminder`; advance + reset completion slots when all pets complete an occurrence
+- [ ] **3.11.6** `reminderScheduler.ts` — `scheduleNotification`, `cancelNotification`, `rescheduleAll` (called on app open to re-sync OS state); wrap `expo-notifications` here only
+- [ ] **3.11.7** Notification permission flow: request on first save (not app launch); if denied, save without scheduling and show calm inline prompt; `rescheduleAll` on next open if permission later granted
+- [ ] **3.11.8** Unit tests: create + complete (partial / all pets) + advance, snooze reschedule, recurrence math, denied-permission save
+
+#### 3.11.3 Screens
+
+- [ ] **3.11.9** `RemindersScreen.tsx` — TODAY / UPCOMING sections with `ReminderListItem` rows; pet avatar filter; "Add reminder" button; empty state with bell icon
+- [ ] **3.11.10** `CreateReminderScreen.tsx` (modal) — free-text title, multi-pet selector (portrait chips), date+time picker, repeat picker, "Save reminder" primary button; edit mode reuses same screen
+- [ ] **3.11.11** `ReminderDetailScreen.tsx` (modal) — "N of M completed" header; per-pet `ReminderPetStatus` rows with completion toggle; Snooze 30 min + Edit reminder options; "Complete for [pet]" primary button targeting first incomplete pet
+- [ ] **3.11.12** `ReminderListItem.tsx` and `ReminderPetStatus.tsx` shared components
+- [ ] **3.11.13** Wire notification tap → `ReminderDetailScreen` via navigation deep link
+
+#### 3.11.4 Navigation & Settings entry
+
+- [ ] **3.11.14** Add "Reminders" row to `SettingsScreen`; push `RemindersScreen` as a full-screen route (not modal)
+- [ ] **3.11.15** Add `CreateReminderScreen` and `ReminderDetailScreen` to modal stack in `ModalShell`
+
+#### 3.11.5 Cloud sync
+
+- [ ] **3.11.16** SQLite migration v17: add `pending_cloud_sync INTEGER NOT NULL DEFAULT 1` to `reminders` and `reminder_completions`; set to `0` after successful sync
+- [ ] **3.11.17** Shared contracts in `packages/shared`: `UpsertReminderRequest`, `DeleteReminderRequest`, `CompleteReminderPetRequest`, `GetRemindersResponse` types; update `TAILO_API_PET_ACTIONS` + `ACTION_TO_FUNCTION` in `tailo-api.ts`
+- [ ] **3.11.18** `reminderSyncService.ts`: `runReminderSyncPass(db)` — query `pending_cloud_sync = 1`, map local `pet_ids` → `remotePetId`, call `upsert-reminder`; `pullRemoteReminders(db)` — fetch `get-reminders`, map `remote_pet_ids` → local pet IDs, upsert rows, call `rescheduleAll`
+- [ ] **3.11.19** Wire `runReminderSyncPass` into main cloud sync runner; call `pullRemoteReminders` in auth bootstrap after `pullRemotePetProfile` completes
+- [ ] **3.11.20** Backend — Supabase migration: `reminders` + `reminder_completions` Postgres tables with RLS (users see own rows); index on `(app_user_id, deleted_at, scheduled_at)`; update `docs/architecture/database-schema-ledger.md`
+- [ ] **3.11.21** Backend — handlers for `upsert-reminder`, `delete-reminder`, `complete-reminder-pet`, `get-reminders` in `api-pet`; wire to router; unit tests for upload pass + restore path
+
 ### Phase 3 — notes & decisions
 
 - 2026-06-06: Phase 0 wrapped. Remaining detection model evaluation moved to Phase 3 model readiness; the final manual/performance wrap-up checks moved to release readiness.

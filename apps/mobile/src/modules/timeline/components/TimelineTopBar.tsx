@@ -28,14 +28,14 @@ function createTimelineTopBarStyles({
   return {
     bar: {
       backgroundColor: colors.surface,
-      elevation: 2,
-      paddingBottom: spacing.sm,
-      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xs,
+      paddingLeft: 11,
+      paddingRight: spacing.lg,
       zIndex: 20,
     },
     wordmark: {
-      height: 22,
-      width: 52,
+      height: 36,
+      width: 84,
     },
     row: {
       alignItems: 'center' as const,
@@ -47,7 +47,7 @@ function createTimelineTopBarStyles({
       alignItems: 'flex-start' as const,
       justifyContent: 'center' as const,
       minHeight: MIN_TOUCH_TARGET,
-      width: MIN_TOUCH_TARGET,
+      width: 84,
       zIndex: 1,
     },
     sideRight: {

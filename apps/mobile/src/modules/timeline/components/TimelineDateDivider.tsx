@@ -17,7 +17,7 @@ function createTimelineDateDividerStyles({
     row: {
       alignItems: 'center' as const,
       flexDirection: 'row' as const,
-      gap: spacing.md,
+      gap: 12,
       paddingHorizontal: spacing.md,
     },
     label: {
@@ -25,7 +25,7 @@ function createTimelineDateDividerStyles({
       fontFamily: getFontFamily('600'),
       fontSize: 12,
       fontWeight: '600' as const,
-      letterSpacing: 0.6,
+      letterSpacing: 0.24,
       textTransform: 'uppercase' as const,
     },
     line: {

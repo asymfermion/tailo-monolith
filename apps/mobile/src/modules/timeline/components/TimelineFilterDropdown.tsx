@@ -49,9 +49,9 @@ function createTimelineFilterDropdownStyles({
       borderColor: colors.border,
       borderRadius: 999,
       borderWidth: 1,
-      height: MIN_TOUCH_TARGET,
+      height: 40,
       justifyContent: 'center' as const,
-      width: MIN_TOUCH_TARGET,
+      width: 40,
     },
     triggerPressed: {
       opacity: 0.7,
@@ -167,7 +167,7 @@ export function TimelineFilterDropdown({
           ]}
           onPress={toggleOpen}
         >
-          <Ionicons color={colors.accent} name="filter" size={18} />
+          <Ionicons color={colors.accent} name="filter" size={22} />
           {value === 'favorites' ? <View style={styles.activeDot} /> : null}
         </Pressable>
       </View>

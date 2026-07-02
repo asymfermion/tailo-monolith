@@ -1,6 +1,6 @@
 # Phase 1 — Local MVP
 
-**Status:** In progress  
+**Status:** Complete  
 **Goal:** Local-first product shell — identity, onboarding, promoted events, timeline polish — **still no backend**  
 **Builds on:** [phase-0-local-spike.md](./phase-0-local-spike.md)
 
@@ -210,16 +210,11 @@ Camera permission is **separate** from photo library — capture works when libr
 
 ---
 
-## Planned (not yet documented in depth)
-
-- **1.6** Phase 1 QA wrap-up
-
----
-
 ## Change log
 
 | Date       | Change                                                                                                                                                            |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-29 | Phase 1 marked complete; removed placeholder "Planned" section                                                                                                    |
 | 2026-05-19 | Incremental photo scan on app open/foreground: `createdAfter` from newest timeline moment + `last_scan_timestamp`; initial empty library still uses 28-day window |
 | 2026-05-24 | Passive onboarding/incremental detection now promotes at most one auto-detected moment per UTC day per detected pet type; future paid tiers may relax this limit  |
 | 2026-05-20 | Added on-device locale switching: English default + Simplified Chinese option in Settings, backed by `src/i18n/` and local persisted app locale                   |

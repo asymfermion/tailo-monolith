@@ -16,6 +16,7 @@ import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { spacing } from '@/constants/theme';
+import { getFontFamilyForStyle } from '@/constants/typography';
 import { formatEventType, formatTimestamp } from '@/lib/formatMoment';
 import { t } from '@/i18n';
 import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
@@ -26,16 +27,21 @@ import { shouldContainMomentImage } from './momentImageFit';
 import {
   EXPORT_BACKGROUND,
   EXPORT_BORDER,
+  EXPORT_METADATA_FONT_SIZE,
+  EXPORT_METADATA_LINE_HEIGHT,
   EXPORT_MUTED_TEXT,
   EXPORT_PREVIEW_HEIGHT,
   EXPORT_PREVIEW_WIDTH,
   EXPORT_SPECKLES,
   EXPORT_SURFACE,
   EXPORT_TEXT,
+  EXPORT_WATERMARK_HEIGHT,
+  EXPORT_WATERMARK_WIDTH,
   getShareMomentExportLayout,
   getShareMomentExportMedia,
   scaleExport,
   type ShareMomentExportFrame,
+  type ShareMomentExportLayout,
 } from './shareMomentExportLayout';
 
 const wordmarkSource = require('../../../assets/auth/tailo-wordmark-dark-transparent.png');
@@ -95,19 +101,19 @@ function createShareMomentSheetStyles({
     preview: {
       backgroundColor: EXPORT_BACKGROUND,
       borderColor: EXPORT_BORDER,
-      borderRadius: scaleExport(21),
-      borderWidth: 1.2,
+      borderRadius: scaleExport(25.214),
+      borderWidth: scaleExport(1.401),
       height: EXPORT_PREVIEW_HEIGHT,
-      marginTop: 13,
+      marginTop: 12,
       overflow: 'hidden' as const,
       width: EXPORT_PREVIEW_WIDTH,
     },
     previewSpeckle: {
       backgroundColor: 'rgba(21, 20, 18, 0.07)',
       borderRadius: 1,
-      height: 2,
+      height: scaleExport(2.802),
       position: 'absolute' as const,
-      width: 2,
+      width: scaleExport(2.802),
     },
     exportPhotoFrame: {
       backgroundColor: '#BCA888',
@@ -123,42 +129,27 @@ function createShareMomentSheetStyles({
     },
     exportTitle: {
       color: EXPORT_TEXT,
-      fontFamily: getFontFamily('600'),
-      fontSize: scaleExport(17),
-      fontWeight: '600' as const,
-      left: scaleExport(11),
-      lineHeight: scaleExport(22),
+      fontFamily: getFontFamilyForStyle('elegant', '500'),
+      fontWeight: '500' as const,
       position: 'absolute' as const,
-      top: scaleExport(407),
-      width: scaleExport(279),
     },
     exportCaption: {
       color: EXPORT_TEXT,
       fontFamily: getFontFamily('500'),
-      fontSize: scaleExport(10),
       fontWeight: '500' as const,
-      left: scaleExport(11),
-      lineHeight: scaleExport(14),
       position: 'absolute' as const,
-      top: scaleExport(437),
-      width: scaleExport(279),
     },
     exportMetadata: {
       color: EXPORT_MUTED_TEXT,
       fontFamily: getFontFamily('400'),
-      fontSize: scaleExport(8),
-      left: scaleExport(11),
-      lineHeight: scaleExport(12),
+      fontSize: EXPORT_METADATA_FONT_SIZE,
+      lineHeight: EXPORT_METADATA_LINE_HEIGHT,
       position: 'absolute' as const,
-      top: scaleExport(485),
-      width: scaleExport(145),
     },
     previewWatermark: {
-      height: scaleExport(17),
-      left: scaleExport(250),
+      height: EXPORT_WATERMARK_HEIGHT,
       position: 'absolute' as const,
-      top: scaleExport(496),
-      width: scaleExport(40),
+      width: EXPORT_WATERMARK_WIDTH,
     },
     button: {
       alignItems: 'center' as const,
@@ -191,49 +182,11 @@ function createShareMomentSheetStyles({
       fontWeight: '600' as const,
       lineHeight: 22,
     },
-    controls: {
-      backgroundColor: EXPORT_SURFACE,
-      borderTopColor: EXPORT_BORDER,
-      borderTopWidth: 1,
-      height: 111,
-      paddingHorizontal: 20,
-      width: '100%' as const,
-    },
-    controlRow: {
-      alignItems: 'flex-start' as const,
-      flexDirection: 'row' as const,
-      height: 51,
-      justifyContent: 'space-between' as const,
-      paddingTop: 13,
-    },
-    controlDivider: {
-      backgroundColor: EXPORT_BORDER,
-      height: 1,
-      width: '100%' as const,
-    },
-    controlLabel: {
-      color: EXPORT_MUTED_TEXT,
-      fontFamily: getFontFamily('600'),
-      fontSize: 11,
-      fontWeight: '600' as const,
-      lineHeight: 15,
-    },
-    controlValue: {
-      color: EXPORT_TEXT,
-      fontFamily: getFontFamily('600'),
-      fontSize: 14,
-      fontWeight: '600' as const,
-      lineHeight: 20,
-    },
-    controlValueWrap: {
-      alignItems: 'center' as const,
-      flexDirection: 'row' as const,
-      gap: spacing.sm,
-    },
     actions: {
       backgroundColor: EXPORT_SURFACE,
       borderTopColor: EXPORT_BORDER,
       borderTopWidth: 1,
+      height: 86,
       paddingHorizontal: 20,
       paddingTop: 11,
       width: '100%' as const,
@@ -241,14 +194,6 @@ function createShareMomentSheetStyles({
     actionRow: {
       flexDirection: 'row' as const,
       gap: 17,
-    },
-    footer: {
-      color: EXPORT_MUTED_TEXT,
-      fontFamily: getFontFamily('400'),
-      fontSize: 11,
-      lineHeight: 15,
-      marginTop: spacing.xs,
-      textAlign: 'center' as const,
     },
   };
 }
@@ -320,7 +265,6 @@ export function ShareMomentSheet({
         mimeType: 'image/jpeg',
         dialogTitle: t('timeline.moment.share'),
       });
-      onClose();
     } catch (error) {
       logTailo('Sync', 'Failed to share moment image to another app', {
         message: error instanceof Error ? error.message : String(error),
@@ -332,13 +276,14 @@ export function ShareMomentSheet({
     } finally {
       setBusy(null);
     }
-  }, [busy, captureMoment, onClose]);
+  }, [busy, captureMoment]);
 
   if (!event) {
     return null;
   }
 
   const exportMedia = getShareMomentExportMedia(event.media);
+  const exportLayout = getShareMomentExportLayout(exportMedia.length);
   const exportPhotoCountLabel =
     exportMedia.length === 1
       ? t('timeline.moment.photoCountSingle')
@@ -380,70 +325,70 @@ export function ShareMomentSheet({
                 ]}
               />
             ))}
-            <ShareMomentExportPhotos media={exportMedia} styles={styles} />
-            <Text numberOfLines={2} style={styles.exportTitle}>
+            <ShareMomentExportPhotos
+              layout={exportLayout}
+              media={exportMedia}
+              styles={styles}
+            />
+            <Text
+              numberOfLines={2}
+              style={[
+                styles.exportTitle,
+                {
+                  fontSize: exportLayout.text.titleFontSize,
+                  left: exportLayout.text.textLeft,
+                  lineHeight: exportLayout.text.titleLineHeight,
+                  top: exportLayout.text.titleTop,
+                  width: exportLayout.text.titleWidth,
+                },
+              ]}
+            >
               {formatEventType(event.eventType)}
             </Text>
             {event.caption ? (
-              <Text numberOfLines={2} style={styles.exportCaption}>
+              <Text
+                numberOfLines={2}
+                style={[
+                  styles.exportCaption,
+                  {
+                    fontSize: exportLayout.text.captionFontSize,
+                    left: exportLayout.text.textLeft,
+                    lineHeight: exportLayout.text.captionLineHeight,
+                    top: exportLayout.text.captionTop,
+                    width: exportLayout.text.captionWidth,
+                  },
+                ]}
+              >
                 {event.caption}
               </Text>
             ) : null}
-            <Text style={styles.exportMetadata}>
+            <Text
+              style={[
+                styles.exportMetadata,
+                {
+                  left: exportLayout.text.textLeft,
+                  top: exportLayout.text.metadataTop,
+                  width: exportLayout.text.metadataWidth,
+                },
+              ]}
+            >
               {formatTimestamp(event.timestamp)} · {exportPhotoCountLabel}
             </Text>
             <Image
               contentFit="contain"
               source={wordmarkSource}
-              style={styles.previewWatermark}
+              style={[
+                styles.previewWatermark,
+                {
+                  left: exportLayout.text.watermarkLeft,
+                  top: exportLayout.text.watermarkTop,
+                },
+              ]}
             />
           </View>
         </View>
 
-        <View style={styles.controls}>
-          <View style={styles.controlRow}>
-            <Text style={styles.controlLabel}>
-              {t('timeline.moment.shareFormatLabel')}
-            </Text>
-            <View style={styles.controlValueWrap}>
-              <Text style={styles.controlValue}>
-                {t('timeline.moment.shareStoryFormat')}
-              </Text>
-              <Ionicons
-                color={EXPORT_MUTED_TEXT}
-                name="chevron-forward"
-                size={18}
-              />
-            </View>
-          </View>
-          <View style={styles.controlDivider} />
-          <View style={styles.controlRow}>
-            <Text style={styles.controlLabel}>
-              {t('timeline.moment.sharePhotosLabel')}
-            </Text>
-            <View style={styles.controlValueWrap}>
-              <Text style={styles.controlValue}>
-                {t('timeline.moment.shareSelectedPhotos', {
-                  count: String(exportMedia.length),
-                })}
-              </Text>
-              <Ionicons
-                color={EXPORT_MUTED_TEXT}
-                name="chevron-forward"
-                size={18}
-              />
-            </View>
-          </View>
-        </View>
-
-        <View
-          style={[
-            styles.actions,
-            {
-              paddingBottom: insets.bottom,
-            },
-          ]}
-        >
+        <View style={styles.actions}>
           <View style={styles.actionRow}>
             <Pressable
               accessibilityLabel={t('timeline.moment.shareSaveAction')}
@@ -491,10 +436,6 @@ export function ShareMomentSheet({
               )}
             </Pressable>
           </View>
-
-          <Text style={styles.footer}>
-            {t('timeline.moment.shareNothingPosted')}
-          </Text>
         </View>
       </View>
     </Modal>
@@ -502,22 +443,22 @@ export function ShareMomentSheet({
 }
 
 type ShareMomentExportPhotosProps = {
+  layout: ShareMomentExportLayout;
   media: TimelineEventMedia[];
   styles: ReturnType<typeof createShareMomentSheetStyles>;
 };
 
 function ShareMomentExportPhotos({
+  layout,
   media,
   styles,
 }: ShareMomentExportPhotosProps) {
-  const layout = getShareMomentExportLayout(media.length);
-
   return (
     <>
       {media.map((item, index) => (
         <ShareMomentExportPhoto
           key={item.localAssetId}
-          frame={layout[index]}
+          frame={layout.photos[index]}
           item={item}
           styles={styles}
         />
@@ -542,10 +483,13 @@ function ShareMomentExportPhoto({
   }
 
   const source = { uri: item.uri };
+  const { contentFit, ...frameStyle } = frame;
+  const shouldContain =
+    contentFit === 'contain' || (!contentFit && shouldContainMomentImage(item));
 
   return (
-    <View style={[styles.exportPhotoFrame, frame]}>
-      {shouldContainMomentImage(item) ? (
+    <View style={[styles.exportPhotoFrame, frameStyle]}>
+      {shouldContain ? (
         <>
           <Image
             blurRadius={18}

@@ -1,12 +1,12 @@
 /** Sign-in gate after logout and welcome-modal sign-in. */
 export const signInMessages = {
   title: 'Sign in to Tailo',
-  body: 'Your memories are on this device. Sign in with the email on your account to open Tailo again.',
+  body: 'Your moments are on this device. Sign in with the email on your account to open Tailo again.',
   welcomeTitle: 'Sign in to your account',
   welcomeBody:
-    'Use the email on your Tailo account to pick up your saved memories on this device.',
+    'Use the email on your Tailo account to pick up your saved moments on this device.',
   hifiTitle: 'Welcome back.',
-  hifiBody: "Sign in to continue your pet's story.",
+  hifiBody: "Sign in to continue your pet's moments.",
   heroAccessibilityLabel: 'Golden-hour dog photo collage',
   emailAddressLabel: 'Email',
   signIn: 'Sign in',

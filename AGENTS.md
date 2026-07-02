@@ -24,20 +24,20 @@ If a lower-priority instruction conflicts with Tailo product scope, follow Tailo
 
 ## Project summary
 
-Tailo is a passive pet memory app.
+Tailo is a passive pet moment app.
 
 Core flow:
 
 1. Scan recent photos locally.
 2. Detect pet-related moment candidates.
 3. Group candidates into timeline events.
-4. Show a calm, memory-like timeline.
+4. Show a calm, moment-like timeline.
 
 Product feel:
 
 - Passive-first, not manual logging-first.
 - AI should feel invisible.
-- Use language like “moments” and “memories”, not “AI assistant”.
+- Use language like “moments”, not “story”, “memory”, or “AI assistant”.
 - Sharing, when added, should be export-based, not a social feed.
 
 ---
@@ -186,7 +186,7 @@ Acceptable copy:
 
 - “Tailo looks for pet moments on your device.”
 - “Only selected moments are saved.”
-- “A quiet memory from today.”
+- “A quiet moment from today.”
 
 Avoid copy such as:
 
@@ -499,14 +499,14 @@ Before making UI or UX changes, read `docs/UI_AGENTS.md`.
 
 Use the selected sketch images in `docs/UI/sketches/` as the visual source of truth for proportion, hierarchy, spacing, and overall feel.
 
-Tailo is a memory-first pet story app.
+Tailo is a moment-first pet app.
 
 Prioritize:
 
 - Photos
-- Story
+- Moments
 - Simplicity
-- Fast path to first memory
+- Fast path to first moment
 - Anonymous-first usage
 - Privacy by default
 
@@ -522,8 +522,7 @@ Avoid:
 
 Use user-facing language like:
 
-- Story
-- Memory
+- Moments
 - Life with Link
 - Highlights
 - Recap
@@ -543,7 +542,7 @@ Implementation guidance:
 - Keep internal type names unless a refactor is explicitly requested.
 - Do not add Save buttons to pet profile editing; use auto-save.
 - Do not force account creation before the user sees value.
-- Keep hero photos visually clean; do not place full transparent text covers over every memory image.
+- Keep hero photos visually clean; do not place full transparent text covers over every moment image.
 
 ---
 
@@ -600,3 +599,4 @@ Ask before:
 - product features outside the current scope
 
 If the task can proceed safely with a small local decision, make the smallest reasonable choice and state it in the summary.
+AGENTS.md 

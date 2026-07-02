@@ -151,7 +151,7 @@ describe('notificationRepository', () => {
     await insertNotification(db, {
       notificationId: 'notif-a',
       kind: 'account_reminder',
-      title: 'Save your memories',
+      title: 'Save your moments',
       body: 'Connect your account.',
       source: 'account',
       target: { type: 'account_settings', mode: 'link' },
@@ -186,7 +186,7 @@ describe('notificationRepository', () => {
     await insertNotification(db, {
       notificationId: 'notif-upgrade-a',
       kind: 'account_reminder',
-      title: 'Save your memories',
+      title: 'Save your moments',
       body: 'Connect your account.',
       source: 'account',
       target: { type: 'account_settings', mode: 'link' },

@@ -19,14 +19,14 @@ Read this doc when working on:
 
 ## Product feel
 
-Tailo is a memory-first pet story app. The UI should feel warm, calm, and photo-first — closer to Apple Journal or a printed photo book than a SaaS dashboard or tracker.
+Tailo is a moment-first pet app. The UI should feel warm, calm, and photo-first — closer to Apple Journal or a printed photo book than a SaaS dashboard or tracker.
 
-Before adding any UI element, ask: does this serve the photo/story hierarchy, or does it add chrome?
+Before adding any UI element, ask: does this serve the photo/moment hierarchy, or does it add chrome?
 
 The product hierarchy is:
 
 1. Photos
-2. Story
+2. Moments
 3. Metadata
 4. Settings
 
@@ -101,7 +101,7 @@ Token reference (matches `theme.ts`):
 | `textMuted`       | `#6F665D` | `#B5ACA2` | Secondary text, captions         |
 | `accent`          | `#151412` | `#F6EFE7` | Selected states, active icons    |
 | `border`          | `#E7DDD2` | `#332F2A` | Input borders, separators        |
-| `timelineDivider` | `#D8CBBE` | `#413A33` | Story feed section dividers      |
+| `timelineDivider` | `#D8CBBE` | `#413A33` | Moment feed section dividers     |
 | `destructive`     | `#9A3E32` | `#DA8A7E` | Delete and destructive actions   |
 
 Do not use green or blue as the default UI accent. The accent is ink (`text`), not a chromatic color.
@@ -119,8 +119,8 @@ Recommended font sizes:
 | Hero title     | 34–40 |
 | Screen title   | 30–34 |
 | Section header | 18–22 |
-| Memory title   | 20–28 |
-| Body / story   | 15–17 |
+| Moment title   | 20–28 |
+| Body           | 15–17 |
 | Metadata       | 12–14 |
 
 Use font weight sparingly. Prefer size, whitespace, and photo hierarchy over bold weight to create emphasis.
@@ -153,7 +153,7 @@ Before finishing a screen, check that the layout works on:
 
 ## Navigation patterns
 
-The app uses three primary tabs: Story, Pet, Settings. The tab bar is a floating glass pill.
+The app uses three primary tabs: Moments, Pet, Settings. The tab bar is a floating glass pill.
 
 Rules:
 
@@ -161,7 +161,7 @@ Rules:
 2. **Screens pushed within a tab** use modal or stack presentation from `ModalShell` or the existing stack navigators.
 3. **Apply `getTabScreenTopPadding`** to the top of tab-root screens so content clears the status bar correctly.
 4. **Apply `useTabBarContentInset`** to scroll content bottom so it clears the floating tab bar.
-5. **Do not add a persistent FAB to the bottom navigation.** Tailo is passive-memory-first; prominent manual creation CTAs contradict the product feel. Manual actions belong in screen headers or contextual menus.
+5. **Do not add a persistent FAB to the bottom navigation.** Tailo is passive-moment-first; prominent manual creation CTAs contradict the product feel. Manual actions belong in screen headers or contextual menus.
 
 ---
 
@@ -177,27 +177,26 @@ Rules:
 
 ---
 
-## Memory cards and photo display
+## Moment cards and photo display
 
 Rules:
 
-1. **Hero photos stay visually clean.** Do not place a full transparent text overlay over every memory image. Story text and titles belong in the card body below the image.
+1. **Hero photos stay visually clean.** Do not place a full transparent text overlay over every moment image. Moment text and titles belong in the card body below the image.
 2. **Image corner radius:** 16–24pt.
-3. **Do not build metadata-first cards.** Lead with the photo, follow with title and story text, put date/count at the bottom.
-4. **Do not use compact database list rows** for memories. The feed is editorial, not tabular.
+3. **Do not build metadata-first cards.** Lead with the photo, follow with title and moment text, put date/count at the bottom.
+4. **Do not use compact database list rows** for moments. The feed is editorial, not tabular.
 
 ---
 
 ## User-facing language
 
-Use story-first language. Match the product vocabulary.
+Use moment-first language. Match the product vocabulary.
 
-| Use                              | Avoid                        |
-| -------------------------------- | ---------------------------- |
-| Story, Memory, Memories          | Timeline Event, Record, Log  |
-| Moments                          | Activities, Database entries |
-| Life with [pet name], Highlights | Dashboard, Summary           |
-| Keep [pet]'s story safe forever  | Sign up to unlock            |
+| Use                              | Avoid                       |
+| -------------------------------- | --------------------------- |
+| Moment, Moments                  | Timeline Event, Record, Log |
+| Life with [pet name], Highlights | Dashboard, Summary          |
+| Keep [pet]'s moments safe        | Sign up to unlock           |
 
 Internal type names (`TimelineEvent`, `LocalPetProfile`) may stay as-is until a refactor is explicitly requested. This rule is about user-visible strings.
 
@@ -209,7 +208,7 @@ Do not add the following without explicit product approval:
 
 - A fourth top-level tab
 - A persistent large FAB in the bottom navigation area
-- Full transparent text covers over hero memory images
+- Full transparent text covers over hero moment images
 - Dashboard-style metric cards or stat grids
 - Dense metadata rows as the primary content pattern
 - Green or blue as the default UI accent color
@@ -244,12 +243,12 @@ npm run format:check
 - [ ] No `colors` (deprecated export) — use `useThemeColors()`.
 - [ ] No magic spacing numbers — use `spacing.*` from `theme.ts`.
 - [ ] No `Dimensions.get('window')` for layout math when a helper exists.
-- [ ] No full transparent text overlay covering hero memory images.
+- [ ] No full transparent text overlay covering hero moment images.
 - [ ] No Save button on forms that should auto-save.
 - [ ] No green or blue as the default accent color.
 - [ ] No new top-level tab without product approval.
 - [ ] No persistent FAB placed above the bottom tab bar.
 - [ ] Bottom scroll content uses `useTabBarContentInset` to clear the floating tab bar.
 - [ ] Tab-root screens use `getTabScreenTopPadding` for top inset.
-- [ ] User-facing strings use story-first language (Story, Memory, Moments — not Event, Log, Record).
+- [ ] User-facing strings use moment-first language (Moment, Moments — not Story, Memory, Event, Log, Record).
 - [ ] Layout checked at compact width (375pt) and large width (430pt+).

@@ -1,6 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
 
-import { spacing } from '@/constants/theme';
 import { t, useAppLocale } from '@/i18n';
 import { useThemedStyles, type AppearanceContextValue } from '@/lib/appearance';
 import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
@@ -16,19 +15,19 @@ function createCaptureFabStyles({
   return {
     container: {
       position: 'absolute' as const,
-      right: spacing.lg,
+      right: 20,
     },
     button: {
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
       backgroundColor: colors.accent,
       shadowColor: colors.shadow,
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.22,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 6 },
       elevation: 4,
     },
     icon: {

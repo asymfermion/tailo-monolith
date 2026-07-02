@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 
+pipelines/
+
 # Expo / React Native
 .expo/
 dist/

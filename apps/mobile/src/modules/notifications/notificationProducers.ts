@@ -75,7 +75,7 @@ export async function createAccountReminderNotification(): Promise<void> {
     idParts: ['account-reminder', Date.now()],
     kind: 'account_reminder',
     source: 'account',
-    title: 'Save your memories',
+    title: 'Save your moments',
     body: 'Connect an account to keep your moments safe across devices.',
     target: { type: 'account_settings', mode: 'link' },
     dedupeWindowSeconds: RECENT_WINDOW_SECONDS.accountReminder,

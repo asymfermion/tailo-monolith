@@ -26,7 +26,6 @@ import {
   useThemedStyles,
   type AppearanceContextValue,
 } from '@/lib/appearance';
-import { getTabScreenTopPadding } from '@/navigation/modalHeaderInset';
 import { useNavigation } from '@/navigation/NavigationContext';
 import { useTabBarContentInset } from '@/navigation/useTabBarInsets';
 import { SaveMemoriesLink } from '@/modules/auth';
@@ -111,6 +110,7 @@ function createTimelineScreenStyles({
     listContent: {
       flexGrow: 1,
       backgroundColor: colors.surface,
+      paddingTop: spacing.xs,
     },
     momentSeparator: {
       backgroundColor: colors.timelineDivider,
@@ -118,23 +118,33 @@ function createTimelineScreenStyles({
       marginHorizontal: spacing.md,
     },
     header: {
-      gap: spacing.sm,
-      paddingBottom: spacing.lg,
+      minHeight: 42,
+      paddingBottom: spacing.xs,
       paddingHorizontal: spacing.md,
-      paddingTop: spacing.lg,
+      paddingTop: spacing.xs,
+    },
+    feedTitleRow: {
+      minHeight: 34,
+      position: 'relative' as const,
     },
     feedTitle: {
       color: colors.text,
-      fontFamily: getFontFamily('600'),
-      fontSize: 34,
-      fontWeight: '600' as const,
-      lineHeight: 40,
+      fontFamily: getFontFamily('700'),
+      fontSize: 30,
+      fontWeight: '700' as const,
+      lineHeight: 34,
+      paddingRight: 108,
     },
     feedSubtitle: {
+      position: 'absolute' as const,
+      right: 0,
+      top: 8,
       color: colors.textMuted,
       fontFamily: getFontFamily('400'),
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 13,
+      lineHeight: 20,
+      textAlign: 'right' as const,
+      width: 98,
     },
     backfillTip: {
       borderRadius: 8,
@@ -198,7 +208,7 @@ function createTimelineScreenStyles({
 export function TimelineScreen() {
   const locale = useAppLocale();
   const insets = useSafeAreaInsets();
-  const topPadding = getTabScreenTopPadding(insets.top);
+  const topPadding = insets.top;
   const navigation = useNavigation();
   const tabBarContentInset = useTabBarContentInset();
   const account = useAuthAccountStatus();
@@ -591,7 +601,7 @@ function TimelineHeader({
 
   return (
     <View style={styles.header}>
-      <View>
+      <View style={styles.feedTitleRow}>
         <Text style={styles.feedTitle}>
           {t('timeline.feed.title', { name: displayName })}
         </Text>
